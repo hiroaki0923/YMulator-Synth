@@ -1,0 +1,46 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE specific (but include our VSCode config)
+!.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Audio Unit build artifacts
+*.component/
+*.vst3/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# JUCE specific
+JuceLibraryCode/
+Builds/
+
+# Dependencies (will be managed by CMake/submodules)
+libs/
+# ymfm will be added as submodule
+third_party/*
+!third_party/ymfm
+!third_party/CMakeLists.txt

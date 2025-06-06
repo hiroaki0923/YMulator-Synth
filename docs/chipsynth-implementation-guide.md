@@ -250,25 +250,54 @@ void setOperatorParams(uint8_t ch, uint8_t op, const OperatorParams& params) {
 ```
 ChipSynth-AU/
 ├── CMakeLists.txt          # ルートCMake設定
-├── .vscode/                # VSCode設定
-│   ├── settings.json
-│   ├── launch.json         # デバッグ設定
-│   └── tasks.json          # ビルドタスク
-├── external/               # 外部ライブラリ
-│   ├── JUCE/              # JUCEフレームワーク
-│   └── ymfm/              # ymfmライブラリ
-├── src/
-│   ├── PluginProcessor.cpp
-│   ├── PluginEditor.cpp
-│   ├── ymfm/              # ymfmラッパー
-│   └── dsp/               # 音声処理
+├── CLAUDE.md               # Claude Code開発ガイド
+├── .gitignore             # Git除外設定
+├── .vscode/               # VSCode設定
+│   ├── settings.json      # エディタ設定
+│   ├── tasks.json         # ビルドタスク
+│   └── extensions.json    # 推奨拡張機能
+├── cmake/                 # CMakeモジュール
+│   ├── CMakeLists.txt
+│   ├── JUCEConfig.cmake   # JUCE設定
+│   └── CompilerWarnings.cmake
+├── src/                   # ソースコード
+│   ├── PluginProcessor.h/.cpp  # メインプロセッサ
+│   ├── PluginEditor.h/.cpp     # UI編集画面
+│   ├── core/              # コア機能
+│   │   ├── FMCore.h/.cpp
+│   │   └── VoiceManager.h/.cpp
+│   ├── dsp/               # デジタル信号処理
+│   │   ├── YmfmWrapper.h/.cpp
+│   │   └── EnvelopeGenerator.h/.cpp
+│   ├── ui/                # ユーザーインターフェース
+│   │   ├── MainComponent.h/.cpp
+│   │   └── OperatorPanel.h/.cpp
+│   └── utils/             # ユーティリティ
+│       └── PresetManager.h/.cpp
+├── third_party/           # 外部ライブラリ
+│   ├── CMakeLists.txt
+│   └── ymfm/              # ymfmサブモジュール
 ├── tests/                 # テストコード
-│   ├── unit/
-│   ├── integration/
-│   └── performance/
-└── resources/             # リソースファイル
-    └── presets/
+│   ├── CMakeLists.txt
+│   └── test_main.cpp
+├── docs/                  # ドキュメント
+│   ├── chipsynth-adr.md
+│   ├── chipsynth-design-main.md
+│   ├── chipsynth-implementation-guide.md
+│   └── chipsynth-technical-spec.md
+├── include/               # ヘッダーファイル（予約）
+├── resources/             # リソースファイル（予約）
+└── build/                 # ビルド出力（.gitignoreで除外）
+    └── _deps/             # CMake依存関係（JUCE等）
+        └── juce-src/      # JUCEソースコード（自動ダウンロード）
 ```
+
+**重要な変更点:**
+- **JUCE**: CMakeのFetchContentで自動ダウンロード（`build/_deps/juce-src/`）
+- **ymfm**: Gitサブモジュールとして管理（`third_party/ymfm/`）
+- **CMake構造**: モジュール化された設定ファイル
+- **ソースファイル**: 機能別ディレクトリ構造
+- **VSCode設定**: CMake Tools対応
 
 #### 1.4.3 CMakeLists.txt
 ```cmake

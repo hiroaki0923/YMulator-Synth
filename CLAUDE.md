@@ -2,6 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL: ALWAYS READ RELEVANT DOCUMENTATION FIRST
+
+**BEFORE starting ANY development task, you MUST:**
+
+1. **Read the relevant sections in docs/** - These contain detailed specifications and implementation guides
+2. **Follow the exact procedures** described in the documentation
+3. **Reference the docs/** when making architectural decisions
+
+**Key documents to consult:**
+
+- **Setup/Development**: `docs/chipsynth-implementation-guide.md` section 1.4 (MANDATORY for any setup work)
+- **Architecture Decisions**: `docs/chipsynth-adr.md` (consult before making design choices)
+- **Technical Specifications**: `docs/chipsynth-technical-spec.md` (for MIDI, parameters, formats)
+- **Overall Design**: `docs/chipsynth-design-main.md` (for system architecture)
+
+**❌ DO NOT:**
+- Skip reading documentation before implementation
+- Deviate from documented procedures without justification
+- Make architectural decisions without consulting ADRs
+
+**✅ DO:**
+- Always reference specific document sections when implementing
+- Follow documented naming conventions and structures
+- Consult technical specs for exact parameter ranges and formats
+
 ## Project Overview
 
 ChipSynth-AU is a modern FM synthesis Audio Unit plugin for macOS that emulates classic Yamaha sound chips (YM2151/OPM and YM2608/OPNA). It features a VOPM-like interface and is designed for use in Digital Audio Workstations.
@@ -56,7 +81,7 @@ killall -9 AudioComponentRegistrar
 log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 ```
 
-For detailed development setup, see [Implementation Guide](docs/chipsynth-implementation-guide.md#14-開発環境セットアップvscode--cmake).
+**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.4](docs/chipsynth-implementation-guide.md#14-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
 
 ## Architecture
 
@@ -79,11 +104,14 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 ## Key Implementation Notes
 
-- **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples (see [ADR-008](docs/chipsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計))
-- **MIDI CC Mapping**: Full VOPMex compatibility (see [Technical Spec](docs/chipsynth-technical-spec.md#15-midi実装仕様))
-- **Preset Format**: .opm files with standard VOPM structure (see [Implementation Guide](docs/chipsynth-implementation-guide.md#17-opmファイルフォーマット仕様))
-- **Recording**: S98 format for chiptune player compatibility (see [ADR-003](docs/chipsynth-adr.md#adr-003-音声記録フォーマットの選定))
+**⚠️ BEFORE implementing any features, READ the relevant documentation sections:**
+
+- **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples → **MUST READ** [ADR-008](docs/chipsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計)
+- **MIDI CC Mapping**: Full VOPMex compatibility → **MUST READ** [Technical Spec Section 1.5](docs/chipsynth-technical-spec.md#15-midi実装仕様)
+- **Preset Format**: .opm files with VOPM structure → **MUST READ** [Implementation Guide Section 1.7](docs/chipsynth-implementation-guide.md#17-opmファイルフォーマット仕様)
+- **Recording**: S98 format for chiptune player compatibility → **MUST READ** [ADR-003](docs/chipsynth-adr.md#adr-003-音声記録フォーマットの選定)
 - **Voice Count**: YM2151 (8 channels), YM2608 (6 FM + 3 SSG channels)
+- **Threading Model**: Lock-free real-time processing → **MUST READ** [ADR-009](docs/chipsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針)
 
 ## Performance Targets
 
@@ -94,12 +122,12 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 ## Testing
 
+**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.5](docs/chipsynth-implementation-guide.md#15-テスト戦略とテストコード) for test strategy and examples.**
+
 - Unit tests: Test individual components (operators, envelopes, LFOs)
-- Integration tests: MIDI processing and parameter updates
+- Integration tests: MIDI processing and parameter updates  
 - Performance tests: Verify < 3ms latency requirement
 - Audio Unit validation: Use `auval` before distribution
-
-For comprehensive test examples and strategies, see [Implementation Guide](docs/chipsynth-implementation-guide.md#15-テスト戦略とテストコード).
 
 ## Key Project Structure
 
