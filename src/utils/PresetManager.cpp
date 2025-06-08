@@ -196,6 +196,8 @@ int PresetManager::loadOPMFile(const juce::File& file)
     for (const auto& voice : voices)
     {
         auto preset = Preset::fromVOPM(voice);
+        // Offset OPM preset IDs to avoid conflict with factory presets
+        preset.id += NUM_FACTORY_PRESETS;
         validatePreset(preset);
         addPreset(preset);
         loaded++;
@@ -219,6 +221,8 @@ int PresetManager::loadBundledPresets()
         for (const auto& voice : voices)
         {
             auto preset = Preset::fromVOPM(voice);
+            // Offset OPM preset IDs to avoid conflict with factory presets
+            preset.id += NUM_FACTORY_PRESETS;
             validatePreset(preset);
             addPreset(preset);
             totalLoaded++;
