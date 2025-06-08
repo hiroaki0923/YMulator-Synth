@@ -15,6 +15,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_STANDALONE "Build standalone application" OFF)
 
+# Prevent system-wide installation by default
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/install" CACHE PATH "Install prefix" FORCE)
+endif()
+
 # Find packages
 find_package(PkgConfig REQUIRED)
 

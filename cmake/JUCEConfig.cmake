@@ -3,6 +3,9 @@
 
 include(FetchContent)
 
+# Prevent JUCE from trying to install system-wide
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
+
 # Download JUCE if not already present
 FetchContent_Declare(
     JUCE
