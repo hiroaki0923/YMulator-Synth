@@ -20,6 +20,7 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 
 ### 🎵 Professional Features
 - **8 Factory Presets**: Electric Piano, Bass, Brass, Strings, Lead, Organ, Bells, Init
+- **64 OPM Presets**: Bundled collection of classic FM sounds (⚠️ *currently under sound design refinement*)
 - **Full MIDI CC Support**: VOPMex-compatible CC mapping (14-62)
 - **Polyphonic voice allocation** with automatic voice stealing
 - **Enhanced presets** utilizing DT2, Key Scale, and Feedback for rich timbres
@@ -153,13 +154,17 @@ auval -v aumu ChpS Vend
 
 This project is actively developed with the following status:
 - **Phase 1 (Foundation)**: ✅ 100% Complete
-- **Phase 2 (Core Audio)**: 🔄 75% Complete (OPM focused)
-- **Overall Progress**: ~60% Complete
+- **Phase 2 (Core Audio)**: 🔄 80% Complete (OPM focused)
+- **Overall Progress**: ~65% Complete
 
 See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md) for detailed progress tracking.
 
+### Known Issues
+- **Preset Quality**: The 64 bundled OPM presets require sound design refinement for authentic instrument sounds
+- **Bell Instruments**: Marimba, Vibraphone, and similar percussive sounds need parameter optimization
+
 ### Roadmap
-- **Phase 2 Completion**: Enhanced UI features, preset management
+- **Phase 2 Completion**: Enhanced UI features, preset quality improvements
 - **Phase 3 (Future)**: YM2608 (OPNA) support, .opm file I/O, S98 export
 
 ## License

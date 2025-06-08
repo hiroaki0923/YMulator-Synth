@@ -8,8 +8,11 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
 {
     setupCCMapping();
     
+    // Initialize preset manager
+    presetManager.initialize();
+    
     // Load default preset (Init)
-    loadFactoryPreset(7); // Init preset
+    setCurrentPreset(7); // Init preset
 }
 
 ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
@@ -43,7 +46,7 @@ double ChipSynthAudioProcessor::getTailLengthSeconds() const
 
 int ChipSynthAudioProcessor::getNumPrograms()
 {
-    return NUM_FACTORY_PRESETS;
+    return presetManager.getNumPresets();
 }
 
 int ChipSynthAudioProcessor::getCurrentProgram()
@@ -53,29 +56,16 @@ int ChipSynthAudioProcessor::getCurrentProgram()
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
-    if (index >= 0 && index < NUM_FACTORY_PRESETS)
-    {
-        currentPreset = index;
-        loadFactoryPreset(index);
-        DBG("ChipSynth: Loaded factory preset " + juce::String(index) + ": " + getProgramName(index));
-    }
+    setCurrentPreset(index);
 }
 
 const juce::String ChipSynthAudioProcessor::getProgramName(int index)
 {
-    const juce::String presetNames[NUM_FACTORY_PRESETS] = {
-        "Electric Piano",
-        "Synth Bass", 
-        "Brass Section",
-        "String Pad",
-        "Lead Synth",
-        "Organ",
-        "Bells",
-        "Init"
-    };
-    
-    if (index >= 0 && index < NUM_FACTORY_PRESETS)
+    if (index >= 0 && index < presetManager.getNumPresets())
+    {
+        auto presetNames = presetManager.getPresetNames();
         return presetNames[index];
+    }
     
     return {};
 }
@@ -399,117 +389,61 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 }
 
 
-void ChipSynthAudioProcessor::loadFactoryPreset(int index)
+void ChipSynthAudioProcessor::setCurrentPreset(int index)
 {
-    // Factory preset data based on VOPM format specification
-    struct PresetData {
-        int algorithm, feedback;
-        struct { int ar, d1r, d2r, rr, d1l, tl, ks, mul, dt1, dt2; } op[4];
-    };
-    
-    const PresetData factoryPresets[NUM_FACTORY_PRESETS] = {
-        // Electric Piano - Algorithm 5 with feedback 7 for classic FM electric piano sound
-        // Uses DT2 variations to create natural chorusing and warmth
-        { 5, 7, {
-            {31, 14, 0, 7, 0, 32, 1, 1, 3, 1},  // OP1: carrier with slight KS and DT2 for warmth
-            {31, 5, 0, 7, 0, 45, 0, 1, 4, 2},   // OP2: modulator with DT1=4, DT2=2 for rich harmonics
-            {31, 7, 0, 7, 0, 50, 1, 1, 2, 0},   // OP3: modulator with DT1=2, KS=1 for brightness
-            {31, 9, 0, 7, 0, 55, 0, 1, 3, 1}    // OP4: modulator with DT2=1 for complexity
-        }},
-        
-        // Synth Bass - Enhanced with aggressive feedback and KS
-        { 7, 6, {
-            {31, 8, 0, 7, 0, 25, 3, 1, 3, 0},   // OP1: KS=3 for punch
-            {31, 8, 0, 7, 0, 60, 2, 1, 3, 0},   // OP2: KS=2
-            {31, 8, 0, 7, 0, 65, 1, 1, 3, 0},   // OP3: KS=1
-            {31, 8, 0, 7, 0, 70, 1, 1, 3, 0}    // OP4: KS=1
-        }},
-        
-        // Brass Section - Enhanced with varied DT2 for ensemble effect
-        { 4, 6, {
-            {31, 14, 6, 7, 1, 35, 2, 1, 3, 1},  // OP1: KS=2, DT2=1 for brightness
-            {31, 14, 3, 7, 1, 40, 2, 1, 2, 2},  // OP2: DT1=2, DT2=2 for spread
-            {31, 11, 11, 7, 1, 45, 1, 1, 4, 1}, // OP3: DT1=4, DT2=1 for character
-            {31, 14, 6, 7, 1, 50, 2, 1, 3, 0}   // OP4: KS=2 for definition
-        }},
-        
-        // String Pad - Enhanced with subtle DT2 variations
-        { 1, 2, {  // Increased feedback for warmth
-            {15, 7, 7, 1, 1, 25, 0, 1, 3, 1},   // OP1: DT2=1 for slight spread
-            {15, 4, 4, 1, 1, 30, 0, 1, 2, 2},   // OP2: DT1=2, DT2=2 for richness
-            {15, 7, 7, 1, 1, 35, 0, 1, 4, 1},   // OP3: DT1=4, DT2=1 for depth
-            {15, 4, 4, 1, 1, 40, 0, 1, 3, 0}    // OP4: standard tuning
-        }},
-        
-        // Lead Synth - Enhanced with sharp attack and DT2 character
-        { 7, 5, {  // Increased feedback for edge
-            {31, 6, 2, 7, 0, 30, 3, 1, 3, 0},   // OP1: KS=3 for attack sharpness
-            {31, 6, 2, 7, 0, 60, 2, 1, 2, 1},   // OP2: DT1=2, DT2=1 for character
-            {31, 6, 2, 7, 0, 65, 2, 1, 4, 2},   // OP3: DT1=4, DT2=2 for spread
-            {31, 6, 2, 7, 0, 70, 2, 1, 3, 0}    // OP4: KS=2
-        }},
-        
-        // Organ - Enhanced with harmonics and key scaling
-        { 7, 3, {  // Added feedback for organ character
-            {31, 0, 0, 7, 0, 40, 1, 2, 3, 0},   // OP1: MUL=2, KS=1 for fundamental
-            {31, 0, 0, 7, 0, 65, 1, 3, 3, 1},   // OP2: MUL=3, DT2=1 for 3rd harmonic
-            {31, 0, 0, 7, 0, 70, 0, 4, 3, 0},   // OP3: MUL=4 for 4th harmonic
-            {31, 0, 0, 7, 0, 75, 1, 5, 3, 1}    // OP4: MUL=5, DT2=1 for 5th harmonic
-        }},
-        
-        // Bells - Enhanced with complex DT2 relationships
-        { 1, 2, {  // Slight feedback for warmth
-            {31, 18, 0, 4, 3, 25, 2, 14, 3, 1}, // OP1: KS=2, DT2=1 for bell character
-            {31, 18, 0, 4, 3, 30, 1, 1, 2, 3},  // OP2: DT1=2, DT2=3 for inharmonicity
-            {31, 18, 0, 4, 3, 35, 1, 1, 4, 2},  // OP3: DT1=4, DT2=2 for complexity
-            {31, 18, 0, 4, 3, 40, 0, 1, 5, 1}   // OP4: DT1=5, DT2=1 for shimmer
-        }},
-        
-        // Init (basic sine wave) - Simple but with slight enhancements
-        { 7, 0, {
-            {31, 0, 0, 7, 0, 32, 0, 1, 3, 0},   // OP1: clean sine
-            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0},  // OP2-4: silent
-            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0},
-            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0}
-        }}
-    };
-    
-    if (index < 0 || index >= NUM_FACTORY_PRESETS) return;
-    
-    const auto& preset = factoryPresets[index];
+    if (index >= 0 && index < presetManager.getNumPresets())
+    {
+        currentPreset = index;
+        loadPreset(index);
+        DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
+    }
+}
+
+void ChipSynthAudioProcessor::loadPreset(int index)
+{
+    auto preset = presetManager.getPreset(index);
+    if (preset != nullptr)
+    {
+        loadPreset(preset);
+    }
+}
+
+void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
+{
+    if (preset == nullptr) return;
     
     // Set global parameters using parameter methods that notify UI
     if (auto* algorithmParam = parameters.getParameter("algorithm"))
-        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset.algorithm));
+        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
     if (auto* feedbackParam = parameters.getParameter("feedback"))
-        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset.feedback));
+        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
     
     // Set operator parameters using parameter methods that notify UI
     for (int op = 0; op < 4; ++op)
     {
         juce::String opId = "op" + juce::String(op + 1);
-        const auto& opData = preset.op[op];
+        const auto& opData = preset->operators[op];
         
         if (auto* param = parameters.getParameter(opId + "_ar"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.ar));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.attackRate)));
         if (auto* param = parameters.getParameter(opId + "_d1r"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.d1r));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay1Rate)));
         if (auto* param = parameters.getParameter(opId + "_d2r"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.d2r));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay2Rate)));
         if (auto* param = parameters.getParameter(opId + "_rr"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.rr));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.releaseRate)));
         if (auto* param = parameters.getParameter(opId + "_d1l"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.d1l));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
         if (auto* param = parameters.getParameter(opId + "_tl"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.tl));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel * 127.0f)));
         if (auto* param = parameters.getParameter(opId + "_ks"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.ks));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
         if (auto* param = parameters.getParameter(opId + "_mul"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.mul));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.multiple)));
         if (auto* param = parameters.getParameter(opId + "_dt1"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.dt1));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune1)));
         if (auto* param = parameters.getParameter(opId + "_dt2"))
-            param->setValueNotifyingHost(param->convertTo0to1(opData.dt2));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
         if (auto* param = parameters.getParameter(opId + "_ams_en"))
             param->setValueNotifyingHost(0.0f);
     }

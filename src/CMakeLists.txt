@@ -41,6 +41,7 @@ target_sources(ChipSynthAU
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
         utils/PresetManager.cpp
+        utils/VOPMParser.cpp
         # ymfm library sources
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opn.cpp
@@ -78,6 +79,18 @@ target_compile_definitions(ChipSynthAU
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
+)
+
+# Add resources
+juce_add_binary_data(ChipSynthAU_Resources
+    SOURCES
+        ${CMAKE_SOURCE_DIR}/resources/presets/chipsynth-au-preset-collection.opm
+)
+
+# Link resources to the plugin
+target_link_libraries(ChipSynthAU
+    PRIVATE
+        ChipSynthAU_Resources
 )
 
 # Configure JUCE plugin
