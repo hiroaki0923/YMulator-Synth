@@ -39,7 +39,7 @@ public:
     void reset();
     
     // Register access
-    void writeRegister(uint8_t address, uint8_t data);
+    void writeRegister(int address, uint8_t data);
     
     // Audio generation
     void generateSamples(float* outputBuffer, int numSamples);
@@ -113,6 +113,6 @@ private:
     uint16_t noteToFnum(uint8_t note);
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
-    uint8_t readCurrentRegister(uint8_t address);
+    uint8_t readCurrentRegister(int address);
     void updateRegisterCache(uint8_t address, uint8_t value);
 };

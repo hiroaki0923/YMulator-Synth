@@ -87,30 +87,32 @@ void YmfmWrapper::initializeOPNA()
     setupBasicPianoVoice(0);
 }
 
-void YmfmWrapper::writeRegister(uint8_t address, uint8_t data)
+void YmfmWrapper::writeRegister(int address, uint8_t data)
 {
+    uint8_t addr = static_cast<uint8_t>(address);
+    
     // Update register cache
-    currentRegisters[address] = data;
+    currentRegisters[addr] = data;
     
     if (chipType == ChipType::OPM && opmChip) {
-        DBG("YmfmWrapper: Writing register 0x" + juce::String::toHexString(address) + " = 0x" + juce::String::toHexString(data));
-        std::cout << "YmfmWrapper: Writing register 0x" << std::hex << (int)address 
+        DBG("YmfmWrapper: Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        std::cout << "YmfmWrapper: Writing register 0x" << std::hex << (int)addr 
                   << " = 0x" << (int)data << std::dec << std::endl;
         
         // Use write_address and write_data like sample code
-        opmChip->write_address(address);
+        opmChip->write_address(addr);
         opmChip->write_data(data);
     } else if (chipType == ChipType::OPNA && opnaChip) {
-        DBG("YmfmWrapper: OPNA Writing register 0x" + juce::String::toHexString(address) + " = 0x" + juce::String::toHexString(data));
+        DBG("YmfmWrapper: OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
         
-        opnaChip->write_address(address);
+        opnaChip->write_address(addr);
         opnaChip->write_data(data);
     }
 }
 
-uint8_t YmfmWrapper::readCurrentRegister(uint8_t address)
+uint8_t YmfmWrapper::readCurrentRegister(int address)
 {
-    return currentRegisters[address];
+    return currentRegisters[static_cast<uint8_t>(address)];
 }
 
 void YmfmWrapper::updateRegisterCache(uint8_t address, uint8_t value)
