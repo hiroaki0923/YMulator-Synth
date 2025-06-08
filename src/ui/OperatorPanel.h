@@ -44,6 +44,9 @@ private:
     std::unique_ptr<juce::Slider> detune1Slider;
     std::unique_ptr<juce::Label> detune1Label;
     
+    std::unique_ptr<juce::Slider> detune2Slider;
+    std::unique_ptr<juce::Label> detune2Label;
+    
     std::unique_ptr<juce::Slider> keyScaleSlider;
     std::unique_ptr<juce::Label> keyScaleLabel;
     

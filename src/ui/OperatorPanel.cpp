@@ -34,7 +34,7 @@ void OperatorPanel::resized()
     auto bounds = getLocalBounds().reduced(5);
     bounds.removeFromTop(25); // Title area
     
-    const int rowHeight = 35;
+    const int rowHeight = 28;
     const int labelWidth = 50;
     const int spacing = 5;
     
@@ -84,7 +84,12 @@ void OperatorPanel::resized()
     detune1Label->setBounds(dt1Area.removeFromLeft(labelWidth));
     detune1Slider->setBounds(dt1Area.reduced(2));
     
-    // KS (Key Scale)
+    // DT2 (Detune 2)
+    auto dt2Area = rightColumn.removeFromTop(rowHeight);
+    detune2Label->setBounds(dt2Area.removeFromLeft(labelWidth));
+    detune2Slider->setBounds(dt2Area.reduced(2));
+    
+    // KS (Key Scale) - now available for all operators
     auto ksArea = rightColumn.removeFromTop(rowHeight);
     keyScaleLabel->setBounds(ksArea.removeFromLeft(labelWidth));
     keyScaleSlider->setBounds(ksArea.reduced(2));
@@ -116,12 +121,11 @@ void OperatorPanel::setupControls()
     // Detune 1 (DT1)
     createSlider(operatorId + "_dt1", "DT1", 0, 7, 3);
     
-    // Key Scale (KS) or Feedback (FB) for operator 1
-    if (operatorNum == 1) {
-        createSlider("feedback", "FB", 0, 7, 0);
-    } else {
-        createSlider(operatorId + "_ks", "KS", 0, 3, 0);
-    }
+    // Detune 2 (DT2)
+    createSlider(operatorId + "_dt2", "DT2", 0, 3, 0);
+    
+    // Key Scale (KS) for all operators
+    createSlider(operatorId + "_ks", "KS", 0, 3, 0);
 }
 
 juce::Slider* OperatorPanel::createSlider(const juce::String& paramId, const juce::String& labelText,
@@ -177,6 +181,10 @@ juce::Slider* OperatorPanel::createSlider(const juce::String& paramId, const juc
     else if (labelText == "DT1") {
         detune1Label = std::move(label);
         detune1Slider = std::move(slider);
+    }
+    else if (labelText == "DT2") {
+        detune2Label = std::move(label);
+        detune2Slider = std::move(slider);
     }
     else if (labelText == "KS") {
         keyScaleLabel = std::move(label);
