@@ -22,6 +22,9 @@ juce_add_plugin(ChipSynthAU
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_NAME "ChipSynth AU"
     
+    # Install only AU to user directory
+    AU_COPY_PLUGIN_AFTER_BUILD TRUE
+    
     # Bundle identifier
     BUNDLE_ID "jp.hiroaki.chipsynth"
 )
@@ -38,6 +41,12 @@ target_sources(ChipSynthAU
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
         utils/PresetManager.cpp
+        # ymfm library sources
+        ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp
+        ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opn.cpp
+        ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_ssg.cpp
+        ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_adpcm.cpp
+        ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_misc.cpp
 )
 
 # Include directories

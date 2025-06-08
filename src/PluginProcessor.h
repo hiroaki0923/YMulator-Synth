@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "dsp/YmfmWrapper.h"
 
 class ChipSynthAudioProcessor : public juce::AudioProcessor
 {
@@ -35,5 +36,7 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
 private:
+    YmfmWrapper ymfmWrapper;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChipSynthAudioProcessor)
 };
