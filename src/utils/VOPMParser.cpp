@@ -131,7 +131,13 @@ ValidationResult VOPMParser::validate(const VOPMVoice& voice)
         result.warnings.add("LFO noise frequency out of range (0-31): " + juce::String(voice.lfo.noiseFreq));
     }
     
-    // Channel parameter checks (pan and slotMask are VOPM-specific, don't validate)
+    // Channel parameter checks
+    if (!isValidRange(voice.channel.pan, 0, 3))
+    {
+        result.isValid = false;
+        result.errors.add("Channel pan out of range (0-3): " + juce::String(voice.channel.pan));
+    }
+    
     if (!isValidRange(voice.channel.feedback, 0, 7))
     {
         result.isValid = false;
@@ -157,6 +163,11 @@ ValidationResult VOPMParser::validate(const VOPMVoice& voice)
     if (!isValidRange(voice.channel.noiseEnable, 0, 1))
     {
         result.warnings.add("Channel noise enable out of range (0-1): " + juce::String(voice.channel.noiseEnable));
+    }
+    
+    if (!isValidRange(voice.channel.slotMask, 0, 15))
+    {
+        result.warnings.add("Channel slot mask out of range (0-15): " + juce::String(voice.channel.slotMask));
     }
     
     // Operator parameter checks
@@ -227,8 +238,7 @@ ValidationResult VOPMParser::validate(const VOPMVoice& voice)
         
         if (!isValidRange(op.amsEnable, 0, 1))
         {
-            result.isValid = false;
-            result.errors.add(opName + " AMS-EN out of range (0-1): " + juce::String(op.amsEnable));
+            result.warnings.add(opName + " AMS-EN out of range (0-1): " + juce::String(op.amsEnable));
         }
     }
     
@@ -252,7 +262,7 @@ juce::String VOPMParser::voiceToString(const VOPMVoice& voice)
     
     // Channel line
     result << "CH: "
-           << voice.channel.pan << " "
+           << convertInternalPanToOpm(voice.channel.pan) << " "
            << voice.channel.feedback << " "
            << voice.channel.algorithm << " "
            << voice.channel.ams << " "
@@ -276,10 +286,51 @@ juce::String VOPMParser::voiceToString(const VOPMVoice& voice)
                << op.multiple << " "
                << op.detune1 << " "
                << op.detune2 << " "
-               << op.amsEnable << "\n";
+               << convertInternalAmeToOpm(op.amsEnable) << "\n";
     }
     
     return result;
+}
+
+// OPM format conversion functions
+int VOPMParser::convertOpmPanToInternal(int opmPan)
+{
+    // OPM PAN values: 0, 64, 128, 192 (<<6 bit shift)
+    // Convert to internal 0-3 range: 0=off, 1=right, 2=left, 3=center
+    switch (opmPan)
+    {
+        case 0:   return 0; // Off
+        case 64:  return 1; // Right
+        case 128: return 2; // Left  
+        case 192: return 3; // Center
+        default:  return 3; // Default to center for invalid values
+    }
+}
+
+int VOPMParser::convertOpmAmeToInternal(int opmAme)
+{
+    // OPM AME values: 0 or 128 (<<7 bit shift)
+    // Convert to internal 0-1 range
+    return (opmAme >= 128) ? 1 : 0;
+}
+
+int VOPMParser::convertInternalPanToOpm(int internalPan)
+{
+    // Internal 0-3 range to OPM PAN values: 0, 64, 128, 192
+    switch (internalPan)
+    {
+        case 0: return 0;   // Off
+        case 1: return 64;  // Right
+        case 2: return 128; // Left
+        case 3: return 192; // Center
+        default: return 192; // Default to center
+    }
+}
+
+int VOPMParser::convertInternalAmeToOpm(int internalAme)
+{
+    // Internal 0-1 range to OPM AME values: 0 or 128
+    return (internalAme > 0) ? 128 : 0;
 }
 
 // Private helper methods
@@ -322,7 +373,8 @@ void VOPMParser::parseChannel(const juce::String& line, VOPMVoice::Channel& chan
     
     if (tokens.size() >= 7)
     {
-        channel.pan = tokens[0].getIntValue();
+        // Convert OPM PAN format (0, 64, 128, 192) to internal (0-3)
+        channel.pan = convertOpmPanToInternal(tokens[0].getIntValue());
         channel.feedback = tokens[1].getIntValue();
         channel.algorithm = tokens[2].getIntValue();
         channel.ams = tokens[3].getIntValue();
@@ -348,7 +400,8 @@ void VOPMParser::parseOperator(const juce::String& line, VOPMVoice::Operator& op
         op.multiple = tokens[7].getIntValue();
         op.detune1 = tokens[8].getIntValue();
         op.detune2 = tokens[9].getIntValue();
-        op.amsEnable = tokens[10].getIntValue();
+        // Convert OPM AME format (0 or 128) to internal (0-1)
+        op.amsEnable = convertOpmAmeToInternal(tokens[10].getIntValue());
     }
 }
 

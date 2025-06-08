@@ -96,6 +96,18 @@ public:
      * @return String representation in VOPM format
      */
     static juce::String voiceToString(const VOPMVoice& voice);
+    
+    /**
+     * Convert OPM format values to internal representation
+     */
+    static int convertOpmPanToInternal(int opmPan);
+    static int convertOpmAmeToInternal(int opmAme);
+    
+    /**
+     * Convert internal values to OPM format
+     */
+    static int convertInternalPanToOpm(int internalPan);
+    static int convertInternalAmeToOpm(int internalAme);
 
 private:
     static void parseVoiceHeader(const juce::String& line, VOPMVoice& voice);

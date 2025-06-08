@@ -10,7 +10,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         0, "Electric Piano",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 5, 5, 0, 0, 120, 0}, // Channel
+        {3, 5, 5, 0, 0, 15, 0}, // Channel (pan=3=center, slotMask=15=all)
         {
             {31, 14, 0, 7, 1, 10, 0, 1, 3, 0, 0}, // M1
             {31, 10, 2, 7, 2, 8, 0, 1, 3, 0, 0},  // C1
@@ -23,7 +23,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         1, "Synth Bass",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 6, 7, 0, 0, 120, 0}, // Channel
+        {3, 6, 7, 0, 0, 15, 0}, // Channel
         {
             {31, 8, 0, 7, 0, 16, 2, 1, 3, 0, 0}, // M1
             {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0},  // C1
@@ -36,7 +36,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         2, "Brass Section",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 4, 4, 0, 0, 120, 0}, // Channel
+        {3, 4, 4, 0, 0, 15, 0}, // Channel
         {
             {25, 14, 6, 7, 1, 45, 1, 1, 3, 1, 0}, // M1
             {28, 14, 3, 7, 1, 29, 1, 1, 3, 2, 0}, // C1
@@ -49,7 +49,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         3, "String Pad",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 2, 6, 0, 0, 120, 0}, // Channel
+        {3, 2, 6, 0, 0, 15, 0}, // Channel
         {
             {20, 7, 7, 1, 1, 24, 0, 1, 3, 1, 0}, // M1
             {25, 4, 4, 1, 1, 16, 0, 1, 3, 1, 0}, // C1
@@ -62,7 +62,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         4, "Lead Synth",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 4, 7, 0, 0, 120, 0}, // Channel
+        {3, 4, 7, 0, 0, 15, 0}, // Channel
         {
             {31, 6, 2, 7, 0, 18, 2, 1, 3, 2, 0}, // M1
             {31, 6, 2, 7, 0, 0, 2, 1, 3, 1, 0},  // C1
@@ -75,7 +75,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         5, "Organ",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 0, 7, 0, 0, 120, 0}, // Channel
+        {3, 0, 7, 0, 0, 15, 0}, // Channel
         {
             {31, 0, 0, 7, 0, 20, 0, 2, 3, 0, 0}, // M1
             {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
@@ -88,7 +88,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         6, "Bells",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 0, 1, 0, 0, 120, 0}, // Channel
+        {3, 0, 1, 0, 0, 15, 0}, // Channel
         {
             {31, 18, 0, 4, 3, 26, 1, 14, 3, 1, 0}, // M1
             {31, 18, 0, 4, 3, 22, 1, 1, 3, 2, 0},  // C1
@@ -101,7 +101,7 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         7, "Init",
         {0, 0, 0, 0, 0}, // LFO
-        {64, 0, 7, 0, 0, 120, 0}, // Channel
+        {3, 0, 7, 0, 0, 15, 0}, // Channel
         {
             {31, 0, 0, 7, 0, 32, 0, 1, 3, 0, 0}, // M1
             {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
@@ -147,8 +147,8 @@ VOPMVoice Preset::toVOPM() const
     voice.name = name;
     voice.channel.algorithm = algorithm;
     voice.channel.feedback = feedback;
-    voice.channel.pan = 64; // Center
-    voice.channel.slotMask = 120; // All slots enabled
+    voice.channel.pan = 3; // Center (internal representation)
+    voice.channel.slotMask = 15; // All slots enabled (internal representation)
     
     for (int i = 0; i < 4; ++i)
     {
