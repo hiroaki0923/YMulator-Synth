@@ -16,6 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Architecture Decisions**: `docs/chipsynth-adr.md` (consult before making design choices)
 - **Technical Specifications**: `docs/chipsynth-technical-spec.md` (for MIDI, parameters, formats)
 - **Overall Design**: `docs/chipsynth-design-main.md` (for system architecture)
+- **JUCE Implementation Details**: `docs/chipsynth-juce-implementation-details.md` (for JUCEパラメータシステム, MIDI CC, Factory Preset実装)
+- **VOPM Format Specification**: `docs/chipsynth-vopm-format-spec.md` (for .opmファイル形式とプリセット管理)
+- **Phase 1 Completion Roadmap**: `docs/chipsynth-phase1-completion-roadmap.md` (for 基盤構築完了への具体的手順)
 
 **❌ DO NOT:**
 - Skip reading documentation before implementation
@@ -106,6 +109,9 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 **⚠️ BEFORE implementing any features, READ the relevant documentation sections:**
 
+- **Phase 1 Completion**: **MUST READ** [Phase 1 Roadmap](docs/chipsynth-phase1-completion-roadmap.md) for 残り30%の実装手順
+- **JUCE Implementation**: **MUST READ** [JUCE Details](docs/chipsynth-juce-implementation-details.md) for パラメータシステム、MIDI CC、Factory Preset実装
+- **VOPM Format**: **MUST READ** [VOPM Spec](docs/chipsynth-vopm-format-spec.md) for .opmファイル形式とプリセット管理
 - **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples → **MUST READ** [ADR-008](docs/chipsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計)
 - **MIDI CC Mapping**: Full VOPMex compatibility → **MUST READ** [Technical Spec Section 1.5](docs/chipsynth-technical-spec.md#15-midi実装仕様)
 - **Preset Format**: .opm files with VOPM structure → **MUST READ** [Implementation Guide Section 1.7](docs/chipsynth-implementation-guide.md#17-opmファイルフォーマット仕様)
