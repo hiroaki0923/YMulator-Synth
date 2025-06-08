@@ -306,3 +306,4 @@ void YmfmWrapper::playTestNote()
         noteOn(0, 60, 127);
     }
 }
+

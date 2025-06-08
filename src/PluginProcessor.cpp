@@ -152,8 +152,8 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         
         ymfmWrapper.generateSamples(buffer.getWritePointer(0), numSamples);
         
-        // Amplify signal significantly for better audibility
-        buffer.applyGain(0, 0, numSamples, 8.0f);
+        // Apply moderate gain to prevent clipping
+        buffer.applyGain(0, 0, numSamples, 2.0f);
         
         // Copy left channel to right channel for stereo
         if (buffer.getNumChannels() > 1) {
