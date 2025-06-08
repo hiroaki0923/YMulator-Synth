@@ -1,6 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include <os/log.h>
 
 ChipSynthAudioProcessor::ChipSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
@@ -90,16 +89,12 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 {
     juce::ignoreUnused(samplesPerBlock);
     
-    // Debug output to system log
-    os_log_t logger = os_log_create("com.vendor.chipsynth", "audio");
-    os_log(logger, "ChipSynth: prepareToPlay called - sampleRate: %f, samplesPerBlock: %d", sampleRate, samplesPerBlock);
-    std::cout << "ChipSynth: prepareToPlay called - sampleRate: " << sampleRate << ", samplesPerBlock: " << samplesPerBlock << std::endl;
+    // Debug output
     DBG("ChipSynth: prepareToPlay called - sampleRate: " + juce::String(sampleRate) + ", samplesPerBlock: " + juce::String(samplesPerBlock));
     
     // Initialize ymfm wrapper with OPM for now
     ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
     
-    os_log(logger, "ChipSynth: ymfm initialization complete");
     DBG("ChipSynth: ymfm initialization complete");
 }
 
@@ -127,9 +122,8 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     processBlockCallCounter++;
     
     if (!hasLoggedFirstCall) {
-        os_log_t logger = os_log_create("com.vendor.chipsynth", "audio");
-        os_log(logger, "ChipSynth: processBlock FIRST CALL - channels: %d, samples: %d", 
-               buffer.getNumChannels(), buffer.getNumSamples());
+        DBG("ChipSynth: processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
+            ", samples: " + juce::String(buffer.getNumSamples()));
         hasLoggedFirstCall = true;
     }
     
@@ -138,9 +132,6 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     // Debug MIDI events
     if (!midiMessages.isEmpty()) {
-        os_log_t logger = os_log_create("com.vendor.chipsynth", "midi");
-        os_log(logger, "ChipSynth: Received %d MIDI events", midiMessages.getNumEvents());
-        std::cout << "ChipSynth: Received " << midiMessages.getNumEvents() << " MIDI events" << std::endl;
         DBG("ChipSynth: Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
     }
     
@@ -149,19 +140,13 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const auto message = metadata.getMessage();
         
         if (message.isNoteOn()) {
-            os_log_t logger = os_log_create("com.vendor.chipsynth", "midi");
-            os_log(logger, "ChipSynth: Note ON - Note: %d, Velocity: %d", message.getNoteNumber(), message.getVelocity());
             DBG("ChipSynth: Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
             ymfmWrapper.noteOn(0, message.getNoteNumber(), message.getVelocity());
         } else if (message.isNoteOff()) {
-            os_log_t logger = os_log_create("com.vendor.chipsynth", "midi");
-            os_log(logger, "ChipSynth: Note OFF - Note: %d", message.getNoteNumber());
             DBG("ChipSynth: Note OFF - Note: " + juce::String(message.getNoteNumber()));
             ymfmWrapper.noteOff(0, message.getNoteNumber());
         } else if (message.isController()) {
-            os_log_t logger = os_log_create("com.vendor.chipsynth", "midi");
-            os_log(logger, "ChipSynth: MIDI CC - CC: %d, Value: %d", message.getControllerNumber(), message.getControllerValue());
             DBG("ChipSynth: MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
             handleMidiCC(message.getControllerNumber(), message.getControllerValue());
@@ -181,9 +166,9 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     audioCallCounter++;
     
     if (numSamples > 0) {
-        os_log_t logger = os_log_create("com.vendor.chipsynth", "audio");
         if (audioCallCounter % 1000 == 0) {  // Log every 1000 calls to avoid spam
-            os_log(logger, "ChipSynth: processBlock audio generation - call #%d, numSamples: %d", audioCallCounter, numSamples);
+            DBG("ChipSynth: processBlock audio generation - call #" + juce::String(audioCallCounter) + 
+                ", numSamples: " + juce::String(numSamples));
         }
         
         ymfmWrapper.generateSamples(buffer.getWritePointer(0), numSamples);

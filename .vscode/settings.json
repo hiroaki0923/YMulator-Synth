@@ -11,6 +11,8 @@
     },
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "C_Cpp.default.intelliSenseMode": "macos-clang-x64",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.errorSquiggles": "enabled",
     "files.exclude": {
         "build/": true,
         "**/.DS_Store": true

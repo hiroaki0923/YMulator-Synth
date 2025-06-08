@@ -56,22 +56,29 @@ ChipSynth-AU is a modern FM synthesis Audio Unit plugin for macOS that emulates 
 # Initial setup
 git submodule update --init --recursive
 
-# Build (Release)
+# Build (Release) - quiet output, only show result
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+cmake --build . --parallel --quiet
 
-# Build (Debug)
+# Build (Debug) - quiet output, only show result
 cmake .. -DCMAKE_BUILD_TYPE=Debug
+cmake --build . --parallel --quiet
 
-# Clean and rebuild
-cmake --build . --clean-first
+# Build with full output (when debugging build issues)
+cmake --build . --parallel
+
+# Clean and rebuild - quiet output
+cmake --build . --clean-first --parallel --quiet
 
 # Install
 cmake --install .
 
-# Run tests
-ctest
+# Run tests - quiet output, only show result
+ctest --output-on-failure --quiet
+
+# Run tests with full output (when debugging test issues)  
+ctest --output-on-failure
 
 # Validate Audio Unit
 auval -a
