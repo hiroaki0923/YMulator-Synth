@@ -80,9 +80,12 @@ ctest --output-on-failure --quiet
 # Run tests with full output (when debugging test issues)  
 ctest --output-on-failure
 
-# Validate Audio Unit
+# Validate Audio Unit - minimal output
 auval -a
-auval -v aufx ChpS Vend
+auval -v aumu ChpS Vend > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+
+# Validate Audio Unit with full output (when debugging validation issues)
+auval -v aumu ChpS Vend
 
 # Fix Audio Unit registration issues
 killall -9 AudioComponentRegistrar
