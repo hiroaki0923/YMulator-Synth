@@ -168,9 +168,10 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
     
-    // Update ymfm parameters periodically (rate-limited)
-    bool shouldUpdateParams = (++parameterUpdateCounter % PARAMETER_UPDATE_RATE_DIVIDER) == 0;
-    if (shouldUpdateParams) {
+    // Update parameters periodically
+    if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER)
+    {
+        parameterUpdateCounter = 0;
         updateYmfmParameters();
     }
     
@@ -388,44 +389,6 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
     }
 }
 
-void ChipSynthAudioProcessor::updateYmfmParameters()
-{
-    // Update global parameters
-    int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
-    int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
-    
-    // Update operator parameters for channel 0 (single voice for now)
-    for (int op = 1; op <= 4; ++op)
-    {
-        juce::String opId = "op" + juce::String(op);
-        
-        int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
-        int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
-        int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
-        int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
-        int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
-        int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
-        int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
-        int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
-        int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
-        bool amsEn = static_cast<bool>(*parameters.getRawParameterValue(opId + "_ams_en"));
-        
-        // Apply to ymfm wrapper (channel 0, operator op-1)
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::TotalLevel, tl);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::AttackRate, ar);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::Decay1Rate, d1r);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::Decay2Rate, d2r);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::ReleaseRate, rr);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::SustainLevel, d1l);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::Multiple, mul);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::Detune1, dt1);
-        ymfmWrapper.setOperatorParameter(0, op - 1, YmfmWrapper::OperatorParameter::KeyScale, ks);
-    }
-    
-    // Set algorithm and feedback
-    ymfmWrapper.setChannelParameter(0, YmfmWrapper::ChannelParameter::Algorithm, algorithm);
-    ymfmWrapper.setChannelParameter(0, YmfmWrapper::ChannelParameter::Feedback, feedback);
-}
 
 void ChipSynthAudioProcessor::loadFactoryPreset(int index)
 {
@@ -532,6 +495,35 @@ void ChipSynthAudioProcessor::loadFactoryPreset(int index)
     
     // Notify UI of parameter changes
     parameters.state.sendPropertyChangeMessage("presetChanged");
+}
+
+void ChipSynthAudioProcessor::updateYmfmParameters()
+{
+    // Get current parameter values
+    int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
+    int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
+    
+    // Update global parameters for channel 0
+    ymfmWrapper.setAlgorithm(0, algorithm);
+    ymfmWrapper.setFeedback(0, feedback);
+    
+    // Update operator parameters
+    for (int op = 0; op < 4; ++op)
+    {
+        juce::String opId = "op" + juce::String(op + 1);
+        
+        int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
+        int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
+        int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
+        int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
+        int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
+        int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
+        int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
+        int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
+        int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
+        
+        ymfmWrapper.setOperatorParameters(0, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

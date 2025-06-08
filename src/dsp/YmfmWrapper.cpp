@@ -408,3 +408,28 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
     }
 }
 
+void YmfmWrapper::setAlgorithm(uint8_t channel, uint8_t algorithm)
+{
+    setChannelParameter(channel, ChannelParameter::Algorithm, algorithm);
+}
+
+void YmfmWrapper::setFeedback(uint8_t channel, uint8_t feedback)
+{
+    setChannelParameter(channel, ChannelParameter::Feedback, feedback);
+}
+
+void YmfmWrapper::setOperatorParameters(uint8_t channel, uint8_t operator_num, 
+                                      uint8_t tl, uint8_t ar, uint8_t d1r, uint8_t d2r, 
+                                      uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1)
+{
+    setOperatorParameter(channel, operator_num, OperatorParameter::TotalLevel, tl);
+    setOperatorParameter(channel, operator_num, OperatorParameter::AttackRate, ar);
+    setOperatorParameter(channel, operator_num, OperatorParameter::Decay1Rate, d1r);
+    setOperatorParameter(channel, operator_num, OperatorParameter::Decay2Rate, d2r);
+    setOperatorParameter(channel, operator_num, OperatorParameter::ReleaseRate, rr);
+    setOperatorParameter(channel, operator_num, OperatorParameter::SustainLevel, d1l);
+    setOperatorParameter(channel, operator_num, OperatorParameter::KeyScale, ks);
+    setOperatorParameter(channel, operator_num, OperatorParameter::Multiple, mul);
+    setOperatorParameter(channel, operator_num, OperatorParameter::Detune1, dt1);
+}
+
