@@ -1,4 +1,420 @@
 #include "PresetManager.h"
+#include "VOPMParser.h"
+#include "BinaryData.h"
 
-// Placeholder for preset management
-// This will handle loading/saving .opm files
+namespace chipsynth {
+
+// Factory preset definitions
+static const VOPMVoice FACTORY_VOICES[] = {
+    // Electric Piano
+    {
+        0, "Electric Piano",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 5, 5, 0, 0, 120, 0}, // Channel
+        {
+            {31, 14, 0, 7, 1, 10, 0, 1, 3, 0, 0}, // M1
+            {31, 10, 2, 7, 2, 8, 0, 1, 3, 0, 0},  // C1
+            {31, 12, 0, 7, 0, 23, 1, 7, 3, 0, 0}, // M2
+            {31, 10, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+        }
+    },
+    
+    // Synth Bass
+    {
+        1, "Synth Bass",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 6, 7, 0, 0, 120, 0}, // Channel
+        {
+            {31, 8, 0, 7, 0, 16, 2, 1, 3, 0, 0}, // M1
+            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0},  // C1
+            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0},  // M2
+            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0}   // C2
+        }
+    },
+    
+    // Brass Section
+    {
+        2, "Brass Section",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 4, 4, 0, 0, 120, 0}, // Channel
+        {
+            {25, 14, 6, 7, 1, 45, 1, 1, 3, 1, 0}, // M1
+            {28, 14, 3, 7, 1, 29, 1, 1, 3, 2, 0}, // C1
+            {25, 11, 11, 7, 1, 18, 1, 1, 3, 0, 0}, // M2
+            {28, 14, 6, 7, 1, 3, 1, 1, 3, 1, 0}   // C2
+        }
+    },
+    
+    // String Pad
+    {
+        3, "String Pad",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 2, 6, 0, 0, 120, 0}, // Channel
+        {
+            {20, 7, 7, 1, 1, 24, 0, 1, 3, 1, 0}, // M1
+            {25, 4, 4, 1, 1, 16, 0, 1, 3, 1, 0}, // C1
+            {22, 7, 7, 1, 1, 0, 0, 1, 3, 0, 0},  // M2
+            {25, 4, 4, 1, 1, 0, 0, 1, 3, 0, 0}   // C2
+        }
+    },
+    
+    // Lead Synth
+    {
+        4, "Lead Synth",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 4, 7, 0, 0, 120, 0}, // Channel
+        {
+            {31, 6, 2, 7, 0, 18, 2, 1, 3, 2, 0}, // M1
+            {31, 6, 2, 7, 0, 0, 2, 1, 3, 1, 0},  // C1
+            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0},  // M2
+            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0}   // C2
+        }
+    },
+    
+    // Organ
+    {
+        5, "Organ",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 0, 7, 0, 0, 120, 0}, // Channel
+        {
+            {31, 0, 0, 7, 0, 20, 0, 2, 3, 0, 0}, // M1
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // M2
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+        }
+    },
+    
+    // Bells
+    {
+        6, "Bells",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 0, 1, 0, 0, 120, 0}, // Channel
+        {
+            {31, 18, 0, 4, 3, 26, 1, 14, 3, 1, 0}, // M1
+            {31, 18, 0, 4, 3, 22, 1, 1, 3, 2, 0},  // C1
+            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0},   // M2
+            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0}    // C2
+        }
+    },
+    
+    // Init
+    {
+        7, "Init",
+        {0, 0, 0, 0, 0}, // LFO
+        {64, 0, 7, 0, 0, 120, 0}, // Channel
+        {
+            {31, 0, 0, 7, 0, 32, 0, 1, 3, 0, 0}, // M1
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // M2
+            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+        }
+    }
+};
+
+const int NUM_FACTORY_PRESETS = sizeof(FACTORY_VOICES) / sizeof(FACTORY_VOICES[0]);
+
+// Preset conversion functions
+Preset Preset::fromVOPM(const VOPMVoice& voice)
+{
+    Preset preset;
+    preset.id = voice.number;
+    preset.name = voice.name;
+    preset.algorithm = voice.channel.algorithm;
+    preset.feedback = voice.channel.feedback;
+    
+    for (int i = 0; i < 4; ++i)
+    {
+        const auto& op = voice.operators[i];
+        preset.operators[i].totalLevel = static_cast<float>(op.totalLevel) / 127.0f;
+        preset.operators[i].multiple = static_cast<float>(op.multiple);
+        preset.operators[i].detune1 = static_cast<float>(op.detune1);
+        preset.operators[i].detune2 = static_cast<float>(op.detune2);
+        preset.operators[i].keyScale = static_cast<float>(op.keyScale);
+        preset.operators[i].attackRate = static_cast<float>(op.attackRate);
+        preset.operators[i].decay1Rate = static_cast<float>(op.decay1Rate);
+        preset.operators[i].decay2Rate = static_cast<float>(op.decay2Rate);
+        preset.operators[i].releaseRate = static_cast<float>(op.releaseRate);
+        preset.operators[i].sustainLevel = static_cast<float>(op.decay1Level);
+    }
+    
+    return preset;
+}
+
+VOPMVoice Preset::toVOPM() const
+{
+    VOPMVoice voice;
+    voice.number = id;
+    voice.name = name;
+    voice.channel.algorithm = algorithm;
+    voice.channel.feedback = feedback;
+    voice.channel.pan = 64; // Center
+    voice.channel.slotMask = 120; // All slots enabled
+    
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& op = voice.operators[i];
+        op.totalLevel = static_cast<int>(operators[i].totalLevel * 127.0f);
+        op.multiple = static_cast<int>(operators[i].multiple);
+        op.detune1 = static_cast<int>(operators[i].detune1);
+        op.detune2 = static_cast<int>(operators[i].detune2);
+        op.keyScale = static_cast<int>(operators[i].keyScale);
+        op.attackRate = static_cast<int>(operators[i].attackRate);
+        op.decay1Rate = static_cast<int>(operators[i].decay1Rate);
+        op.decay2Rate = static_cast<int>(operators[i].decay2Rate);
+        op.releaseRate = static_cast<int>(operators[i].releaseRate);
+        op.decay1Level = static_cast<int>(operators[i].sustainLevel);
+    }
+    
+    return voice;
+}
+
+// PresetManager implementation
+PresetManager::PresetManager()
+{
+}
+
+void PresetManager::initialize()
+{
+    clear();
+    loadFactoryPresets();
+    loadBundledPresets();
+    
+    DBG("PresetManager initialized with " + juce::String(presets.size()) + " presets");
+}
+
+int PresetManager::loadOPMFile(const juce::File& file)
+{
+    if (!file.exists())
+    {
+        DBG("OPM file does not exist: " + file.getFullPathName());
+        return 0;
+    }
+    
+    auto voices = VOPMParser::parseFile(file);
+    int loaded = 0;
+    
+    for (const auto& voice : voices)
+    {
+        auto preset = Preset::fromVOPM(voice);
+        validatePreset(preset);
+        addPreset(preset);
+        loaded++;
+    }
+    
+    DBG("Loaded " + juce::String(loaded) + " presets from " + file.getFileName());
+    return loaded;
+}
+
+int PresetManager::loadBundledPresets()
+{
+    int totalLoaded = 0;
+    
+    // First try to load from bundled binary resources
+    if (BinaryData::chipsynthaupresetcollection_opmSize > 0)
+    {
+        juce::String content(static_cast<const char*>(BinaryData::chipsynthaupresetcollection_opm), 
+                           BinaryData::chipsynthaupresetcollection_opmSize);
+        
+        auto voices = VOPMParser::parseContent(content);
+        for (const auto& voice : voices)
+        {
+            auto preset = Preset::fromVOPM(voice);
+            validatePreset(preset);
+            addPreset(preset);
+            totalLoaded++;
+        }
+        
+        DBG("Loaded " + juce::String(totalLoaded) + " presets from bundled resources");
+        return totalLoaded;
+    }
+    
+    // Fallback: Try to load from external files
+    auto presetsDir = getPresetsDirectory();
+    if (!presetsDir.exists())
+    {
+        DBG("Presets directory does not exist: " + presetsDir.getFullPathName());
+        return 0;
+    }
+    
+    // Look for the main preset collection file
+    auto collectionFile = presetsDir.getChildFile("chipsynth-au-preset-collection.opm");
+    if (collectionFile.exists())
+    {
+        totalLoaded += loadOPMFile(collectionFile);
+    }
+    
+    // Load any other .opm files in the directory
+    juce::Array<juce::File> opmFiles;
+    presetsDir.findChildFiles(opmFiles, juce::File::findFiles, false, "*.opm");
+    
+    for (const auto& file : opmFiles)
+    {
+        if (file != collectionFile) // Don't load the same file twice
+        {
+            totalLoaded += loadOPMFile(file);
+        }
+    }
+    
+    return totalLoaded;
+}
+
+const Preset* PresetManager::getPreset(int id) const
+{
+    for (const auto& preset : presets)
+    {
+        if (preset.id == id)
+            return &preset;
+    }
+    return nullptr;
+}
+
+const Preset* PresetManager::getPreset(const juce::String& name) const
+{
+    for (const auto& preset : presets)
+    {
+        if (preset.name == name)
+            return &preset;
+    }
+    return nullptr;
+}
+
+juce::StringArray PresetManager::getPresetNames() const
+{
+    juce::StringArray names;
+    for (const auto& preset : presets)
+    {
+        names.add(preset.name);
+    }
+    return names;
+}
+
+void PresetManager::addPreset(const Preset& preset)
+{
+    // Check if preset with same ID already exists
+    for (auto& existing : presets)
+    {
+        if (existing.id == preset.id)
+        {
+            // Replace existing preset
+            existing = preset;
+            return;
+        }
+    }
+    
+    // Add new preset
+    presets.push_back(preset);
+}
+
+void PresetManager::removePreset(int id)
+{
+    presets.erase(
+        std::remove_if(presets.begin(), presets.end(),
+                      [id](const Preset& p) { return p.id == id; }),
+        presets.end());
+}
+
+bool PresetManager::saveOPMFile(const juce::File& file) const
+{
+    juce::String content;
+    content << ";==================================================\n";
+    content << "; ChipSynth AU Presets\n";
+    content << "; Generated automatically\n";
+    content << ";==================================================\n\n";
+    
+    for (const auto& preset : presets)
+    {
+        auto voice = preset.toVOPM();
+        content << VOPMParser::voiceToString(voice) << "\n";
+    }
+    
+    return file.replaceWithText(content);
+}
+
+void PresetManager::clear()
+{
+    presets.clear();
+}
+
+std::vector<Preset> PresetManager::getFactoryPresets()
+{
+    std::vector<Preset> factoryPresets;
+    
+    for (int i = 0; i < NUM_FACTORY_PRESETS; ++i)
+    {
+        factoryPresets.push_back(Preset::fromVOPM(FACTORY_VOICES[i]));
+    }
+    
+    return factoryPresets;
+}
+
+// Private methods
+void PresetManager::loadFactoryPresets()
+{
+    for (int i = 0; i < NUM_FACTORY_PRESETS; ++i)
+    {
+        auto preset = Preset::fromVOPM(FACTORY_VOICES[i]);
+        validatePreset(preset);
+        presets.push_back(preset);
+    }
+    
+    DBG("Loaded " + juce::String(NUM_FACTORY_PRESETS) + " factory presets");
+}
+
+juce::File PresetManager::getPresetsDirectory() const
+{
+    // Try to find the resources/presets directory relative to the executable
+    auto executableFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+    
+    // For development, look relative to the project root
+    auto projectRoot = executableFile;
+    for (int i = 0; i < 10; ++i) // Go up to 10 levels
+    {
+        auto resourcesDir = projectRoot.getChildFile("resources").getChildFile("presets");
+        if (resourcesDir.exists())
+        {
+            return resourcesDir;
+        }
+        projectRoot = projectRoot.getParentDirectory();
+        if (!projectRoot.exists())
+            break;
+    }
+    
+    // For production, look in the bundle's Resources directory
+    auto bundleResourcesDir = executableFile.getParentDirectory()
+                                           .getParentDirectory()
+                                           .getChildFile("Resources")
+                                           .getChildFile("presets");
+    if (bundleResourcesDir.exists())
+    {
+        return bundleResourcesDir;
+    }
+    
+    // Fallback: user's Documents directory
+    return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                     .getChildFile("ChipSynth AU")
+                     .getChildFile("presets");
+}
+
+void PresetManager::validatePreset(Preset& preset) const
+{
+    // Clamp values to valid ranges
+    preset.algorithm = juce::jlimit(0, 7, preset.algorithm);
+    preset.feedback = juce::jlimit(0, 7, preset.feedback);
+    
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& op = preset.operators[i];
+        op.totalLevel = juce::jlimit(0.0f, 1.0f, op.totalLevel);
+        op.multiple = juce::jlimit(0.0f, 15.0f, op.multiple);
+        op.detune1 = juce::jlimit(0.0f, 7.0f, op.detune1);
+        op.detune2 = juce::jlimit(0.0f, 3.0f, op.detune2);
+        op.keyScale = juce::jlimit(0.0f, 3.0f, op.keyScale);
+        op.attackRate = juce::jlimit(0.0f, 31.0f, op.attackRate);
+        op.decay1Rate = juce::jlimit(0.0f, 31.0f, op.decay1Rate);
+        op.decay2Rate = juce::jlimit(0.0f, 31.0f, op.decay2Rate);
+        op.releaseRate = juce::jlimit(0.0f, 15.0f, op.releaseRate);
+        op.sustainLevel = juce::jlimit(0.0f, 15.0f, op.sustainLevel);
+    }
+}
+
+} // namespace chipsynth

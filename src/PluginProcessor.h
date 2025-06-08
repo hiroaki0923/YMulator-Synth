@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/YmfmWrapper.h"
 #include "core/VoiceManager.h"
+#include "utils/PresetManager.h"
 #include <unordered_map>
 
 class ChipSynthAudioProcessor : public juce::AudioProcessor
@@ -50,16 +51,26 @@ private:
     std::atomic<int> parameterUpdateCounter{0};
     static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     
-    // Factory presets
+    // Preset management
+    chipsynth::PresetManager presetManager;
     int currentPreset = 0;
-    static constexpr int NUM_FACTORY_PRESETS = 8;
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void setupCCMapping();
     void handleMidiCC(int ccNumber, int value);
     void updateYmfmParameters();
-    void loadFactoryPreset(int index);
+    void loadPreset(int index);
+    void loadPreset(const chipsynth::Preset* preset);
+    
+public:
+    // Preset access for UI
+    const chipsynth::PresetManager& getPresetManager() const { return presetManager; }
+    chipsynth::PresetManager& getPresetManager() { return presetManager; }
+    int getCurrentPresetIndex() const { return currentPreset; }
+    void setCurrentPreset(int index);
+    
+private:
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChipSynthAudioProcessor)
 };
