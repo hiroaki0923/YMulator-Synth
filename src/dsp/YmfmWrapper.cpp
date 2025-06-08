@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <os/log.h>
+#include <cstring>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -13,6 +14,8 @@ YmfmWrapper::YmfmWrapper()
     , outputSampleRate(44100)
     , internalSampleRate(62500)
 {
+    // Initialize register cache
+    std::memset(currentRegisters, 0, sizeof(currentRegisters));
 }
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
@@ -89,6 +92,9 @@ void YmfmWrapper::initializeOPNA()
 
 void YmfmWrapper::writeRegister(uint8_t address, uint8_t data)
 {
+    // Update register cache
+    currentRegisters[address] = data;
+    
     if (chipType == ChipType::OPM && opmChip) {
         os_log_t logger = os_log_create("com.vendor.chipsynth", "ymfm");
         os_log(logger, "YmfmWrapper: Writing register 0x%02X = 0x%02X", address, data);
@@ -105,6 +111,16 @@ void YmfmWrapper::writeRegister(uint8_t address, uint8_t data)
         opnaChip->write_address(address);
         opnaChip->write_data(data);
     }
+}
+
+uint8_t YmfmWrapper::readCurrentRegister(uint8_t address)
+{
+    return currentRegisters[address];
+}
+
+void YmfmWrapper::updateRegisterCache(uint8_t address, uint8_t value)
+{
+    currentRegisters[address] = value;
 }
 
 void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
@@ -304,6 +320,91 @@ void YmfmWrapper::playTestNote()
         
         // Play middle C (C4, note 60) with full velocity
         noteOn(0, 60, 127);
+    }
+}
+
+void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, OperatorParameter param, uint8_t value)
+{
+    if (channel >= 8 || operator_num >= 4) return;
+    
+    if (chipType == ChipType::OPM) {
+        int base_addr = operator_num * 8 + channel;
+        uint8_t currentValue;
+        
+        switch (param) {
+            case OperatorParameter::TotalLevel:
+                writeRegister(0x60 + base_addr, value);
+                break;
+                
+            case OperatorParameter::AttackRate:
+                // Keep existing KS bits, update AR
+                currentValue = readCurrentRegister(0x80 + base_addr);
+                writeRegister(0x80 + base_addr, (currentValue & 0xC0) | (value & 0x1F));
+                break;
+                
+            case OperatorParameter::Decay1Rate:
+                // Keep existing AMS-EN bit, update D1R
+                currentValue = readCurrentRegister(0xA0 + base_addr);
+                writeRegister(0xA0 + base_addr, (currentValue & 0x80) | (value & 0x1F));
+                break;
+                
+            case OperatorParameter::Decay2Rate:
+                // Keep existing DT2 bits, update D2R
+                currentValue = readCurrentRegister(0xC0 + base_addr);
+                writeRegister(0xC0 + base_addr, (currentValue & 0xC0) | (value & 0x1F));
+                break;
+                
+            case OperatorParameter::ReleaseRate:
+                // Keep existing D1L bits, update RR
+                currentValue = readCurrentRegister(0xE0 + base_addr);
+                writeRegister(0xE0 + base_addr, (currentValue & 0xF0) | (value & 0x0F));
+                break;
+                
+            case OperatorParameter::SustainLevel:
+                // Keep existing RR bits, update D1L
+                currentValue = readCurrentRegister(0xE0 + base_addr);
+                writeRegister(0xE0 + base_addr, ((value & 0x0F) << 4) | (currentValue & 0x0F));
+                break;
+                
+            case OperatorParameter::Multiple:
+                // Keep existing DT1 bits, update MUL
+                currentValue = readCurrentRegister(0x40 + base_addr);
+                writeRegister(0x40 + base_addr, (currentValue & 0x70) | (value & 0x0F));
+                break;
+                
+            case OperatorParameter::Detune1:
+                // Keep existing MUL bits, update DT1
+                currentValue = readCurrentRegister(0x40 + base_addr);
+                writeRegister(0x40 + base_addr, ((value & 0x07) << 4) | (currentValue & 0x0F));
+                break;
+                
+            case OperatorParameter::KeyScale:
+                // Keep existing AR bits, update KS
+                currentValue = readCurrentRegister(0x80 + base_addr);
+                writeRegister(0x80 + base_addr, ((value & 0x03) << 6) | (currentValue & 0x1F));
+                break;
+        }
+    }
+}
+
+void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, uint8_t value)
+{
+    if (channel >= 8) return;
+    
+    if (chipType == ChipType::OPM) {
+        uint8_t currentValue = readCurrentRegister(0x20 + channel);
+        
+        switch (param) {
+            case ChannelParameter::Algorithm:
+                // Keep existing L/R/FB bits, update ALG
+                writeRegister(0x20 + channel, (currentValue & 0xF8) | (value & 0x07));
+                break;
+                
+            case ChannelParameter::Feedback:
+                // Keep existing L/R/ALG bits, update FB
+                writeRegister(0x20 + channel, (currentValue & 0xC7) | ((value & 0x07) << 3));
+                break;
+        }
     }
 }
 

@@ -48,6 +48,28 @@ public:
     void noteOn(uint8_t channel, uint8_t note, uint8_t velocity);
     void noteOff(uint8_t channel, uint8_t note);
     
+    // Parameter control enums
+    enum class OperatorParameter {
+        TotalLevel,
+        AttackRate,
+        Decay1Rate,
+        Decay2Rate,
+        ReleaseRate,
+        SustainLevel,
+        Multiple,
+        Detune1,
+        KeyScale
+    };
+    
+    enum class ChannelParameter {
+        Algorithm,
+        Feedback
+    };
+    
+    // Parameter control methods
+    void setOperatorParameter(uint8_t channel, uint8_t operator_num, OperatorParameter param, uint8_t value);
+    void setChannelParameter(uint8_t channel, ChannelParameter param, uint8_t value);
+    
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
     { 
@@ -75,10 +97,15 @@ private:
     ymfm::ym2151::output_data opmOutput;
     ymfm::ym2608::output_data opnaOutput;
     
+    // Current register values (for read-modify-write operations)
+    uint8_t currentRegisters[256];
+    
     // Helper methods
     void initializeOPM();
     void initializeOPNA();
     uint16_t noteToFnum(uint8_t note);
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
+    uint8_t readCurrentRegister(uint8_t address);
+    void updateRegisterCache(uint8_t address, uint8_t value);
 };

@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/YmfmWrapper.h"
+#include <unordered_map>
 
 class ChipSynthAudioProcessor : public juce::AudioProcessor
 {
@@ -35,8 +36,28 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
+    // Parameter access for UI
+    juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
+
 private:
     YmfmWrapper ymfmWrapper;
+    
+    // Parameter system
+    juce::AudioProcessorValueTreeState parameters;
+    std::unordered_map<int, juce::AudioParameterInt*> ccToParameterMap;
+    std::atomic<int> parameterUpdateCounter{0};
+    static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
+    
+    // Factory presets
+    int currentPreset = 0;
+    static constexpr int NUM_FACTORY_PRESETS = 8;
+    
+    // Methods
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void setupCCMapping();
+    void handleMidiCC(int ccNumber, int value);
+    void updateYmfmParameters();
+    void loadFactoryPreset(int index);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChipSynthAudioProcessor)
 };
