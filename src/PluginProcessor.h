@@ -69,6 +69,7 @@ public:
     chipsynth::PresetManager& getPresetManager() { return presetManager; }
     int getCurrentPresetIndex() const { return currentPreset; }
     void setCurrentPreset(int index);
+    juce::StringArray getPresetNames() const { return presetManager.getPresetNames(); }
     
 private:
     

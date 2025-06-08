@@ -11,6 +11,9 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     // Listen for parameter state changes
     audioProcessor.getParameters().state.addListener(this);
     
+    // Ensure preset list is up to date when UI is opened
+    updatePresetComboBox();
+    
     setSize(800, 600);
 }
 
@@ -126,14 +129,13 @@ void MainComponent::setupOperatorPanels()
 void MainComponent::setupPresetSelector()
 {
     presetComboBox = std::make_unique<juce::ComboBox>();
-    presetComboBox->addItem("Electric Piano", 1);
-    presetComboBox->addItem("Synth Bass", 2);
-    presetComboBox->addItem("Brass Section", 3);
-    presetComboBox->addItem("String Pad", 4);
-    presetComboBox->addItem("Lead Synth", 5);
-    presetComboBox->addItem("Organ", 6);
-    presetComboBox->addItem("Bells", 7);
-    presetComboBox->addItem("Init", 8);
+    
+    // Populate combo box with preset names from PresetManager
+    auto presetNames = audioProcessor.getPresetNames();
+    for (int i = 0; i < presetNames.size(); ++i)
+    {
+        presetComboBox->addItem(presetNames[i], i + 1);
+    }
     
     // Set initial selection based on processor's current program
     presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
@@ -141,7 +143,7 @@ void MainComponent::setupPresetSelector()
     presetComboBox->onChange = [this]()
     {
         int selectedIndex = presetComboBox->getSelectedId() - 1;
-        if (selectedIndex >= 0 && selectedIndex < 8)
+        if (selectedIndex >= 0 && selectedIndex < audioProcessor.getNumPrograms())
         {
             audioProcessor.setCurrentProgram(selectedIndex);
         }
@@ -168,6 +170,14 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
 
 void MainComponent::updatePresetComboBox()
 {
+    // Refresh preset list in case new presets were loaded
+    presetComboBox->clear();
+    auto presetNames = audioProcessor.getPresetNames();
+    for (int i = 0; i < presetNames.size(); ++i)
+    {
+        presetComboBox->addItem(presetNames[i], i + 1);
+    }
+    
     // Update combo box selection to match current program
     // Use dontSendNotification to avoid triggering onChange callback
     presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
