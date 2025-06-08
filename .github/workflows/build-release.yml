@@ -1,0 +1,193 @@
+name: Build and Release ChipSynth AU
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_title:
+        description: 'Release title'
+        required: true
+        default: 'ChipSynth AU Release'
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Install dependencies
+      run: |
+        brew install cmake
+        
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+        
+    - name: Build Audio Unit
+      run: |
+        cd build
+        cmake --build . --config Release --parallel
+        
+    - name: Run Audio Unit validation
+      run: |
+        cd build
+        # Install the AU component temporarily for validation
+        cmake --install . --config Release
+        
+        # Wait for Audio Unit registration
+        sleep 5
+        
+        # Validate the Audio Unit
+        auval -v aumu ChpS Vend
+        
+    - name: Create DMG package
+      run: |
+        cd build
+        
+        # Create app bundle directory structure
+        mkdir -p "ChipSynth AU/Components"
+        
+        # Copy the AU component
+        cp -R "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component" "ChipSynth AU/Components/"
+        
+        # Create README for the package
+        cat > "ChipSynth AU/README.txt" << 'EOF'
+        ChipSynth AU - YM2151 FM Synthesis Audio Unit
+        
+        Installation Instructions:
+        1. Copy "ChipSynth AU.component" to ~/Library/Audio/Plug-Ins/Components/
+           (or /Library/Audio/Plug-Ins/Components/ for all users)
+        2. Restart your DAW
+        3. Look for "ChipSynth AU" in the Music Effect category
+        
+        Requirements:
+        - macOS 10.13 or later
+        - Audio Unit compatible DAW
+        
+        For more information, visit:
+        https://github.com/hiroaki0923/ChipSynth-AU
+        EOF
+        
+        # Create LICENSE file in package
+        cp ../LICENSE "ChipSynth AU/"
+        
+        # Create DMG
+        hdiutil create -volname "ChipSynth AU" -srcfolder "ChipSynth AU" -ov -format UDZO "ChipSynth-AU-${{ github.event.inputs.release_tag }}.dmg"
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cd build
+        
+        # Get component info
+        COMPONENT_VERSION=$(plutil -extract CFBundleVersion raw "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component/Contents/Info.plist" 2>/dev/null || echo "1.0.0")
+        
+        # Create release notes
+        cat > release_notes.md << EOF
+        ## ChipSynth AU ${{ github.event.inputs.release_tag }}
+        
+        A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to your DAW.
+        
+        ### 🎹 Features
+        - **8-voice polyphonic FM synthesis** using high-precision YM2151 emulation
+        - **VOPM-style interface** with all operator parameters
+        - **44 real-time parameters** including DT1, DT2, Key Scale, Feedback
+        - **8 factory presets** showcasing advanced sound design
+        - **Full MIDI CC support** (VOPMex compatible + DT2 extensions)
+        - **Audio Unit v2/v3 compatible** (Music Effect category)
+        
+        ### 📦 Installation
+        1. Download and open the DMG file
+        2. Copy "ChipSynth AU.component" to ~/Library/Audio/Plug-Ins/Components/
+        3. Restart your DAW
+        4. Find "ChipSynth AU" in the Music Effect category
+        
+        ### 🎚️ MIDI CC Mapping
+        - CC 14: Algorithm (0-7)
+        - CC 15: Feedback (0-7)  
+        - CC 16-19: OP1-4 Total Level (0-127)
+        - CC 20-23: OP1-4 Multiple (0-15)
+        - CC 24-27: OP1-4 Detune1 (0-7)
+        - CC 28-31: OP1-4 Detune2 (0-3)
+        - CC 39-42: OP1-4 Key Scale (0-3)
+        - CC 43-46: OP1-4 Attack Rate (0-31)
+        - CC 47-50: OP1-4 Decay1 Rate (0-31)
+        - CC 51-54: OP1-4 Decay2 Rate (0-31)
+        - CC 55-58: OP1-4 Release Rate (0-15)
+        - CC 59-62: OP1-4 Sustain Level (0-15)
+        
+        ### 🎵 Factory Presets
+        | # | Name | Description |
+        |---|------|-------------|
+        | 0 | Electric Piano | DT2 chorusing, rich harmonics |
+        | 1 | Synth Bass | Aggressive Key Scale, punch |
+        | 2 | Brass Section | Ensemble spread, DT2 variations |
+        | 3 | String Pad | Warm feedback, subtle DT2 |
+        | 4 | Lead Synth | Sharp attack, complex detuning |
+        | 5 | Organ | Harmonic series, organic character |
+        | 6 | Bells | Inharmonic relationships |
+        | 7 | Init | Basic sine wave template |
+        
+        ### 🔧 System Requirements
+        - macOS 10.13 or later
+        - Audio Unit compatible DAW (Logic Pro, Ableton Live, GarageBand, etc.)
+        - 64-bit Intel or Apple Silicon processor
+        
+        ### 📋 Technical Specifications
+        - Component Version: ${COMPONENT_VERSION}
+        - Audio Unit Type: Music Effect (aumu)
+        - Manufacturer: ChpS
+        - Subtype: Vend
+        - Built with: JUCE + ymfm library
+        - License: GPL v3
+        
+        ### 🐛 Known Issues
+        - None currently reported
+        
+        ### 📝 Changelog
+        See commit history for detailed changes: https://github.com/hiroaki0923/ChipSynth-AU/commits/main
+        EOF
+        
+        echo "release_notes_path=build/release_notes.md" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.release_tag }}
+        name: ${{ github.event.inputs.release_title }}
+        body_path: ${{ steps.release_notes.outputs.release_notes_path }}
+        prerelease: ${{ github.event.inputs.prerelease }}
+        files: |
+          build/ChipSynth-AU-${{ github.event.inputs.release_tag }}.dmg
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ChipSynth-AU-${{ github.event.inputs.release_tag }}
+        path: |
+          build/ChipSynth-AU-${{ github.event.inputs.release_tag }}.dmg
+          build/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component
+        retention-days: 30

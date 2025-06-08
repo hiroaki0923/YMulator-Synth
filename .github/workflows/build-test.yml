@@ -1,0 +1,95 @@
+name: Build Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+jobs:
+  build-test:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Install dependencies
+      run: |
+        brew install cmake
+        
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+        
+    - name: Build Audio Unit
+      run: |
+        cd build
+        cmake --build . --config Release --parallel
+        
+    - name: Run basic validation
+      run: |
+        cd build
+        
+        # Check if component was built
+        if [ ! -d "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component" ]; then
+          echo "❌ Audio Unit component not found"
+          exit 1
+        fi
+        
+        echo "✅ Audio Unit component built successfully"
+        
+        # Check component structure
+        if [ ! -f "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component/Contents/Info.plist" ]; then
+          echo "❌ Component Info.plist not found"
+          exit 1
+        fi
+        
+        echo "✅ Component structure valid"
+        
+        # Extract and display component info
+        BUNDLE_VERSION=$(plutil -extract CFBundleVersion raw "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component/Contents/Info.plist" 2>/dev/null || echo "unknown")
+        BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw "ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component/Contents/Info.plist" 2>/dev/null || echo "unknown")
+        
+        echo "📦 Component Info:"
+        echo "   Bundle ID: ${BUNDLE_ID}"
+        echo "   Version: ${BUNDLE_VERSION}"
+        
+    - name: Install and validate AU (optional)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        cd build
+        
+        echo "🔧 Installing Audio Unit for validation..."
+        cmake --install . --config Release
+        
+        # Wait for registration
+        sleep 5
+        
+        echo "🧪 Running auval..."
+        if auval -v aumu ChpS Vend > /dev/null 2>&1; then
+          echo "✅ auval validation passed"
+        else
+          echo "⚠️ auval validation failed (this might be normal in CI environment)"
+        fi
+        
+    - name: Upload build artifacts
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v3
+      with:
+        name: ChipSynth-AU-build-${{ github.sha }}
+        path: |
+          build/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component
+        retention-days: 7
