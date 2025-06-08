@@ -1,39 +1,39 @@
 # ChipSynth AU
 
-A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of classic YM2151 (OPM) and YM2608 (OPNA) chips to your DAW with a familiar VOPM-like interface.
+A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with a VOPM-style interface.
 
 ![ChipSynth AU Screenshot](docs/images/screenshot.png)
 
 ## Features
 
-### 🎹 Authentic Chip Emulation
-- **YM2151 (OPM)**: 8-channel FM synthesis from X68000 and arcade systems
-- **YM2608 (OPNA)**: 6 FM channels + 3 SSG channels from PC-88VA/PC-98
-- High-precision emulation for genuine retro sound
+### 🎹 Authentic YM2151 (OPM) Emulation
+- **8-voice polyphonic FM synthesis** using Aaron Giles' ymfm library
+- **High-precision emulation** of the YM2151 chip from X68000 and arcade systems
+- **All 8 FM algorithms** with full operator control
+- **Complete parameter set**: DT1, DT2, Key Scale, Feedback, and more
 
-### 🎚️ VOPM-Compatible Interface
-- Familiar 4-operator FM synthesis controls
-- Real-time envelope visualization
-- Drag-and-drop envelope editing
-- Per-operator parameter adjustment
+### 🎚️ VOPM-Style Interface
+- **4-operator FM synthesis controls** with familiar layout
+- **Global parameters**: Algorithm selection and Feedback control
+- **Per-operator controls**: TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
+- **Real-time parameter updates** with < 3ms latency
 
 ### 🎵 Professional Features
-- **Full MIDI CC Support**: VOPMex-compatible CC mapping
-- **Preset Management**: Load/save .opm format patches
-- **S98 Recording**: Export your performances for chipmusic players
-- **Low Latency**: Optimized for real-time performance (< 3ms)
-- **ADPCM Support**: Load WAV samples for OPNA ADPCM channel
+- **8 Factory Presets**: Electric Piano, Bass, Brass, Strings, Lead, Organ, Bells, Init
+- **Full MIDI CC Support**: VOPMex-compatible CC mapping (14-62)
+- **Polyphonic voice allocation** with automatic voice stealing
+- **Enhanced presets** utilizing DT2, Key Scale, and Feedback for rich timbres
 
 ### 🔧 Modern Workflow
-- VST3 and AU formats
-- 64-bit native processing
-- Retina display support
-- Full automation support
+- **Audio Unit v2/v3 compatible** (Music Effect type)
+- **64-bit native processing** on Intel and Apple Silicon
+- **Full DAW automation support**
+- **Optimized for real-time performance**
 
 ## Requirements
 
 - macOS 10.13 or later
-- Audio Unit v3 compatible DAW (Logic Pro, Ableton Live, etc.)
+- Audio Unit compatible DAW (Logic Pro, Ableton Live, GarageBand, etc.)
 - 64-bit Intel or Apple Silicon processor
 
 ## Installation
@@ -49,11 +49,11 @@ See [Building](#building) section below.
 
 ## Quick Start
 
-1. **Load the plugin** in your DAW's instrument track
-2. **Choose a preset** from the built-in library or load an .opm file
+1. **Load the plugin** in your DAW's instrument track (Music Effect category)
+2. **Choose a preset** from the 8 built-in factory presets
 3. **Play** using your MIDI keyboard or DAW's piano roll
-4. **Adjust parameters** using the knobs and sliders
-5. **Save your patch** in .opm format for sharing
+4. **Adjust parameters** using the VOPM-style interface
+5. **Experiment** with DT2, Key Scale, and Feedback for unique sounds
 
 ## Building
 
@@ -91,40 +91,39 @@ cmake --install .
 ## Technical Specifications
 
 ### Audio Processing
-- Sample rates: 44.1, 48, 88.2, 96 kHz
+- Sample rates: 44.1, 48, 88.2, 96 kHz supported
 - Buffer sizes: 64-4096 samples
 - Internal processing: 32-bit float
-- Polyphony: 8 voices (OPM) / 6+3 voices (OPNA)
+- Polyphony: 8 voices with automatic voice stealing
+- Latency: < 3ms parameter response time
 
-### MIDI Implementation
+### MIDI Implementation (VOPMex Compatible)
 | CC# | Parameter | Range | Description |
 |-----|-----------|-------|-------------|
 | 14 | Algorithm | 0-7 | FM algorithm selection |
 | 15 | Feedback | 0-7 | Operator 1 feedback level |
 | 16-19 | TL OP1-4 | 0-127 | Total Level per operator |
+| 20-23 | MUL OP1-4 | 0-15 | Multiple per operator |
+| 24-27 | DT1 OP1-4 | 0-7 | Detune 1 per operator |
+| 28-31 | DT2 OP1-4 | 0-3 | Detune 2 per operator |
+| 39-42 | KS OP1-4 | 0-3 | Key Scale per operator |
 | 43-46 | AR OP1-4 | 0-31 | Attack Rate per operator |
-| 75 | PMS | 0-7 | Pitch Modulation Sensitivity |
-| 76 | AMS | 0-3 | Amplitude Modulation Sensitivity |
+| 47-50 | D1R OP1-4 | 0-31 | Decay 1 Rate per operator |
+| 51-54 | D2R OP1-4 | 0-31 | Decay 2 Rate per operator |
+| 55-58 | RR OP1-4 | 0-15 | Release Rate per operator |
+| 59-62 | D1L OP1-4 | 0-15 | Sustain Level per operator |
 
-See [docs/MIDI_Implementation.md](docs/MIDI_Implementation.md) for complete CC mapping.
-
-## File Formats
-
-### .opm Format
-ChipSynth AU can load and save voice patches in VOPM .opm format:
-```
-@:0 Piano
-LFO: 0 0 0 0 0
-CH: 64 7 2 0 0 120 0
-M1: 31 5 0 0 0 20 0 1 0 0 0
-...
-```
-
-### S98 Export
-Record your performances and export as S98 files for playback in:
-- foobar2000 + foo_input_s98
-- WinAMP + in_s98
-- Various chipmusic players
+### Factory Presets
+| # | Name | Algorithm | Features |
+|---|------|-----------|----------|
+| 0 | Electric Piano | 5 | DT2 chorusing, rich harmonics |
+| 1 | Synth Bass | 7 | Aggressive Key Scale, punch |
+| 2 | Brass Section | 4 | Ensemble spread, DT2 variations |
+| 3 | String Pad | 1 | Warm feedback, subtle DT2 |
+| 4 | Lead Synth | 7 | Sharp attack, complex detuning |
+| 5 | Organ | 7 | Harmonic series, organic character |
+| 6 | Bells | 1 | Inharmonic relationships |
+| 7 | Init | 7 | Basic sine wave template |
 
 ## Contributing
 
@@ -143,9 +142,25 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 cd build
 ctest --output-on-failure
 
-# Run Audio Unit validation
-auval -v aufx Ymfm Manu
+# Run Audio Unit validation (quiet)
+auval -v aumu ChpS Vend > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+
+# Run Audio Unit validation (verbose for debugging)
+auval -v aumu ChpS Vend
 ```
+
+## Current Development Status
+
+This project is actively developed with the following status:
+- **Phase 1 (Foundation)**: ✅ 100% Complete
+- **Phase 2 (Core Audio)**: 🔄 75% Complete (OPM focused)
+- **Overall Progress**: ~60% Complete
+
+See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md) for detailed progress tracking.
+
+### Roadmap
+- **Phase 2 Completion**: Enhanced UI features, preset management
+- **Phase 3 (Future)**: YM2608 (OPNA) support, .opm file I/O, S98 export
 
 ## License
 
