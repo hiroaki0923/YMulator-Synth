@@ -352,6 +352,10 @@ void ChipSynthAudioProcessor::setupCCMapping()
         ccToParameterMap[24 + opIndex] = 
             dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt1"));
         
+        // Detune2 (CC 28-31)
+        ccToParameterMap[28 + opIndex] = 
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt2"));
+        
         // Key Scale (CC 39-42)
         ccToParameterMap[39 + opIndex] = 
             dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_ks"));
@@ -400,72 +404,73 @@ void ChipSynthAudioProcessor::loadFactoryPreset(int index)
     // Factory preset data based on VOPM format specification
     struct PresetData {
         int algorithm, feedback;
-        struct { int ar, d1r, d2r, rr, d1l, tl, ks, mul, dt1; } op[4];
+        struct { int ar, d1r, d2r, rr, d1l, tl, ks, mul, dt1, dt2; } op[4];
     };
     
     const PresetData factoryPresets[NUM_FACTORY_PRESETS] = {
-        // Electric Piano
+        // Electric Piano - Algorithm 5 with feedback 7 for classic FM electric piano sound
+        // Uses DT2 variations to create natural chorusing and warmth
         { 5, 7, {
-            {31, 14, 0, 7, 0, 32, 0, 1, 3},
-            {31, 5, 0, 7, 0, 45, 0, 1, 3},
-            {31, 7, 0, 7, 0, 50, 0, 1, 3},
-            {31, 9, 0, 7, 0, 55, 0, 1, 3}
+            {31, 14, 0, 7, 0, 32, 1, 1, 3, 1},  // OP1: carrier with slight KS and DT2 for warmth
+            {31, 5, 0, 7, 0, 45, 0, 1, 4, 2},   // OP2: modulator with DT1=4, DT2=2 for rich harmonics
+            {31, 7, 0, 7, 0, 50, 1, 1, 2, 0},   // OP3: modulator with DT1=2, KS=1 for brightness
+            {31, 9, 0, 7, 0, 55, 0, 1, 3, 1}    // OP4: modulator with DT2=1 for complexity
         }},
         
-        // Synth Bass
+        // Synth Bass - Enhanced with aggressive feedback and KS
         { 7, 6, {
-            {31, 8, 0, 7, 0, 25, 1, 1, 3},
-            {31, 8, 0, 7, 0, 60, 1, 1, 3},
-            {31, 8, 0, 7, 0, 65, 1, 1, 3},
-            {31, 8, 0, 7, 0, 70, 1, 1, 3}
+            {31, 8, 0, 7, 0, 25, 3, 1, 3, 0},   // OP1: KS=3 for punch
+            {31, 8, 0, 7, 0, 60, 2, 1, 3, 0},   // OP2: KS=2
+            {31, 8, 0, 7, 0, 65, 1, 1, 3, 0},   // OP3: KS=1
+            {31, 8, 0, 7, 0, 70, 1, 1, 3, 0}    // OP4: KS=1
         }},
         
-        // Brass Section
+        // Brass Section - Enhanced with varied DT2 for ensemble effect
         { 4, 6, {
-            {31, 14, 6, 7, 1, 35, 1, 1, 3},
-            {31, 14, 3, 7, 1, 40, 1, 1, 3},
-            {31, 11, 11, 7, 1, 45, 1, 1, 3},
-            {31, 14, 6, 7, 1, 50, 1, 1, 3}
+            {31, 14, 6, 7, 1, 35, 2, 1, 3, 1},  // OP1: KS=2, DT2=1 for brightness
+            {31, 14, 3, 7, 1, 40, 2, 1, 2, 2},  // OP2: DT1=2, DT2=2 for spread
+            {31, 11, 11, 7, 1, 45, 1, 1, 4, 1}, // OP3: DT1=4, DT2=1 for character
+            {31, 14, 6, 7, 1, 50, 2, 1, 3, 0}   // OP4: KS=2 for definition
         }},
         
-        // String Pad
-        { 1, 0, {
-            {15, 7, 7, 1, 1, 25, 0, 1, 3},
-            {15, 4, 4, 1, 1, 30, 0, 1, 3},
-            {15, 7, 7, 1, 1, 35, 0, 1, 3},
-            {15, 4, 4, 1, 1, 40, 0, 1, 3}
+        // String Pad - Enhanced with subtle DT2 variations
+        { 1, 2, {  // Increased feedback for warmth
+            {15, 7, 7, 1, 1, 25, 0, 1, 3, 1},   // OP1: DT2=1 for slight spread
+            {15, 4, 4, 1, 1, 30, 0, 1, 2, 2},   // OP2: DT1=2, DT2=2 for richness
+            {15, 7, 7, 1, 1, 35, 0, 1, 4, 1},   // OP3: DT1=4, DT2=1 for depth
+            {15, 4, 4, 1, 1, 40, 0, 1, 3, 0}    // OP4: standard tuning
         }},
         
-        // Lead Synth
-        { 7, 4, {
-            {31, 6, 2, 7, 0, 30, 2, 1, 3},
-            {31, 6, 2, 7, 0, 60, 2, 1, 3},
-            {31, 6, 2, 7, 0, 65, 2, 1, 3},
-            {31, 6, 2, 7, 0, 70, 2, 1, 3}
+        // Lead Synth - Enhanced with sharp attack and DT2 character
+        { 7, 5, {  // Increased feedback for edge
+            {31, 6, 2, 7, 0, 30, 3, 1, 3, 0},   // OP1: KS=3 for attack sharpness
+            {31, 6, 2, 7, 0, 60, 2, 1, 2, 1},   // OP2: DT1=2, DT2=1 for character
+            {31, 6, 2, 7, 0, 65, 2, 1, 4, 2},   // OP3: DT1=4, DT2=2 for spread
+            {31, 6, 2, 7, 0, 70, 2, 1, 3, 0}    // OP4: KS=2
         }},
         
-        // Organ
+        // Organ - Enhanced with harmonics and key scaling
+        { 7, 3, {  // Added feedback for organ character
+            {31, 0, 0, 7, 0, 40, 1, 2, 3, 0},   // OP1: MUL=2, KS=1 for fundamental
+            {31, 0, 0, 7, 0, 65, 1, 3, 3, 1},   // OP2: MUL=3, DT2=1 for 3rd harmonic
+            {31, 0, 0, 7, 0, 70, 0, 4, 3, 0},   // OP3: MUL=4 for 4th harmonic
+            {31, 0, 0, 7, 0, 75, 1, 5, 3, 1}    // OP4: MUL=5, DT2=1 for 5th harmonic
+        }},
+        
+        // Bells - Enhanced with complex DT2 relationships
+        { 1, 2, {  // Slight feedback for warmth
+            {31, 18, 0, 4, 3, 25, 2, 14, 3, 1}, // OP1: KS=2, DT2=1 for bell character
+            {31, 18, 0, 4, 3, 30, 1, 1, 2, 3},  // OP2: DT1=2, DT2=3 for inharmonicity
+            {31, 18, 0, 4, 3, 35, 1, 1, 4, 2},  // OP3: DT1=4, DT2=2 for complexity
+            {31, 18, 0, 4, 3, 40, 0, 1, 5, 1}   // OP4: DT1=5, DT2=1 for shimmer
+        }},
+        
+        // Init (basic sine wave) - Simple but with slight enhancements
         { 7, 0, {
-            {31, 0, 0, 7, 0, 40, 0, 2, 3},
-            {31, 0, 0, 7, 0, 65, 0, 1, 3},
-            {31, 0, 0, 7, 0, 70, 0, 1, 3},
-            {31, 0, 0, 7, 0, 75, 0, 1, 3}
-        }},
-        
-        // Bells
-        { 1, 0, {
-            {31, 18, 0, 4, 3, 25, 1, 14, 3},
-            {31, 18, 0, 4, 3, 30, 1, 1, 3},
-            {31, 18, 0, 4, 3, 35, 1, 1, 3},
-            {31, 18, 0, 4, 3, 40, 1, 1, 3}
-        }},
-        
-        // Init (basic sine wave)
-        { 7, 0, {
-            {31, 0, 0, 7, 0, 32, 0, 1, 3},
-            {31, 0, 0, 7, 0, 127, 0, 1, 3},
-            {31, 0, 0, 7, 0, 127, 0, 1, 3},
-            {31, 0, 0, 7, 0, 127, 0, 1, 3}
+            {31, 0, 0, 7, 0, 32, 0, 1, 3, 0},   // OP1: clean sine
+            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0},  // OP2-4: silent
+            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0},
+            {31, 0, 0, 7, 0, 127, 0, 1, 3, 0}
         }}
     };
     
@@ -503,6 +508,8 @@ void ChipSynthAudioProcessor::loadFactoryPreset(int index)
             param->setValueNotifyingHost(param->convertTo0to1(opData.mul));
         if (auto* param = parameters.getParameter(opId + "_dt1"))
             param->setValueNotifyingHost(param->convertTo0to1(opData.dt1));
+        if (auto* param = parameters.getParameter(opId + "_dt2"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.dt2));
         if (auto* param = parameters.getParameter(opId + "_ams_en"))
             param->setValueNotifyingHost(0.0f);
     }
