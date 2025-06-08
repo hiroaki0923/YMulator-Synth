@@ -8,7 +8,16 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     setupOperatorPanels();
     setupPresetSelector();
     
+    // Listen for parameter state changes
+    audioProcessor.getParameters().state.addListener(this);
+    
     setSize(800, 600);
+}
+
+MainComponent::~MainComponent()
+{
+    // Remove listener to avoid dangling pointer
+    audioProcessor.getParameters().state.removeListener(this);
 }
 
 void MainComponent::paint(juce::Graphics& g)
@@ -104,7 +113,10 @@ void MainComponent::setupPresetSelector()
     presetComboBox->addItem("Organ", 6);
     presetComboBox->addItem("Bells", 7);
     presetComboBox->addItem("Init", 8);
-    presetComboBox->setSelectedId(8); // Default to Init
+    
+    // Set initial selection based on processor's current program
+    presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+    
     presetComboBox->onChange = [this]()
     {
         int selectedIndex = presetComboBox->getSelectedId() - 1;
@@ -119,4 +131,23 @@ void MainComponent::setupPresetSelector()
     presetLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     presetLabel->setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(*presetLabel);
+}
+
+void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+                                           const juce::Identifier& property)
+{
+    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
+    
+    // Update preset combo box when parameters change
+    // Use MessageManager to ensure UI updates happen on the main thread
+    juce::MessageManager::callAsync([this]() {
+        updatePresetComboBox();
+    });
+}
+
+void MainComponent::updatePresetComboBox()
+{
+    // Update combo box selection to match current program
+    // Use dontSendNotification to avoid triggering onChange callback
+    presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
 }

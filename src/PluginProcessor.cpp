@@ -468,33 +468,42 @@ void ChipSynthAudioProcessor::loadFactoryPreset(int index)
     
     const auto& preset = factoryPresets[index];
     
-    // Set global parameters
-    *parameters.getRawParameterValue("algorithm") = preset.algorithm;
-    *parameters.getRawParameterValue("feedback") = preset.feedback;
+    // Set global parameters using parameter methods that notify UI
+    if (auto* algorithmParam = parameters.getParameter("algorithm"))
+        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset.algorithm));
+    if (auto* feedbackParam = parameters.getParameter("feedback"))
+        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset.feedback));
     
-    // Set operator parameters
+    // Set operator parameters using parameter methods that notify UI
     for (int op = 0; op < 4; ++op)
     {
         juce::String opId = "op" + juce::String(op + 1);
         const auto& opData = preset.op[op];
         
-        *parameters.getRawParameterValue(opId + "_ar") = opData.ar;
-        *parameters.getRawParameterValue(opId + "_d1r") = opData.d1r;
-        *parameters.getRawParameterValue(opId + "_d2r") = opData.d2r;
-        *parameters.getRawParameterValue(opId + "_rr") = opData.rr;
-        *parameters.getRawParameterValue(opId + "_d1l") = opData.d1l;
-        *parameters.getRawParameterValue(opId + "_tl") = opData.tl;
-        *parameters.getRawParameterValue(opId + "_ks") = opData.ks;
-        *parameters.getRawParameterValue(opId + "_mul") = opData.mul;
-        *parameters.getRawParameterValue(opId + "_dt1") = opData.dt1;
-        *parameters.getRawParameterValue(opId + "_ams_en") = 0.0f; // Default off
+        if (auto* param = parameters.getParameter(opId + "_ar"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.ar));
+        if (auto* param = parameters.getParameter(opId + "_d1r"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.d1r));
+        if (auto* param = parameters.getParameter(opId + "_d2r"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.d2r));
+        if (auto* param = parameters.getParameter(opId + "_rr"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.rr));
+        if (auto* param = parameters.getParameter(opId + "_d1l"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.d1l));
+        if (auto* param = parameters.getParameter(opId + "_tl"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.tl));
+        if (auto* param = parameters.getParameter(opId + "_ks"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.ks));
+        if (auto* param = parameters.getParameter(opId + "_mul"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.mul));
+        if (auto* param = parameters.getParameter(opId + "_dt1"))
+            param->setValueNotifyingHost(param->convertTo0to1(opData.dt1));
+        if (auto* param = parameters.getParameter(opId + "_ams_en"))
+            param->setValueNotifyingHost(0.0f);
     }
     
-    // Force parameter update
+    // Force parameter update to ymfm
     updateYmfmParameters();
-    
-    // Notify UI of parameter changes
-    parameters.state.sendPropertyChangeMessage("presetChanged");
 }
 
 void ChipSynthAudioProcessor::updateYmfmParameters()

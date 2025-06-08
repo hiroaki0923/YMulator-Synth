@@ -6,14 +6,19 @@
 
 class ChipSynthAudioProcessor;
 
-class MainComponent : public juce::Component
+class MainComponent : public juce::Component,
+                      public juce::ValueTree::Listener
 {
 public:
     explicit MainComponent(ChipSynthAudioProcessor& processor);
-    ~MainComponent() override = default;
+    ~MainComponent() override;
     
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    // ValueTree::Listener overrides
+    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+                                 const juce::Identifier& property) override;
 
 private:
     ChipSynthAudioProcessor& audioProcessor;
@@ -35,6 +40,7 @@ private:
     void setupGlobalControls();
     void setupOperatorPanels();
     void setupPresetSelector();
+    void updatePresetComboBox();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
