@@ -37,7 +37,33 @@ log_error() {
 
 # Parse arguments
 VERSION=${1:-"$(date +%Y%m%d)"}
-SKIP_VALIDATION=${2:-""}
+SKIP_VALIDATION=""
+CREATE_GITHUB_RELEASE=false
+
+for arg in "$@"; do
+    case $arg in
+        --skip-validation)
+            SKIP_VALIDATION="--skip-validation"
+            ;;
+        --github-release)
+            CREATE_GITHUB_RELEASE=true
+            ;;
+        --help)
+            echo "Usage: $0 [version] [options]"
+            echo ""
+            echo "Options:"
+            echo "  --skip-validation   Skip auval validation"
+            echo "  --github-release    Create GitHub release automatically"
+            echo "  --help              Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  $0                           # Build with auto version"
+            echo "  $0 v1.0.0                   # Build with specific version"
+            echo "  $0 v1.0.0 --github-release  # Build and create GitHub release"
+            exit 0
+            ;;
+    esac
+done
 
 log_info "Starting ChipSynth AU release build..."
 log_info "Version: $VERSION"
@@ -261,6 +287,64 @@ EOF
 
 log_success "Release notes created: $RELEASE_NOTES"
 
+# Create GitHub Release if requested
+if [ "$CREATE_GITHUB_RELEASE" = true ]; then
+    log_info "Creating GitHub release..."
+    
+    # Check if gh command is available
+    if ! command -v gh &> /dev/null; then
+        log_error "GitHub CLI (gh) not found. Install with: brew install gh"
+        log_info "Continuing without GitHub release creation..."
+    else
+        # Check if authenticated
+        if ! gh auth status &> /dev/null; then
+            log_error "Not authenticated with GitHub. Run: gh auth login"
+            log_info "Continuing without GitHub release creation..."
+        else
+            cd "$PROJECT_DIR"
+            
+            # Determine if this is a prerelease (contains alpha, beta, rc, dev)
+            PRERELEASE_FLAG=""
+            if [[ "$VERSION" =~ (alpha|beta|rc|dev) ]]; then
+                PRERELEASE_FLAG="--prerelease"
+                log_info "Detected prerelease version"
+            fi
+            
+            # Create the release
+            RELEASE_TITLE="ChipSynth AU $VERSION"
+            DMG_PATH="$RELEASE_DIR/$DMG_NAME"
+            ZIP_PATH="$RELEASE_DIR/ChipSynth-AU-$VERSION.zip"
+            
+            # Determine which file to upload
+            UPLOAD_FILE=""
+            if [ -f "$DMG_PATH" ]; then
+                UPLOAD_FILE="$DMG_PATH"
+            elif [ -f "$ZIP_PATH" ]; then
+                UPLOAD_FILE="$ZIP_PATH"
+            else
+                log_error "No package file found for upload"
+                exit 1
+            fi
+            
+            # Create release with gh command
+            if gh release create "$VERSION" \
+                --title "$RELEASE_TITLE" \
+                --notes-file "$RELEASE_NOTES" \
+                $PRERELEASE_FLAG \
+                "$UPLOAD_FILE"; then
+                
+                log_success "GitHub release created successfully!"
+                echo "🔗 Release URL: $(gh release view "$VERSION" --web --json url -q .url 2>/dev/null || echo "Check GitHub releases page")"
+            else
+                log_error "Failed to create GitHub release"
+                log_info "You can create it manually using the generated files"
+            fi
+        fi
+    fi
+else
+    log_info "Skipping GitHub release creation (use --github-release to enable)"
+fi
+
 # Summary
 echo ""
 log_success "🎉 Release build completed successfully!"
@@ -271,8 +355,19 @@ echo ""
 echo "📋 Files Created:"
 ls -la "$RELEASE_DIR" | grep "$VERSION"
 echo ""
-echo "🚀 Next Steps:"
-echo "   1. Test the DMG package"
-echo "   2. Create GitHub release manually"
-echo "   3. Upload the DMG and release notes"
-echo ""
+if [ "$CREATE_GITHUB_RELEASE" = true ]; then
+    echo "🚀 GitHub Release:"
+    echo "   Created automatically (if gh CLI is configured)"
+    echo ""
+else
+    echo "🚀 Manual GitHub Release Steps:"
+    echo "   1. Test the DMG package"
+    echo "   2. Go to GitHub → Releases → New Release"
+    echo "   3. Tag: $VERSION"
+    echo "   4. Upload: $(ls "$RELEASE_DIR"/*"$VERSION"* 2>/dev/null | head -1)"
+    echo "   5. Copy release notes from: $RELEASE_NOTES"
+    echo ""
+    echo "💡 Or use automatic release:"
+    echo "   $0 $VERSION --github-release"
+    echo ""
+fi

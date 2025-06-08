@@ -36,6 +36,12 @@ Production builds with packaging for distribution.
 
 # Skip auval validation (faster build)
 ./scripts/build-release.sh v1.0.0 --skip-validation
+
+# Build and create GitHub release automatically
+./scripts/build-release.sh v1.0.0 --github-release
+
+# Combined options
+./scripts/build-release.sh v1.0.0 --skip-validation --github-release
 ```
 
 ## 📦 Output Locations
@@ -59,7 +65,22 @@ xcode-select --install
 # Install CMake
 brew install cmake
 
+# Install GitHub CLI (for automatic releases)
+brew install gh
+
 # Xcode (from App Store)
+```
+
+### GitHub CLI Setup (Optional)
+```bash
+# Authenticate with GitHub (one-time setup)
+gh auth login
+
+# Verify authentication
+gh auth status
+
+# Test access to your repository
+gh repo view hiroaki0923/ChipSynth-AU
 ```
 
 ### Verify Installation
@@ -86,6 +107,8 @@ cd ChipSynth-AU
 ```
 
 ### For Release
+
+#### Manual Release
 ```bash
 # 1. Ensure everything is committed
 git status
@@ -97,6 +120,17 @@ git status
 open releases/ChipSynth-AU-v1.0.0.dmg
 
 # 4. Create GitHub release manually
+```
+
+#### Automatic Release
+```bash
+# 1. Setup GitHub CLI (one-time)
+gh auth login
+
+# 2. Build and release in one command
+./scripts/build-release.sh v1.0.0 --github-release
+
+# 3. Release is automatically created on GitHub
 ```
 
 ## 📋 Build Process Details
