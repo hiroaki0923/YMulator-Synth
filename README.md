@@ -164,7 +164,7 @@ See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md)
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL v3 License - see [LICENSE](LICENSE) file for details.
 
 ### Third-party Libraries
 - [JUCE](https://juce.com/) - GPL v3 / Commercial
