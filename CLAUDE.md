@@ -129,6 +129,22 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 - Performance tests: Verify < 3ms latency requirement
 - Audio Unit validation: Use `auval` before distribution
 
+## Development Status Tracking
+
+**⚠️ ALWAYS UPDATE [Development Status](docs/chipsynth-development-status.md) when completing features or milestones.**
+
+- Track progress against the implementation plan in [Design Document](docs/chipsynth-design-main.md#3-実装計画)
+- Update completion percentages for each phase and task
+- Record commit hashes and completion dates
+- Note any changes to the original timeline or scope
+- Update technical achievements and confirmed functionality
+
+**Progress in Commit Messages:**
+- For regular commits: Focus on technical changes only
+- For major milestones: Lightly mention progress (e.g., "Complete Phase 1 basic audio implementation")
+- Phase completions or significant feature completions warrant brief progress notes
+- Avoid detailed progress percentages in commit messages
+
 ## Key Project Structure
 
 ```
