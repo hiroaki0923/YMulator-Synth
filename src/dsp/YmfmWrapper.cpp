@@ -65,8 +65,10 @@ void YmfmWrapper::initializeOPM()
     DBG("YmfmWrapper: OPM chip reset complete, setting up voice");
     std::cout << "YmfmWrapper: OPM chip reset complete, setting up voice" << std::endl;
     
-    // Setup basic piano voice on channel 0
-    setupBasicPianoVoice(0);
+    // Setup basic piano voice on all 8 channels
+    for (int channel = 0; channel < 8; ++channel) {
+        setupBasicPianoVoice(channel);
+    }
     
     // Auto-play a note for testing (like sample code) - delay it a bit
     // playTestNote(); // Disable for now, will test via MIDI
@@ -83,8 +85,10 @@ void YmfmWrapper::initializeOPNA()
     // Enable extended mode (required for OPNA)
     writeRegister(0x29, 0x9f);
     
-    // Setup basic piano voice on channel 0
-    setupBasicPianoVoice(0);
+    // Setup basic piano voice on all 6 FM channels (OPNA has 6 FM channels)
+    for (int channel = 0; channel < 6; ++channel) {
+        setupBasicPianoVoice(channel);
+    }
 }
 
 void YmfmWrapper::writeRegister(int address, uint8_t data)

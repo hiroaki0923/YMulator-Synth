@@ -142,10 +142,25 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         if (message.isNoteOn()) {
             DBG("ChipSynth: Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
-            ymfmWrapper.noteOn(0, message.getNoteNumber(), message.getVelocity());
+            
+            // Allocate a voice for this note
+            int channel = voiceManager.allocateVoice(message.getNoteNumber(), message.getVelocity());
+            
+            // Tell ymfm to play this note on the allocated channel
+            ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
+            
         } else if (message.isNoteOff()) {
             DBG("ChipSynth: Note OFF - Note: " + juce::String(message.getNoteNumber()));
-            ymfmWrapper.noteOff(0, message.getNoteNumber());
+            
+            // Find which channel is playing this note
+            int channel = voiceManager.getChannelForNote(message.getNoteNumber());
+            if (channel >= 0) {
+                // Tell ymfm to stop this note
+                ymfmWrapper.noteOff(channel, message.getNoteNumber());
+                
+                // Release the voice
+                voiceManager.releaseVoice(message.getNoteNumber());
+            }
         } else if (message.isController()) {
             DBG("ChipSynth: MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
@@ -497,26 +512,30 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
     int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
     
-    // Update global parameters for channel 0
-    ymfmWrapper.setAlgorithm(0, algorithm);
-    ymfmWrapper.setFeedback(0, feedback);
-    
-    // Update operator parameters
-    for (int op = 0; op < 4; ++op)
+    // Update parameters for all 8 channels to keep them in sync
+    for (int channel = 0; channel < 8; ++channel)
     {
-        juce::String opId = "op" + juce::String(op + 1);
+        // Update global parameters for each channel
+        ymfmWrapper.setAlgorithm(channel, algorithm);
+        ymfmWrapper.setFeedback(channel, feedback);
         
-        int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
-        int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
-        int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
-        int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
-        int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
-        int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
-        int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
-        int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
-        int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
-        
-        ymfmWrapper.setOperatorParameters(0, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
+        // Update operator parameters
+        for (int op = 0; op < 4; ++op)
+        {
+            juce::String opId = "op" + juce::String(op + 1);
+            
+            int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
+            int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
+            int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
+            int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
+            int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
+            int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
+            int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
+            int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
+            int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
+            
+            ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
+        }
     }
 }
 

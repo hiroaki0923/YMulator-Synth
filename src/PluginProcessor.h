@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/YmfmWrapper.h"
+#include "core/VoiceManager.h"
 #include <unordered_map>
 
 class ChipSynthAudioProcessor : public juce::AudioProcessor
@@ -41,6 +42,7 @@ public:
 
 private:
     YmfmWrapper ymfmWrapper;
+    VoiceManager voiceManager;
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
