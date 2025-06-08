@@ -81,7 +81,7 @@ killall -9 AudioComponentRegistrar
 log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 ```
 
-**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.4](docs/chipsynth-implementation-guide.md#14-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
+**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/chipsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
 
 ## Architecture
 
@@ -122,7 +122,7 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 ## Testing
 
-**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.5](docs/chipsynth-implementation-guide.md#15-テスト戦略とテストコード) for test strategy and examples.**
+**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.6](docs/chipsynth-implementation-guide.md#16-テスト戦略とテストコード) for test strategy and examples.**
 
 - Unit tests: Test individual components (operators, envelopes, LFOs)
 - Integration tests: MIDI processing and parameter updates  

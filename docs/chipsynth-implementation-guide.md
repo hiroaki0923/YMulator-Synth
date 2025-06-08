@@ -2,9 +2,33 @@
 
 ## 1. 実装ガイド
 
-### 1.1 クイックスタートガイド
+### 1.1 実装戦略とプロトタイプ駆動開発
 
-#### 1.1.1 ymfm基本実装
+**実装順序（音が出る最短経路）:**
+1. **最小限のymfm統合** - OPM/OPNAの基本音声生成
+2. **基本的なAudio Unitシェル** - JUCEプラグインフレームワーク
+3. **シンプルなボイスアロケーション** - 8音固定、LRUアルゴリズム
+4. **基本的なMIDI処理** - Note On/Off、ベロシティ
+5. **パラメータ構造の実装** - 基本的なCC→レジスタマッピング
+
+**プロトタイプ駆動アプローチ:**
+- 仮実装 → 検証 → 仕様化 → 本実装
+- ボイスアロケーション: 8音固定で実装 → 最適化検討
+- パラメータ範囲: VOPM互換性を実機確認しながら調整
+- MIDI CC: 基本的なものから実装、順次追加
+
+### 1.2 クイックスタートガイド
+
+#### 1.2.1 ymfm基本実装
+
+**チップクロックレート設定:**
+- **OPM (YM2151)**: 62500Hz（内部生成レート）
+- **OPNA (YM2608)**: 55466Hz（内部生成レート）
+- **出力**: 44.1kHz/48kHzにダウンサンプリング
+
+**必須初期化シーケンス:**
+- **OPNA**: レジスタ0x29に0x9f書き込み（拡張モード有効）
+
 ```cpp
 #include "ymfm_opm.h"
 #include "ymfm_opna.h"
@@ -13,8 +37,9 @@
 class BasicOPMSynth {
 private:
     ymfm::ym2151 opm_chip;
-    ymfm::ym2151::output_data opm_output;
-    uint32_t sample_rate = 44100;
+    ymfm::ym2151::output_data omp_output;
+    uint32_t internal_rate = 62500;  // OPM内部クロックレート
+    uint32_t output_rate = 44100;    // DAW出力レート
     
 public:
     void initialize() {
@@ -96,9 +121,84 @@ private:
         return fnum_table[note % 12];
     }
 };
+
+// 最小限のOPNA実装例
+class BasicOPNASynth {
+private:
+    ymfm::ym2608 opna_chip;
+    ymfm::ym2608::output_data opna_output;
+    uint32_t internal_rate = 55466;  // OPNA内部クロックレート
+    uint32_t output_rate = 44100;    // DAW出力レート
+    
+public:
+    void initialize() {
+        // チップをリセット
+        opna_chip.reset();
+        
+        // OPNA拡張モード有効化（必須）
+        writeOPNARegister(0x29, 0x9f);
+        
+        // 簡単なピアノ音色を設定（チャンネル0）
+        setupPianoVoice();
+    }
+    
+    void writeOPNARegister(uint8_t address, uint8_t data) {
+        opna_chip.write_address(address);
+        opna_chip.write_data(data);
+    }
+    
+    void setupPianoVoice() {
+        // Algorithm 4, Feedback 5（チャンネル0）
+        writeOPNARegister(0xB0, 0x04 | (5 << 3));
+        
+        // Operator 1設定
+        writeOPNARegister(0x30, 0x23); // DT1=2, MUL=3
+        writeOPNARegister(0x40, 0x7F); // TL=127
+        writeOPNARegister(0x50, 0x1F); // KS=0, AR=31
+        writeOPNARegister(0x60, 0x00); // AMS=0, D1R=0
+        writeOPNARegister(0x70, 0x0F); // D2R=15
+        writeOPNARegister(0x80, 0x0F); // D1L=0, RR=15
+        
+        // 他のオペレータも同様...
+    }
+    
+    void playNote(uint8_t note, uint8_t velocity) {
+        // OPNA用の周波数設定
+        uint16_t fnum = noteToFnum(note);
+        uint8_t block = note / 12 - 1;
+        
+        // F-Number設定（チャンネル0）
+        writeOPNARegister(0xA0, fnum & 0xFF);
+        writeOPNARegister(0xA4, ((block & 0x07) << 3) | ((fnum >> 8) & 0x07));
+        
+        // Key On（チャンネル0, 全オペレータ）
+        writeOPNARegister(0x28, 0xF0);
+    }
+    
+    void generateAudio(float* outputBuffer, int numSamples) {
+        for (int i = 0; i < numSamples; i++) {
+            // OPNAクロックを進める
+            opna_chip.generate(&opna_output, 1);
+            
+            // ステレオ出力を正規化
+            outputBuffer[i * 2]     = opna_output.data[0] / 32768.0f;
+            outputBuffer[i * 2 + 1] = opna_output.data[1] / 32768.0f;
+        }
+    }
+    
+private:
+    uint16_t noteToFnum(uint8_t note) {
+        // OPNA用F-Numberテーブル
+        static const uint16_t fnum_table[12] = {
+            0x26A, 0x28F, 0x2B6, 0x2DF, 0x30B, 0x339,
+            0x36A, 0x39E, 0x3D5, 0x40F, 0x44D, 0x48F
+        };
+        return fnum_table[note % 12];
+    }
+};
 ```
 
-#### 1.1.2 JUCEプラグインへの統合
+#### 1.2.2 JUCEプラグインへの統合
 ```cpp
 class ChipSynthAudioProcessor : public juce::AudioProcessor {
 private:
@@ -212,25 +312,62 @@ void setOperatorParams(uint8_t ch, uint8_t op, const OperatorParams& params) {
 }
 ```
 
-### 1.3 トラブルシューティング
+### 1.3 ymfm統合の実装パターン
+
+#### 1.3.1 基本的なymfm使用方法
+
+**重要**: ymfmライブラリの実際の使用方法については、`docs/chipsynth-ymfm-integration-guide.md` を参照してください。以下は概要のみです。
+
+```cpp
+// 1. レジスタ書き込み（2段階）
+chip.write_address(address);
+chip.write_data(data);
+
+// 2. サンプル生成
+ymfm::ym2151::output_data output;
+chip.generate(&output, 1);
+
+// 3. 周波数設定（MIDI note → KC/KF変換）
+float freq = 440.0f * std::pow(2.0f, (midiNote - 69) / 12.0f);
+// KC/KF計算（詳細はymfm統合ガイド参照）
+```
+
+#### 1.3.2 サンプルコードから学んだベストプラクティス
+
+ymfm OPMサンプルコードの分析から得られた重要なパターン：
+
+1. **Algorithm 7（並列）** - シンプルな音色に最適
+2. **Algorithm 4（2つのFMペア）** - ピアノ系音色に最適
+3. **エンベロープ設定** - アタックレート21以上でクリック音を防止
+4. **デチューン効果** - DT1=1-2で微細なコーラス効果
+5. **ステレオパンニング** - レジスタ0x20のbit6-7で制御
+
+詳細な実装例とプログラミングパターンは `docs/chipsynth-ymfm-integration-guide.md` を参照。
+
+### 1.4 トラブルシューティング
 
 #### よくある問題と解決方法
 1. **音が出ない**
-   - Key Onレジスタ（0x08）の確認
+   - ymfmのwrite_address/write_dataが正しく呼ばれているか
+   - Key Onレジスタ（0x08）に0x78 | channelが設定されているか
    - TL値が127（最小音量）になっていないか確認
    - アルゴリズムとオペレータ接続の確認
 
 2. **音程が狂う**
-   - KC/KF値の計算確認
+   - KC/KF値の計算確認（ymfm統合ガイドの計算式使用）
    - クロックレートの設定確認（OPM: 3.58MHz）
 
 3. **音が歪む**
    - 出力のクリッピング確認
    - フィードバック値が大きすぎないか確認
+   
+4. **ノイズやクリック音**
+   - アタックレート（AR）を21以上に設定
+   - ノート切り替え時にキーオフ→待機→キーオンの順序を守る
 
-### 1.4 開発環境セットアップ（VSCode + CMake）
+### 1.5 開発環境セットアップ（VSCode + CMake）
 
-#### 1.4.1 必要なツールとバージョン
+#### 1.5.1 必要なツールとバージョン
 ```bash
 # macOS開発環境
 - Xcode Command Line Tools (最新版)
@@ -246,7 +383,7 @@ void setOperatorParams(uint8_t ch, uint8_t op, const OperatorParams& params) {
 - CodeLLDB（デバッグ用）
 ```
 
-#### 1.4.2 プロジェクト構造
+#### 1.5.2 プロジェクト構造
 ```
 ChipSynth-AU/
 ├── CMakeLists.txt          # ルートCMake設定
@@ -299,7 +436,7 @@ ChipSynth-AU/
 - **ソースファイル**: 機能別ディレクトリ構造
 - **VSCode設定**: CMake Tools対応
 
-#### 1.4.3 CMakeLists.txt
+#### 1.5.3 CMakeLists.txt
 ```cmake
 cmake_minimum_required(VERSION 3.22)
 project(ChipSynthAU VERSION 1.0.0)
@@ -359,7 +496,7 @@ if(BUILD_TESTS)
 endif()
 ```
 
-#### 1.4.4 VSCode設定
+#### 1.5.4 VSCode設定
 
 **.vscode/settings.json**
 ```json
@@ -404,7 +541,7 @@ endif()
 }
 ```
 
-### 1.5 テスト戦略とテストコード
+### 1.6 テスト戦略とテストコード
 
 #### 1.5.1 テストフレームワーク
 ```cmake
@@ -621,9 +758,9 @@ ctest --output-on-failure
 ./tests/ChipSynthTests --gtest_filter="PerformanceTest.*" --gtest_repeat=10
 ```
 
-### 1.6 Audio Unit検証ガイド（auval）
+### 1.7 Audio Unit検証ガイド（auval）
 
-#### 1.6.1 基本的な検証コマンド
+#### 1.5.1 基本的な検証コマンド
 ```bash
 # Audio Unitが正しくインストールされているか確認
 auval -l | grep ChipSynth
@@ -635,7 +772,7 @@ auval -strict -v aufx Chip Hiro
 auval -v aufx Chip Hiro
 ```
 
-#### 1.6.2 よくある検証エラーと対処法
+#### 1.5.2 よくある検証エラーと対処法
 
 ##### 1. ERROR: Factory preset 0 is not valid
 ```
@@ -669,7 +806,7 @@ auval -v aufx Chip Hiro
 - 4096サンプル以上でもテスト
 ```
 
-#### 1.6.3 検証に合格するための実装チェックリスト
+#### 1.5.3 検証に合格するための実装チェックリスト
 ```objc
 // 必須実装項目
 □ allocateRenderResources / deallocateRenderResources
@@ -685,7 +822,7 @@ auval -v aufx Chip Hiro
 
 ### 1.7 .opmファイルフォーマット仕様
 
-#### 1.7.1 基本構造
+#### 1.5.1 基本構造
 ```
 //MiOPMdrv sound bank Paramer Ver2002.04.22
 //LFO: LFRQ AMD PMD WF NFRQ
@@ -701,7 +838,7 @@ M2: 31 5 0 0 0 18 0 1 0 0 0
 C2: 31 18 10 8 1 0 0 1 3 0 0
 ```
 
-#### 1.7.2 パラメータ詳細
+#### 1.5.2 パラメータ詳細
 
 ##### ヘッダー行
 ```
@@ -743,7 +880,7 @@ C2: 31 18 10 8 1 0 0 1 3 0 0
 | DT2 | 0-3 | デチューン2 |
 | AMS-EN | 0-1 | AMS有効 |
 
-#### 1.7.3 パーサー実装例
+#### 1.5.3 パーサー実装例
 ```cpp
 class OpmParser {
 public:
