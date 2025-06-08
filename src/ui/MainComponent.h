@@ -26,6 +26,8 @@ private:
     // Global controls
     std::unique_ptr<juce::Slider> algorithmSlider;
     std::unique_ptr<juce::Label> algorithmLabel;
+    std::unique_ptr<juce::Slider> feedbackSlider;
+    std::unique_ptr<juce::Label> feedbackLabel;
     
     // Preset selector
     std::unique_ptr<juce::ComboBox> presetComboBox;
@@ -36,6 +38,7 @@ private:
     
     // Parameter attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> algorithmAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
     
     void setupGlobalControls();
     void setupOperatorPanels();

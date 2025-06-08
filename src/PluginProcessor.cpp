@@ -308,6 +308,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
             opId + "_dt1", "OP" + juce::String(op) + " DT1", 
             0, 7, 3));
         
+        // Detune 2 (DT2) - 0-3, default 0
+        params.push_back(std::make_unique<juce::AudioParameterInt>(
+            opId + "_dt2", "OP" + juce::String(op) + " DT2", 
+            0, 3, 0));
+        
         // Key Scale (KS) - 0-3, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
             opId + "_ks", "OP" + juce::String(op) + " KS", 
@@ -533,8 +538,9 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
             int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
             int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
             int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
+            int dt2 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt2"));
             
-            ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
+            ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1, dt2);
         }
     }
 }

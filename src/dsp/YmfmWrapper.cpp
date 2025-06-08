@@ -371,6 +371,12 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
                 writeRegister(0x40 + base_addr, ((value & 0x07) << 4) | (currentValue & 0x0F));
                 break;
                 
+            case OperatorParameter::Detune2:
+                // Keep existing D2R bits, update DT2
+                currentValue = readCurrentRegister(0xC0 + base_addr);
+                writeRegister(0xC0 + base_addr, ((value & 0x03) << 6) | (currentValue & 0x1F));
+                break;
+                
             case OperatorParameter::KeyScale:
                 // Keep existing AR bits, update KS
                 currentValue = readCurrentRegister(0x80 + base_addr);
@@ -413,7 +419,7 @@ void YmfmWrapper::setFeedback(uint8_t channel, uint8_t feedback)
 
 void YmfmWrapper::setOperatorParameters(uint8_t channel, uint8_t operator_num, 
                                       uint8_t tl, uint8_t ar, uint8_t d1r, uint8_t d2r, 
-                                      uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1)
+                                      uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1, uint8_t dt2)
 {
     setOperatorParameter(channel, operator_num, OperatorParameter::TotalLevel, tl);
     setOperatorParameter(channel, operator_num, OperatorParameter::AttackRate, ar);
@@ -424,5 +430,6 @@ void YmfmWrapper::setOperatorParameters(uint8_t channel, uint8_t operator_num,
     setOperatorParameter(channel, operator_num, OperatorParameter::KeyScale, ks);
     setOperatorParameter(channel, operator_num, OperatorParameter::Multiple, mul);
     setOperatorParameter(channel, operator_num, OperatorParameter::Detune1, dt1);
+    setOperatorParameter(channel, operator_num, OperatorParameter::Detune2, dt2);
 }
 

@@ -50,13 +50,19 @@ void MainComponent::resized()
     
     // Global controls area
     auto globalArea = bounds.removeFromTop(80);
-    auto globalLeft = globalArea.removeFromLeft(getWidth() / 2).reduced(10);
+    auto globalLeft = globalArea.removeFromLeft(getWidth() / 3).reduced(10);
+    auto globalCenter = globalArea.removeFromLeft(getWidth() / 3).reduced(10);
     auto globalRight = globalArea.reduced(10);
     
     // Algorithm on the left
     auto algorithmArea = globalLeft.removeFromTop(35);
     algorithmLabel->setBounds(algorithmArea.removeFromLeft(80));
     algorithmSlider->setBounds(algorithmArea);
+    
+    // Feedback in the center
+    auto feedbackArea = globalCenter.removeFromTop(35);
+    feedbackLabel->setBounds(feedbackArea.removeFromLeft(80));
+    feedbackSlider->setBounds(feedbackArea);
     
     // Preset selector on the right
     auto presetArea = globalRight.removeFromTop(35);
@@ -91,6 +97,21 @@ void MainComponent::setupGlobalControls()
     // Attach to parameters
     algorithmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getParameters(), "algorithm", *algorithmSlider);
+    
+    // Feedback slider
+    feedbackSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    feedbackSlider->setRange(0, 7, 1);
+    feedbackSlider->setValue(0);
+    addAndMakeVisible(*feedbackSlider);
+    
+    feedbackLabel = std::make_unique<juce::Label>("", "Feedback");
+    feedbackLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    feedbackLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*feedbackLabel);
+    
+    // Attach to parameters
+    feedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), "feedback", *feedbackSlider);
 }
 
 void MainComponent::setupOperatorPanels()

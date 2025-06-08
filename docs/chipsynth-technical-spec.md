@@ -243,7 +243,75 @@ struct NRPNCommands {
 };
 ```
 
-### 1.6 S98録音機能
+### 1.6 ポリフォニック実装仕様
+
+#### 1.6.1 VoiceManager設計
+
+```cpp
+class VoiceManager {
+public:
+    static constexpr int MAX_VOICES = 8;  // YM2151の物理チャンネル数
+    
+    // ボイス割り当て戦略
+    enum class StealingPolicy {
+        OLDEST,     // 最も古い音を停止（デフォルト）
+        QUIETEST,   // 最も小さい音を停止
+        LOWEST      // 最も低い音を停止
+    };
+    
+    // チャンネル状態管理
+    struct Voice {
+        bool active = false;
+        uint8_t note = 0;
+        uint8_t velocity = 0;
+        uint64_t timestamp = 0;  // ボイス年齢追跡用
+    };
+    
+    int allocateVoice(uint8_t note, uint8_t velocity);
+    void releaseVoice(uint8_t note);
+    int getChannelForNote(uint8_t note) const;
+};
+```
+
+#### 1.6.2 パラメータ同期の実装
+
+**問題**: UIパラメータ変更時、全チャンネルへの反映が必要
+**解決**: パラメータ更新ループで全8チャンネルを更新
+
+```cpp
+void updateYmfmParameters() {
+    // 全チャンネルのパラメータを同期
+    for (int channel = 0; channel < 8; ++channel) {
+        // グローバルパラメータ
+        ymfmWrapper.setAlgorithm(channel, algorithm);
+        ymfmWrapper.setFeedback(channel, feedback);
+        
+        // オペレータパラメータ
+        for (int op = 0; op < 4; ++op) {
+            ymfmWrapper.setOperatorParameters(channel, op, 
+                tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
+        }
+    }
+}
+```
+
+#### 1.6.3 MIDI処理フロー
+
+```
+MIDI Note On → VoiceManager::allocateVoice() → チャンネル決定
+    ↓
+ymfmWrapper.noteOn(channel, note, velocity)
+    ↓
+レジスタ書き込み（KC, KF, Key On）
+
+MIDI Note Off → VoiceManager::getChannelForNote() → チャンネル特定
+    ↓
+ymfmWrapper.noteOff(channel, note)
+    ↓
+レジスタ書き込み（Key Off） → VoiceManager::releaseVoice()
+```
+
+### 1.7 S98録音機能
 
 #### 1.6.1 S98フォーマット仕様
 ```cpp

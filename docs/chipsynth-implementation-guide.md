@@ -10,6 +10,7 @@
 3. **シンプルなボイスアロケーション** - 8音固定、LRUアルゴリズム
 4. **基本的なMIDI処理** - Note On/Off、ベロシティ
 5. **パラメータ構造の実装** - 基本的なCC→レジスタマッピング
+6. **ポリフォニック実装** - VoiceManagerによる8チャンネル管理
 
 **プロトタイプ駆動アプローチ:**
 - 仮実装 → 検証 → 仕様化 → 本実装
@@ -312,7 +313,93 @@ void setOperatorParams(uint8_t ch, uint8_t op, const OperatorParams& params) {
 }
 ```
 
-### 1.3 ymfm統合の実装パターン
+### 1.3 ポリフォニック実装パターン
+
+#### 1.3.1 VoiceManagerによる8チャンネル管理
+
+**実装の重要ポイント:**
+1. **全チャンネルの初期化が必須** - 音色設定を忘れるとチャンネルごとに異なる音になる
+2. **パラメータ更新は全チャンネルに適用** - UIの変更を全チャンネルに反映
+3. **ボイススティーリング** - 8音を超えた場合の処理方針を決める
+
+```cpp
+class VoiceManager {
+public:
+    static constexpr int MAX_VOICES = 8;  // YM2151は8チャンネル
+    
+    // ノートにチャンネルを割り当て
+    int allocateVoice(uint8_t note, uint8_t velocity) {
+        // 既に演奏中のノートは再トリガー
+        int existing = getChannelForNote(note);
+        if (existing >= 0) return existing;
+        
+        // 空きチャンネルを探す
+        for (int i = 0; i < MAX_VOICES; ++i) {
+            if (!voices[i].active) {
+                voices[i].active = true;
+                voices[i].note = note;
+                voices[i].velocity = velocity;
+                voices[i].timestamp = ++currentTimestamp;
+                return i;
+            }
+        }
+        
+        // ボイススティーリング（最古の音を停止）
+        int oldest = 0;
+        for (int i = 1; i < MAX_VOICES; ++i) {
+            if (voices[i].timestamp < voices[oldest].timestamp) {
+                oldest = i;
+            }
+        }
+        
+        voices[oldest].note = note;
+        voices[oldest].velocity = velocity;
+        voices[oldest].timestamp = ++currentTimestamp;
+        return oldest;
+    }
+};
+```
+
+#### 1.3.2 実装上の注意点
+
+**全チャンネル初期化の重要性:**
+```cpp
+// 誤った実装（チャンネル0のみ初期化）
+void initializeOPM() {
+    opmChip->reset();
+    setupBasicPianoVoice(0);  // ❌ 他のチャンネルは未初期化
+}
+
+// 正しい実装（全8チャンネルを初期化）
+void initializeOPM() {
+    opmChip->reset();
+    for (int ch = 0; ch < 8; ++ch) {
+        setupBasicPianoVoice(ch);  // ✅ 全チャンネルで同じ音色
+    }
+}
+```
+
+**パラメータ更新の全チャンネル適用:**
+```cpp
+void updateYmfmParameters() {
+    // UIパラメータを取得
+    int algorithm = getParameter("algorithm");
+    int feedback = getParameter("feedback");
+    
+    // 全チャンネルに適用（重要！）
+    for (int ch = 0; ch < 8; ++ch) {
+        ymfmWrapper.setAlgorithm(ch, algorithm);
+        ymfmWrapper.setFeedback(ch, feedback);
+        
+        // オペレータパラメータも同様に全チャンネル更新
+        for (int op = 0; op < 4; ++op) {
+            updateOperatorForChannel(ch, op);
+        }
+    }
+}
+```
+
+### 1.4 ymfm統合の実装パターン
 
 #### 1.3.1 基本的なymfm使用方法
 

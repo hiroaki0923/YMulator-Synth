@@ -58,6 +58,7 @@ public:
         SustainLevel,
         Multiple,
         Detune1,
+        Detune2,
         KeyScale
     };
     
@@ -75,7 +76,7 @@ public:
     void setFeedback(uint8_t channel, uint8_t feedback);
     void setOperatorParameters(uint8_t channel, uint8_t operator_num, 
                               uint8_t tl, uint8_t ar, uint8_t d1r, uint8_t d2r, 
-                              uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1);
+                              uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1, uint8_t dt2);
     
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 

@@ -13,6 +13,10 @@
     "C_Cpp.default.intelliSenseMode": "macos-clang-x64",
     "C_Cpp.intelliSenseEngine": "default",
     "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.dimInactiveRegions": false,
+    "C_Cpp.inactiveRegionOpacity": 1.0,
+    "C_Cpp.exclusionPolicy": "checkFolders",
+    "C_Cpp.intelliSenseUpdateDelay": 2000,
     "files.exclude": {
         "build/": true,
         "**/.DS_Store": true
