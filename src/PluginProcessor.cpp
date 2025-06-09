@@ -13,14 +13,19 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
     // Initialize preset manager
     presetManager.initialize();
     
-    // Load default preset (Init)
+    // Load default preset (Init) before adding listener
     setCurrentPreset(7); // Init preset
+    
+    // Add parameter change listener through ValueTree after initial setup
+    parameters.state.addListener(this);
     
     DBG("ChipSynth: Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
 ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
 {
+    // Remove ValueTree listener
+    parameters.state.removeListener(this);
 }
 
 const juce::String ChipSynthAudioProcessor::getName() const
@@ -50,22 +55,44 @@ double ChipSynthAudioProcessor::getTailLengthSeconds() const
 
 int ChipSynthAudioProcessor::getNumPrograms()
 {
-    return presetManager.getNumPresets();
+    // Add 1 for custom preset if active
+    return presetManager.getNumPresets() + (isCustomPreset ? 1 : 0);
 }
 
 int ChipSynthAudioProcessor::getCurrentProgram()
 {
+    if (isCustomPreset) {
+        return presetManager.getNumPresets(); // Custom preset index
+    }
     return currentPreset;
 }
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
     DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index));
+    
+    // Check if this is the custom preset index
+    if (index == presetManager.getNumPresets() && isCustomPreset) {
+        // Stay in custom mode, don't change anything
+        DBG("ChipSynth: Staying in custom preset mode");
+        return;
+    }
+    
+    // Reset custom state and load factory preset
+    isCustomPreset = false;
     setCurrentPreset(index);
+    
+    // Notify host about program change
+    updateHostDisplay();
 }
 
 const juce::String ChipSynthAudioProcessor::getProgramName(int index)
 {
+    // Handle custom preset case
+    if (index == presetManager.getNumPresets() && isCustomPreset) {
+        return customPresetName;
+    }
+    
     if (index >= 0 && index < presetManager.getNumPresets())
     {
         auto presetNames = presetManager.getPresetNames();
@@ -97,7 +124,11 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
+        isLoadingPreset = true;
         loadPreset(currentPreset);
+        juce::MessageManager::callAsync([this]() {
+            isLoadingPreset = false;
+        });
         needsPresetReapply = false;
         DBG("ChipSynth: Applied deferred preset " + juce::String(currentPreset));
     }
@@ -232,13 +263,16 @@ void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     
-    // Add current preset number to state
+    // Add current preset number and custom state to state
     state.setProperty("currentPreset", currentPreset, nullptr);
+    state.setProperty("isCustomPreset", isCustomPreset, nullptr);
+    state.setProperty("customPresetName", customPresetName, nullptr);
     
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
     
-    DBG("ChipSynth: State saved - preset: " + juce::String(currentPreset));
+    DBG("ChipSynth: State saved - preset: " + juce::String(currentPreset) + 
+        ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
 }
 
 void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -255,19 +289,31 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
             auto newState = juce::ValueTree::fromXml(*xmlState);
             parameters.replaceState(newState);
             
-            // Restore preset number
+            // Restore preset number and custom state
             currentPreset = newState.getProperty("currentPreset", 0);
+            isCustomPreset = newState.getProperty("isCustomPreset", false);
+            customPresetName = newState.getProperty("customPresetName", "Custom");
             
-            DBG("ChipSynth: State loaded - preset: " + juce::String(currentPreset));
+            DBG("ChipSynth: State loaded - preset: " + juce::String(currentPreset) + 
+                ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
             
-            // If ymfm is already initialized, apply the preset
-            if (ymfmWrapper.isInitialized()) {
+            // If not in custom mode and ymfm is initialized, apply the preset
+            if (!isCustomPreset && ymfmWrapper.isInitialized()) {
                 DBG("ChipSynth: Applying preset after state restore");
+                isLoadingPreset = true;
                 setCurrentPreset(currentPreset);
-            } else {
+                juce::MessageManager::callAsync([this]() {
+                    isLoadingPreset = false;
+                });
+            } else if (!isCustomPreset) {
                 DBG("ChipSynth: Deferring preset application until ymfm init");
                 needsPresetReapply = true;
+            } else {
+                DBG("ChipSynth: Staying in custom mode after state restore");
             }
+            
+            // Update host display
+            updateHostDisplay();
         } else {
             DBG("ChipSynth: XML state tag mismatch");
         }
@@ -427,13 +473,23 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
     if (index >= 0 && index < presetManager.getNumPresets())
     {
         currentPreset = index;
+        isCustomPreset = false; // Reset custom state when loading factory preset
+        
         if (ymfmWrapper.isInitialized()) {
+            isLoadingPreset = true; // Prevent parameter change detection
             loadPreset(index);
+            // Keep isLoadingPreset true until after any async callbacks complete
+            juce::MessageManager::callAsync([this]() {
+                isLoadingPreset = false;
+            });
             DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
         } else {
             needsPresetReapply = true;
             DBG("ChipSynth: Preset " + juce::String(index) + " will be applied when ymfm is initialized");
         }
+        
+        // Update host display
+        updateHostDisplay();
     }
 }
 
@@ -496,6 +552,36 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     
     // Force parameter update to ymfm
     updateYmfmParameters();
+}
+
+void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
+{
+    juce::ignoreUnused(parameterIndex, newValue);
+    // This method is required by the interface but won't be called
+    // since we're not using AudioProcessorParameter listeners
+}
+
+void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
+{
+    juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    // This method is required by the interface but won't be called
+}
+
+void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+                                                      const juce::Identifier& property)
+{
+    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
+    
+    // Only switch to custom if we're not currently loading a preset
+    if (!isLoadingPreset && !isCustomPreset) {
+        DBG("ChipSynth: Parameter changed via ValueTree, switching to custom preset");
+        isCustomPreset = true;
+        
+        // Update host display on message thread
+        juce::MessageManager::callAsync([this]() {
+            updateHostDisplay();
+        });
+    }
 }
 
 void ChipSynthAudioProcessor::updateYmfmParameters()
