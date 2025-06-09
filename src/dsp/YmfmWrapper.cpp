@@ -220,11 +220,22 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         int octave = (noteInt / 12) - 1;
         int noteInOctave = noteInt % 12;
         
+        // Clamp octave to valid range (0-7) for YM2151
+        if (octave < 0) {
+            DBG("YmfmWrapper: Low note - original octave=" + juce::String(octave) + ", clamping to 0");
+            octave = 0;
+        } else if (octave > 7) {
+            DBG("YmfmWrapper: High note - original octave=" + juce::String(octave) + ", clamping to 7");
+            octave = 7;
+        }
+        
         // YM2151 key code calculation
         const uint8_t noteCode[12] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
         uint8_t kc = ((octave & 0x07) << 4) | noteCode[noteInOctave];
         uint8_t kf = 0;  // No fine tuning for now
         
+        DBG("YmfmWrapper: MIDI Note " + juce::String((int)note) + " -> freq=" + juce::String(freq) + 
+            "Hz, octave=" + juce::String(octave) + ", noteInOctave=" + juce::String(noteInOctave));
         DBG("YmfmWrapper: OPM noteOn - KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf << 2));
         std::cout << "YmfmWrapper: OPM noteOn - KC=0x" << std::hex << (int)kc << ", KF=0x" << (int)(kf << 2) << std::dec << std::endl;
         

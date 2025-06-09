@@ -34,6 +34,11 @@ _deps/
 *.temp
 *.log
 
+# Release artifacts
+*.zip
+*.dmg
+*.pkg
+
 # JUCE specific
 JuceLibraryCode/
 Builds/

@@ -85,6 +85,9 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     // Initialize ymfm wrapper with OPM for now
     ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
     
+    // Apply initial parameters from current preset
+    updateYmfmParameters();
+    
     DBG("ChipSynth: ymfm initialization complete");
 }
 
@@ -412,6 +415,9 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
 {
     if (preset == nullptr) return;
     
+    DBG("ChipSynth: Loading preset '" + preset->name + "' - Algorithm: " + 
+        juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
+    
     // Set global parameters using parameter methods that notify UI
     if (auto* algorithmParam = parameters.getParameter("algorithm"))
         algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
@@ -435,7 +441,7 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         if (auto* param = parameters.getParameter(opId + "_d1l"))
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
         if (auto* param = parameters.getParameter(opId + "_tl"))
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel * 127.0f)));
+            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel)));
         if (auto* param = parameters.getParameter(opId + "_ks"))
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
         if (auto* param = parameters.getParameter(opId + "_mul"))
@@ -448,6 +454,11 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
             param->setValueNotifyingHost(0.0f);
     }
     
+    // Debug: print one operator's parameters for verification
+    DBG("ChipSynth: OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
+        ", AR: " + juce::String(preset->operators[0].attackRate) +
+        ", MUL: " + juce::String(preset->operators[0].multiple));
+    
     // Force parameter update to ymfm
     updateYmfmParameters();
 }
@@ -457,6 +468,12 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     // Get current parameter values
     int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
     int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
+    
+    static int updateCounter = 0;
+    if (updateCounter++ % 100 == 0) {
+        DBG("ChipSynth: updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
+            ", Feedback: " + juce::String(feedback));
+    }
     
     // Update parameters for all 8 channels to keep them in sync
     for (int channel = 0; channel < 8; ++channel)
