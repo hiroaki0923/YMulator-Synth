@@ -2,9 +2,10 @@
 juce_add_plugin(ChipSynthAU
     # Basic information
     COMPANY_NAME "Hiroaki"
-    PLUGIN_MANUFACTURER_CODE Vend
+    PLUGIN_MANUFACTURER_CODE Hrki
     PLUGIN_CODE ChpS
     PRODUCT_NAME "ChipSynth AU"
+    PLUGIN_DESCRIPTION "FM Synthesis Audio Unit"
     
     # Plugin formats
     FORMATS AU AUv3
@@ -17,6 +18,10 @@ juce_add_plugin(ChipSynthAU
     
     # AU specific
     AU_MAIN_TYPE kAudioUnitType_MusicDevice
+    AU_SANDBOX_SAFE TRUE
+    
+    # Categories and tags for GarageBand library
+    PLUGIN_AU_EXPORT_PREFIX ChipSynthAU
     
     # Other settings
     COPY_PLUGIN_AFTER_BUILD TRUE
@@ -98,3 +103,4 @@ configure_juce_target(ChipSynthAU)
 
 # Set compiler warnings
 set_project_warnings(ChipSynthAU)
+

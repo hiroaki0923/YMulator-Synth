@@ -37,6 +37,7 @@ public:
     // Initialization
     void initialize(ChipType type, uint32_t outputSampleRate);
     void reset();
+    bool isInitialized() const { return initialized; }
     
     // Register access
     void writeRegister(int address, uint8_t data);
@@ -93,6 +94,7 @@ private:
     ChipType chipType;
     uint32_t outputSampleRate;
     uint32_t internalSampleRate;
+    bool initialized = false;
     
     // ymfm interface - no longer needed since we inherit from ymfm_interface
     // ChipSynthInterface interface;

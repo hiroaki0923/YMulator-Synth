@@ -38,6 +38,8 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         internalSampleRate = 55466;  // OPNA internal rate  
         initializeOPNA();
     }
+    
+    initialized = true;
 }
 
 void YmfmWrapper::reset()

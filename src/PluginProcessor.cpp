@@ -6,6 +6,8 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("ChipSynth"), createParameterLayout())
 {
+    DBG("ChipSynth: Constructor called");
+    
     setupCCMapping();
     
     // Initialize preset manager
@@ -13,6 +15,8 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
     
     // Load default preset (Init)
     setCurrentPreset(7); // Init preset
+    
+    DBG("ChipSynth: Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
 ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
@@ -56,6 +60,7 @@ int ChipSynthAudioProcessor::getCurrentProgram()
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
+    DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index));
     setCurrentPreset(index);
 }
 
@@ -80,13 +85,22 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     juce::ignoreUnused(samplesPerBlock);
     
     // Debug output
-    DBG("ChipSynth: prepareToPlay called - sampleRate: " + juce::String(sampleRate) + ", samplesPerBlock: " + juce::String(samplesPerBlock));
+    DBG("ChipSynth: prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
+        ", samplesPerBlock: " + juce::String(samplesPerBlock) + 
+        ", currentPreset: " + juce::String(currentPreset));
     
     // Initialize ymfm wrapper with OPM for now
     ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
     
     // Apply initial parameters from current preset
     updateYmfmParameters();
+    
+    // If a preset was set before ymfm was initialized, apply it now
+    if (needsPresetReapply) {
+        loadPreset(currentPreset);
+        needsPresetReapply = false;
+        DBG("ChipSynth: Applied deferred preset " + juce::String(currentPreset));
+    }
     
     DBG("ChipSynth: ymfm initialization complete");
 }
@@ -229,10 +243,13 @@ void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 
 void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
+    DBG("ChipSynth: setStateInformation called - size: " + juce::String(sizeInBytes));
+    
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     
     if (xmlState.get() != nullptr)
     {
+        DBG("ChipSynth: XML state parsed successfully");
         if (xmlState->hasTagName(parameters.state.getType()))
         {
             auto newState = juce::ValueTree::fromXml(*xmlState);
@@ -242,7 +259,20 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
             currentPreset = newState.getProperty("currentPreset", 0);
             
             DBG("ChipSynth: State loaded - preset: " + juce::String(currentPreset));
+            
+            // If ymfm is already initialized, apply the preset
+            if (ymfmWrapper.isInitialized()) {
+                DBG("ChipSynth: Applying preset after state restore");
+                setCurrentPreset(currentPreset);
+            } else {
+                DBG("ChipSynth: Deferring preset application until ymfm init");
+                needsPresetReapply = true;
+            }
+        } else {
+            DBG("ChipSynth: XML state tag mismatch");
         }
+    } else {
+        DBG("ChipSynth: Failed to parse XML state");
     }
 }
 
@@ -397,8 +427,13 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
     if (index >= 0 && index < presetManager.getNumPresets())
     {
         currentPreset = index;
-        loadPreset(index);
-        DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
+        if (ymfmWrapper.isInitialized()) {
+            loadPreset(index);
+            DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
+        } else {
+            needsPresetReapply = true;
+            DBG("ChipSynth: Preset " + juce::String(index) + " will be applied when ymfm is initialized");
+        }
     }
 }
 
@@ -465,6 +500,12 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
 
 void ChipSynthAudioProcessor::updateYmfmParameters()
 {
+    // Check if ymfm is initialized
+    if (!ymfmWrapper.isInitialized()) {
+        DBG("ChipSynth: updateYmfmParameters called before ymfm initialization");
+        return;
+    }
+    
     // Get current parameter values
     int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
     int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));

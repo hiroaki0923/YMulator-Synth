@@ -90,7 +90,7 @@ cmake --build . --config Debug --parallel > /dev/null 2>&1 && log_success "Build
 }
 
 # Check if build succeeded
-COMPONENT_PATH="$BUILD_DIR/ChipSynthAU_artefacts/Debug/AU/ChipSynth AU.component"
+COMPONENT_PATH="$BUILD_DIR/src/ChipSynthAU_artefacts/Debug/AU/ChipSynth AU.component"
 if [ ! -d "$COMPONENT_PATH" ]; then
     log_error "Build failed - Audio Unit component not found"
     exit 1
@@ -109,19 +109,17 @@ echo "   Path: $COMPONENT_PATH"
 if [ "$INSTALL" = true ]; then
     log_info "Installing Audio Unit..."
     
-    # Create target directory if it doesn't exist
-    AU_DIR="$HOME/Library/Audio/Plug-Ins/Components"
-    mkdir -p "$AU_DIR"
+    # Install using CMake
+    cmake --install . --config Debug
     
-    # Remove existing component
-    if [ -d "$AU_DIR/ChipSynth AU.component" ]; then
-        rm -rf "$AU_DIR/ChipSynth AU.component"
-    fi
+    log_success "Audio Unit installed"
     
-    # Copy new component
-    cp -R "$COMPONENT_PATH" "$AU_DIR/"
+    # Force Audio Unit cache refresh
+    killall -9 AudioComponentRegistrar 2>/dev/null || true
+    rm -rf ~/Library/Caches/AudioUnitCache 2>/dev/null || true
+    rm -rf ~/Library/Caches/com.apple.audiounits.cache 2>/dev/null || true
     
-    log_success "Audio Unit installed to $AU_DIR"
+    log_info "Audio Unit cache cleared"
     
     # Wait for AU registration
     sleep 2
@@ -131,11 +129,11 @@ fi
 if [ "$VALIDATE" = true ]; then
     log_info "Running Audio Unit validation..."
     
-    if auval -v aumu ChpS Vend > /dev/null 2>&1; then
+    if auval -v aumu ChpS Hrki > /dev/null 2>&1; then
         log_success "Audio Unit validation passed"
     else
         log_warning "Audio Unit validation failed"
-        echo "Try running manually: auval -v aumu ChpS Vend"
+        echo "Try running manually: auval -v aumu ChpS Hrki"
     fi
 fi
 
@@ -150,6 +148,6 @@ echo "   Build & test:    ./scripts/build-dev.sh --validate"
 echo "   Release build:   ./scripts/build-release.sh"
 echo ""
 echo "🧪 Manual Testing:"
-echo "   auval -v aumu ChpS Vend"
+echo "   auval -v aumu ChpS Hrki"
 echo "   auval -a | grep -i chipsynth"
 echo ""

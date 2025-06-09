@@ -54,6 +54,7 @@ private:
     // Preset management
     chipsynth::PresetManager presetManager;
     int currentPreset = 0;
+    bool needsPresetReapply = false;
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

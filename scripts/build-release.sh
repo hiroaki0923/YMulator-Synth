@@ -107,7 +107,7 @@ log_info "Building Audio Unit..."
 cmake --build . --config Release --parallel
 
 # Check if build succeeded
-COMPONENT_PATH="$BUILD_DIR/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component"
+COMPONENT_PATH="$BUILD_DIR/src/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component"
 if [ ! -d "$COMPONENT_PATH" ]; then
     log_error "Build failed - Audio Unit component not found"
     exit 1
@@ -125,7 +125,7 @@ if [ "$SKIP_VALIDATION" != "--skip-validation" ]; then
     
     # Run auval
     log_info "Running Audio Unit validation..."
-    if auval -v aumu ChpS Vend > /dev/null 2>&1; then
+    if auval -v aumu ChpS Hrki > /dev/null 2>&1; then
         log_success "Audio Unit validation passed"
     else
         log_warning "Audio Unit validation failed - continuing anyway"
@@ -155,6 +155,7 @@ mkdir -p "$PACKAGE_DIR/Documentation"
 # Copy component
 cp -R "$COMPONENT_PATH" "$PACKAGE_DIR/Components/"
 
+
 # Create installation instructions
 cat > "$PACKAGE_DIR/README.txt" << 'EOF'
 ChipSynth AU - YM2151 FM Synthesis Audio Unit
@@ -166,7 +167,7 @@ Installation Instructions:
 
 2. Restart your DAW
 
-3. Look for "ChipSynth AU" in the Music Effect category
+3. Look for "ChipSynth AU" in the Music Device category
 
 Requirements:
 - macOS 10.13 or later
@@ -271,9 +272,9 @@ A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to
 
 ## 📋 Technical Specifications
 - Component Version: $BUNDLE_VERSION
-- Audio Unit Type: Music Effect (aumu)
-- Manufacturer: ChpS
-- Subtype: Vend
+- Audio Unit Type: Music Device (aumu)
+- Manufacturer: Hrki
+- Subtype: ChpS
 - Built with: JUCE + ymfm library
 - License: GPL v3
 
