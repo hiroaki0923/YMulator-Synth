@@ -73,11 +73,14 @@ private:
     juce::String customPresetName = "Custom";
     bool userGestureInProgress = false;
     
+    // Pitch bend state
+    int currentPitchBend = 8192; // MIDI pitch bend center (0-16383)
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void setupCCMapping();
     void handleMidiCC(int ccNumber, int value);
+    void handlePitchBend(int pitchBendValue);
     void updateYmfmParameters();
     void loadPreset(int index);
     void loadPreset(const chipsynth::Preset* preset);

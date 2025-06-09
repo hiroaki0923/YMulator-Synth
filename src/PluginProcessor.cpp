@@ -219,6 +219,9 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             DBG("ChipSynth: MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
             handleMidiCC(message.getControllerNumber(), message.getControllerValue());
+        } else if (message.isPitchWheel()) {
+            DBG("ChipSynth: Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
+            handlePitchBend(message.getPitchWheelValue());
         }
     }
     
@@ -343,6 +346,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
         "algorithm", "Algorithm", 0, 7, 0));
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         "feedback", "Feedback", 0, 7, 0));
+    
+    // Pitch bend parameters
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        "pitch_bend_range", "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -479,6 +486,36 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
     }
 }
 
+void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
+{
+    // Store the current pitch bend value (0-16383, center is 8192)
+    currentPitchBend = pitchBendValue;
+    
+    // Get pitch bend range from parameter (1-12 semitones)
+    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue("pitch_bend_range"));
+    
+    // Calculate pitch bend amount in semitones
+    // MIDI pitch bend: 0-16383, center = 8192
+    // Range: -range to +range semitones
+    float pitchBendSemitones = ((pitchBendValue - 8192) / 8192.0f) * pitchBendRange;
+    
+    // Update all active voices with pitch bend
+    for (int channel = 0; channel < 8; ++channel)
+    {
+        if (voiceManager.isVoiceActive(channel))
+        {
+            uint8_t note = voiceManager.getNoteForChannel(channel);
+            uint8_t velocity = voiceManager.getVelocityForChannel(channel);
+            
+            // Apply pitch bend to the note frequency
+            ymfmWrapper.setPitchBend(channel, pitchBendSemitones);
+        }
+    }
+    
+    DBG("ChipSynth: Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
+        ", Range: " + juce::String(pitchBendRange) + " semitones" +
+        ", Amount: " + juce::String(pitchBendSemitones, 3) + " semitones");
+}
 
 void ChipSynthAudioProcessor::setCurrentPreset(int index)
 {
