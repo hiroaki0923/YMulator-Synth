@@ -19,6 +19,12 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
     // Add parameter change listener through ValueTree after initial setup
     parameters.state.addListener(this);
     
+    // Add parameter listeners for user-initiated changes
+    const auto& allParams = AudioProcessor::getParameters();
+    for (auto* param : allParams) {
+        param->addListener(this);
+    }
+    
     DBG("ChipSynth: Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
@@ -26,6 +32,12 @@ ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
 {
     // Remove ValueTree listener
     parameters.state.removeListener(this);
+    
+    // Remove parameter listeners
+    const auto& allParams = AudioProcessor::getParameters();
+    for (auto* param : allParams) {
+        param->removeListener(this);
+    }
 }
 
 const juce::String ChipSynthAudioProcessor::getName() const
@@ -69,7 +81,8 @@ int ChipSynthAudioProcessor::getCurrentProgram()
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
-    DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index));
+    DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index) + 
+        ", current isCustomPreset: " + juce::String(isCustomPreset ? "true" : "false"));
     
     // Check if this is the custom preset index
     if (index == presetManager.getNumPresets() && isCustomPreset) {
@@ -80,10 +93,17 @@ void ChipSynthAudioProcessor::setCurrentProgram(int index)
     
     // Reset custom state and load factory preset
     isCustomPreset = false;
+    DBG("ChipSynth: Reset isCustomPreset to false, calling setCurrentPreset");
     setCurrentPreset(index);
     
     // Notify host about program change
     updateHostDisplay();
+    
+    // Notify the UI to update the preset combo box
+    // Send a special property change to trigger UI update without affecting custom state
+    juce::MessageManager::callAsync([this]() {
+        parameters.state.sendPropertyChangeMessage("presetIndexChanged");
+    });
 }
 
 const juce::String ChipSynthAudioProcessor::getProgramName(int index)
@@ -124,11 +144,7 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
-        isLoadingPreset = true;
         loadPreset(currentPreset);
-        juce::MessageManager::callAsync([this]() {
-            isLoadingPreset = false;
-        });
         needsPresetReapply = false;
         DBG("ChipSynth: Applied deferred preset " + juce::String(currentPreset));
     }
@@ -300,11 +316,7 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
             // If not in custom mode and ymfm is initialized, apply the preset
             if (!isCustomPreset && ymfmWrapper.isInitialized()) {
                 DBG("ChipSynth: Applying preset after state restore");
-                isLoadingPreset = true;
                 setCurrentPreset(currentPreset);
-                juce::MessageManager::callAsync([this]() {
-                    isLoadingPreset = false;
-                });
             } else if (!isCustomPreset) {
                 DBG("ChipSynth: Deferring preset application until ymfm init");
                 needsPresetReapply = true;
@@ -476,12 +488,7 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
         isCustomPreset = false; // Reset custom state when loading factory preset
         
         if (ymfmWrapper.isInitialized()) {
-            isLoadingPreset = true; // Prevent parameter change detection
             loadPreset(index);
-            // Keep isLoadingPreset true until after any async callbacks complete
-            juce::MessageManager::callAsync([this]() {
-                isLoadingPreset = false;
-            });
             DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
         } else {
             needsPresetReapply = true;
@@ -509,40 +516,67 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     DBG("ChipSynth: Loading preset '" + preset->name + "' - Algorithm: " + 
         juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
     
-    // Set global parameters using parameter methods that notify UI
-    if (auto* algorithmParam = parameters.getParameter("algorithm"))
-        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
-    if (auto* feedbackParam = parameters.getParameter("feedback"))
-        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
+    // Temporarily remove all listeners to prevent any custom state triggering
+    parameters.state.removeListener(this);
+    const auto& allParams1 = AudioProcessor::getParameters();
+    for (auto* param : allParams1) {
+        param->removeListener(this);
+    }
     
-    // Set operator parameters using parameter methods that notify UI
+    // Set global parameters with UI notification
+    if (auto* algorithmParam = parameters.getParameter("algorithm")) {
+        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
+    }
+    if (auto* feedbackParam = parameters.getParameter("feedback")) {
+        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
+    }
+    
+    // Set operator parameters with UI notification
     for (int op = 0; op < 4; ++op)
     {
         juce::String opId = "op" + juce::String(op + 1);
         const auto& opData = preset->operators[op];
         
-        if (auto* param = parameters.getParameter(opId + "_ar"))
+        if (auto* param = parameters.getParameter(opId + "_ar")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.attackRate)));
-        if (auto* param = parameters.getParameter(opId + "_d1r"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_d1r")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay1Rate)));
-        if (auto* param = parameters.getParameter(opId + "_d2r"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_d2r")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay2Rate)));
-        if (auto* param = parameters.getParameter(opId + "_rr"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_rr")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.releaseRate)));
-        if (auto* param = parameters.getParameter(opId + "_d1l"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_d1l")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
-        if (auto* param = parameters.getParameter(opId + "_tl"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_tl")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel)));
-        if (auto* param = parameters.getParameter(opId + "_ks"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_ks")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
-        if (auto* param = parameters.getParameter(opId + "_mul"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_mul")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.multiple)));
-        if (auto* param = parameters.getParameter(opId + "_dt1"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_dt1")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune1)));
-        if (auto* param = parameters.getParameter(opId + "_dt2"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_dt2")) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
-        if (auto* param = parameters.getParameter(opId + "_ams_en"))
+        }
+        if (auto* param = parameters.getParameter(opId + "_ams_en")) {
             param->setValueNotifyingHost(0.0f);
+        }
+    }
+    
+    // Re-add all listeners immediately - all preset loading is done
+    parameters.state.addListener(this);
+    const auto& allParams2 = AudioProcessor::getParameters();
+    for (auto* param : allParams2) {
+        param->addListener(this);
     }
     
     // Debug: print one operator's parameters for verification
@@ -552,29 +586,17 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     
     // Force parameter update to ymfm
     updateYmfmParameters();
+    
+    DBG("ChipSynth: Preset loading complete");
 }
 
 void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
 {
     juce::ignoreUnused(parameterIndex, newValue);
-    // This method is required by the interface but won't be called
-    // since we're not using AudioProcessorParameter listeners
-}
-
-void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
-{
-    juce::ignoreUnused(parameterIndex, gestureIsStarting);
-    // This method is required by the interface but won't be called
-}
-
-void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
-                                                      const juce::Identifier& property)
-{
-    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
     
-    // Only switch to custom if we're not currently loading a preset
-    if (!isLoadingPreset && !isCustomPreset) {
-        DBG("ChipSynth: Parameter changed via ValueTree, switching to custom preset");
+    // Only switch to custom if not already in custom mode and gesture is in progress
+    if (!isCustomPreset && userGestureInProgress) {
+        DBG("ChipSynth: Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
         
         // Update host display on message thread
@@ -582,6 +604,24 @@ void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhos
             updateHostDisplay();
         });
     }
+}
+
+void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
+{
+    juce::ignoreUnused(parameterIndex);
+    
+    userGestureInProgress = gestureIsStarting;
+    DBG("ChipSynth: User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
+}
+
+void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+                                                      const juce::Identifier& property)
+{
+    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
+    
+    // ValueTree changes no longer trigger custom state
+    // Custom state is only triggered by user gestures via parameterValueChanged()
+    DBG("ChipSynth: ValueTree property changed: " + property.toString() + " (no custom state change)");
 }
 
 void ChipSynthAudioProcessor::updateYmfmParameters()

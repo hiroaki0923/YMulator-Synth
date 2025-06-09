@@ -163,6 +163,15 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
 {
     juce::ignoreUnused(treeWhosePropertyHasChanged, property);
     
+    // Special handling for preset index changes from DAW
+    if (property.toString() == "presetIndexChanged") {
+        // Only update the combo box selection, not the entire list
+        juce::MessageManager::callAsync([this]() {
+            presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+        });
+        return;
+    }
+    
     // Update preset combo box when parameters change
     // Use MessageManager to ensure UI updates happen on the main thread
     juce::MessageManager::callAsync([this]() {

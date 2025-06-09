@@ -71,9 +71,8 @@ private:
     bool needsPresetReapply = false;
     bool isCustomPreset = false;
     juce::String customPresetName = "Custom";
+    bool userGestureInProgress = false;
     
-    // Parameter change tracking
-    bool isLoadingPreset = false;
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

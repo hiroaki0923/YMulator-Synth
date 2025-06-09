@@ -82,10 +82,10 @@ ctest --output-on-failure
 
 # Validate Audio Unit - minimal output
 auval -a
-auval -v aumu ChpS Vend > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+auval -v aumu ChpS Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
 
 # Validate Audio Unit with full output (when debugging validation issues)
-auval -v aumu ChpS Vend
+auval -v aumu ChpS Hrki
 
 # Fix Audio Unit registration issues
 killall -9 AudioComponentRegistrar
