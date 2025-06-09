@@ -146,6 +146,8 @@ void MainComponent::setupPresetSelector()
         if (selectedIndex >= 0 && selectedIndex < audioProcessor.getNumPrograms())
         {
             audioProcessor.setCurrentProgram(selectedIndex);
+            // Update host display to sync with DAW
+            audioProcessor.updateHostDisplay();
         }
     };
     addAndMakeVisible(*presetComboBox);
@@ -160,6 +162,15 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
                                            const juce::Identifier& property)
 {
     juce::ignoreUnused(treeWhosePropertyHasChanged, property);
+    
+    // Special handling for preset index changes from DAW
+    if (property.toString() == "presetIndexChanged") {
+        // Only update the combo box selection, not the entire list
+        juce::MessageManager::callAsync([this]() {
+            presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+        });
+        return;
+    }
     
     // Update preset combo box when parameters change
     // Use MessageManager to ensure UI updates happen on the main thread
@@ -176,6 +187,11 @@ void MainComponent::updatePresetComboBox()
     for (int i = 0; i < presetNames.size(); ++i)
     {
         presetComboBox->addItem(presetNames[i], i + 1);
+    }
+    
+    // Add custom preset if active
+    if (audioProcessor.isInCustomMode()) {
+        presetComboBox->addItem(audioProcessor.getCustomPresetName(), presetNames.size() + 1);
     }
     
     // Update combo box selection to match current program

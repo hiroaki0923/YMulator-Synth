@@ -38,6 +38,8 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         internalSampleRate = 55466;  // OPNA internal rate  
         initializeOPNA();
     }
+    
+    initialized = true;
 }
 
 void YmfmWrapper::reset()
@@ -210,27 +212,26 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     DBG("YmfmWrapper: noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
     std::cout << "YmfmWrapper: noteOn - channel=" << (int)channel << ", note=" << (int)note << ", velocity=" << (int)velocity << std::endl;
     
+    // Store the base note for this channel
+    channelStates[channel].baseNote = note;
+    channelStates[channel].active = true;
+    
     if (chipType == ChipType::OPM) {
-        // Calculate frequency from MIDI note
-        float freq = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
+        // Calculate frequency from MIDI note with current pitch bend
+        uint16_t fnum = noteToFnumWithPitchBend(note, channelStates[channel].pitchBend);
         
-        // Calculate KC and KF using sample code method
-        float fnote = 12.0f * log2f(freq / 440.0f) + 69.0f;
-        int noteInt = (int)round(fnote);
-        int octave = (noteInt / 12) - 1;
-        int noteInOctave = noteInt % 12;
+        // Extract KC and KF from FNUM
+        // YM2151 FNUM format: KC (key code) and KF (key fraction)
+        uint8_t kc = (fnum >> 6) & 0x7F;  // Upper 7 bits
+        uint8_t kf = (fnum & 0x3F) << 2;  // Lower 6 bits, shifted for register format
         
-        // YM2151 key code calculation
-        const uint8_t noteCode[12] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
-        uint8_t kc = ((octave & 0x07) << 4) | noteCode[noteInOctave];
-        uint8_t kf = 0;  // No fine tuning for now
-        
-        DBG("YmfmWrapper: OPM noteOn - KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf << 2));
-        std::cout << "YmfmWrapper: OPM noteOn - KC=0x" << std::hex << (int)kc << ", KF=0x" << (int)(kf << 2) << std::dec << std::endl;
+        DBG("YmfmWrapper: MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
+            " -> FNUM=0x" + juce::String::toHexString(fnum) + ", KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf));
+        std::cout << "YmfmWrapper: OPM noteOn - KC=0x" << std::hex << (int)kc << ", KF=0x" << (int)kf << std::dec << std::endl;
         
         // Write KC and KF
         writeRegister(0x28 + channel, kc);
-        writeRegister(0x30 + channel, kf << 2);
+        writeRegister(0x30 + channel, kf);
         
         // Key On (all operators enabled)
         writeRegister(0x08, 0x78 | channel);
@@ -259,6 +260,10 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 void YmfmWrapper::noteOff(uint8_t channel, uint8_t note)
 {
     if (channel >= 8) return;
+    
+    // Mark channel as inactive
+    channelStates[channel].active = false;
+    channelStates[channel].baseNote = 0;
     
     if (chipType == ChipType::OPM) {
         // Key Off - use sample code format
@@ -431,5 +436,67 @@ void YmfmWrapper::setOperatorParameters(uint8_t channel, uint8_t operator_num,
     setOperatorParameter(channel, operator_num, OperatorParameter::Multiple, mul);
     setOperatorParameter(channel, operator_num, OperatorParameter::Detune1, dt1);
     setOperatorParameter(channel, operator_num, OperatorParameter::Detune2, dt2);
+}
+
+uint16_t YmfmWrapper::noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones)
+{
+    // Calculate the actual note with pitch bend applied
+    float actualNote = note + pitchBendSemitones;
+    
+    // Calculate frequency from MIDI note
+    float freq = 440.0f * std::pow(2.0f, (actualNote - 69) / 12.0f);
+    
+    // Convert frequency to YM2151 KC/KF format
+    float fnote = 12.0f * log2f(freq / 440.0f) + 69.0f;
+    int noteInt = (int)round(fnote);
+    int octave = (noteInt / 12) - 1;
+    int noteInOctave = noteInt % 12;
+    
+    // Clamp octave to valid range (0-7) for YM2151
+    if (octave < 0) {
+        octave = 0;
+        noteInOctave = 0;
+    } else if (octave > 7) {
+        octave = 7;
+        noteInOctave = 11;
+    }
+    
+    // YM2151 key code calculation
+    const uint8_t noteCode[12] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
+    uint8_t kc = ((octave & 0x07) << 4) | noteCode[noteInOctave];
+    
+    // Calculate fine tuning (KF) for the fractional part
+    float fractionalPart = actualNote - noteInt;
+    uint8_t kf = (uint8_t)(fractionalPart * 64.0f); // 6-bit KF value
+    
+    // Combine KC and KF into a 16-bit value for convenience
+    return (kc << 6) | (kf & 0x3F);
+}
+
+void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
+{
+    if (channel >= 8) return;
+    
+    // Update the pitch bend state for this channel
+    channelStates[channel].pitchBend = semitones;
+    
+    // If this channel is currently playing a note, update its frequency
+    if (channelStates[channel].active && chipType == ChipType::OPM) {
+        uint8_t baseNote = channelStates[channel].baseNote;
+        uint16_t fnum = noteToFnumWithPitchBend(baseNote, semitones);
+        
+        // Extract KC and KF from FNUM
+        uint8_t kc = (fnum >> 6) & 0x7F;
+        uint8_t kf = (fnum & 0x3F) << 2;
+        
+        // Update the frequency registers
+        writeRegister(0x28 + channel, kc);
+        writeRegister(0x30 + channel, kf);
+        
+        DBG("YmfmWrapper: Pitch bend updated - channel=" + juce::String((int)channel) + 
+            ", semitones=" + juce::String(semitones, 3) + 
+            ", KC=0x" + juce::String::toHexString(kc) + 
+            ", KF=0x" + juce::String::toHexString(kf));
+    }
 }
 

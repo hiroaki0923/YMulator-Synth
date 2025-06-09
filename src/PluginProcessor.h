@@ -6,7 +6,9 @@
 #include "utils/PresetManager.h"
 #include <unordered_map>
 
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class ChipSynthAudioProcessor : public juce::AudioProcessor,
+                               public juce::AudioProcessorParameter::Listener,
+                               public juce::ValueTree::Listener
 {
 public:
     ChipSynthAudioProcessor();
@@ -37,6 +39,18 @@ public:
 
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
+    
+    // AudioProcessorParameter::Listener (required by interface)
+    void parameterValueChanged(int parameterIndex, float newValue) override;
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;
+    
+    // ValueTree::Listener
+    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+                                const juce::Identifier& property) override;
+    void valueTreeChildAdded(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) override {}
+    void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override {}
+    void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhoseChildrenHaveMoved, int oldIndex, int newIndex) override {}
+    void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override {}
 
     // Parameter access for UI
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
@@ -54,11 +68,19 @@ private:
     // Preset management
     chipsynth::PresetManager presetManager;
     int currentPreset = 0;
+    bool needsPresetReapply = false;
+    bool isCustomPreset = false;
+    juce::String customPresetName = "Custom";
+    bool userGestureInProgress = false;
+    
+    // Pitch bend state
+    int currentPitchBend = 8192; // MIDI pitch bend center (0-16383)
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void setupCCMapping();
     void handleMidiCC(int ccNumber, int value);
+    void handlePitchBend(int pitchBendValue);
     void updateYmfmParameters();
     void loadPreset(int index);
     void loadPreset(const chipsynth::Preset* preset);
@@ -70,6 +92,10 @@ public:
     int getCurrentPresetIndex() const { return currentPreset; }
     void setCurrentPreset(int index);
     juce::StringArray getPresetNames() const { return presetManager.getPresetNames(); }
+    
+    // Custom preset management
+    bool isInCustomMode() const { return isCustomPreset; }
+    juce::String getCustomPresetName() const { return customPresetName; }
     
 private:
     

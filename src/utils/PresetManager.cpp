@@ -125,7 +125,8 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
     for (int i = 0; i < 4; ++i)
     {
         const auto& op = voice.operators[i];
-        preset.operators[i].totalLevel = static_cast<float>(op.totalLevel) / 127.0f;
+        // TL is already in 0-127 range in VOPM format, store as is
+        preset.operators[i].totalLevel = static_cast<float>(op.totalLevel);
         preset.operators[i].multiple = static_cast<float>(op.multiple);
         preset.operators[i].detune1 = static_cast<float>(op.detune1);
         preset.operators[i].detune2 = static_cast<float>(op.detune2);
@@ -153,7 +154,8 @@ VOPMVoice Preset::toVOPM() const
     for (int i = 0; i < 4; ++i)
     {
         auto& op = voice.operators[i];
-        op.totalLevel = static_cast<int>(operators[i].totalLevel * 127.0f);
+        // TL is stored as 0-127 range
+        op.totalLevel = static_cast<int>(operators[i].totalLevel);
         op.multiple = static_cast<int>(operators[i].multiple);
         op.detune1 = static_cast<int>(operators[i].detune1);
         op.detune2 = static_cast<int>(operators[i].detune2);
@@ -264,10 +266,10 @@ int PresetManager::loadBundledPresets()
 
 const Preset* PresetManager::getPreset(int id) const
 {
-    for (const auto& preset : presets)
+    // ID is the index in the presets array
+    if (id >= 0 && id < static_cast<int>(presets.size()))
     {
-        if (preset.id == id)
-            return &preset;
+        return &presets[id];
     }
     return nullptr;
 }
@@ -408,7 +410,7 @@ void PresetManager::validatePreset(Preset& preset) const
     for (int i = 0; i < 4; ++i)
     {
         auto& op = preset.operators[i];
-        op.totalLevel = juce::jlimit(0.0f, 1.0f, op.totalLevel);
+        op.totalLevel = juce::jlimit(0.0f, 127.0f, op.totalLevel);
         op.multiple = juce::jlimit(0.0f, 15.0f, op.multiple);
         op.detune1 = juce::jlimit(0.0f, 7.0f, op.detune1);
         op.detune2 = juce::jlimit(0.0f, 3.0f, op.detune2);
