@@ -211,8 +211,11 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
             
-            // Allocate a voice for this note
-            int channel = voiceManager.allocateVoice(message.getNoteNumber(), message.getVelocity());
+            // Check if current preset needs noise (has noise enabled)
+            bool currentPresetNeedsNoise = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
+            
+            // Allocate a voice for this note with noise priority consideration
+            int channel = voiceManager.allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), currentPresetNeedsNoise);
             
             // Tell ymfm to play this note on the allocated channel
             ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
