@@ -28,6 +28,14 @@ constexpr uint8_t REG_D1L_RR_BASE = 0xE0;            // 0xE0 + base_addr
 // System Control Registers
 constexpr uint8_t REG_KEY_ON_OFF = 0x08;             // Key on/off register
 
+// LFO Control Registers
+constexpr uint8_t REG_LFO_RATE = 0x18;               // LFO frequency (0-255)
+constexpr uint8_t REG_LFO_AMD = 0x19;                // LFO amplitude modulation depth (0-127)
+constexpr uint8_t REG_LFO_PMD = 0x1A;                // LFO phase modulation depth (0-127)
+constexpr uint8_t REG_LFO_WAVEFORM = 0x1B;           // LFO waveform select (bits 0-1)
+constexpr uint8_t REG_LFO_CT_CONTROL = 0x1B;         // Also contains CT1/CT2 output control
+constexpr uint8_t REG_LFO_AMS_PMS_BASE = 0x38;       // 0x38 + channel: AMS/PMS settings
+
 // =============================================================================
 // YM2608 (OPNA) Specific Registers
 // =============================================================================
@@ -154,6 +162,24 @@ constexpr uint8_t PAN_OFF = 0x00;                    // No output (L=0, R=0)
 constexpr uint8_t PAN_RIGHT_ONLY = 0x40;             // Right only (L=0, R=1)
 constexpr uint8_t PAN_LEFT_ONLY = 0x80;              // Left only (L=1, R=0)
 constexpr uint8_t PAN_CENTER = 0xC0;                 // Center/Both (L=1, R=1)
+
+// LFO Parameter Constants
+constexpr uint8_t LFO_WAVEFORM_SAW = 0x00;           // Sawtooth wave
+constexpr uint8_t LFO_WAVEFORM_SQUARE = 0x01;        // Square wave
+constexpr uint8_t LFO_WAVEFORM_TRIANGLE = 0x02;      // Triangle wave
+constexpr uint8_t LFO_WAVEFORM_NOISE = 0x03;         // Random/Noise
+
+// LFO Masks and Shifts
+constexpr uint8_t MASK_LFO_WAVEFORM = 0x03;          // LFO waveform field (bits 0-1)
+constexpr uint8_t MASK_LFO_AMS = 0x03;               // AMS field (bits 0-1) in register 0x38
+constexpr uint8_t MASK_LFO_PMS = 0x07;               // PMS field (bits 4-6) in register 0x38
+constexpr uint8_t SHIFT_LFO_PMS = 4;                 // PMS field shift
+constexpr uint8_t SHIFT_LFO_CT1 = 6;                 // CT1 output control shift
+constexpr uint8_t SHIFT_LFO_CT2 = 7;                 // CT2 output control shift
+
+// AMS Enable bit (in operator register 0xA0 + base_addr)
+constexpr uint8_t SHIFT_AMS_ENABLE = 7;              // AMS enable bit position
+constexpr uint8_t MASK_AMS_ENABLE = 0x01;            // AMS enable mask (before shift)
 
 // =============================================================================
 // Debug and Testing Constants

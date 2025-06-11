@@ -18,6 +18,22 @@ struct Preset
     int algorithm = 0;
     int feedback = 0;
     
+    // LFO parameters
+    struct LFOData
+    {
+        int rate = 0;        // LFO frequency (0-255)
+        int amd = 0;         // Amplitude modulation depth (0-127)
+        int pmd = 0;         // Phase modulation depth (0-127)
+        int waveform = 0;    // Waveform (0-3)
+    } lfo;
+    
+    // Channel AMS/PMS settings (for all 8 channels)
+    struct ChannelData
+    {
+        int ams = 0;         // Amplitude modulation sensitivity (0-3)
+        int pms = 0;         // Phase modulation sensitivity (0-7)
+    } channels[8];
+    
     struct OperatorData
     {
         float totalLevel = 0.0f;
@@ -30,6 +46,7 @@ struct Preset
         float decay2Rate = 0.0f;
         float releaseRate = 7.0f;
         float sustainLevel = 0.0f;
+        bool amsEnable = false;  // AMS enable flag
     } operators[4];
     
     /**

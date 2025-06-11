@@ -69,6 +69,11 @@ public:
     // Pan control support
     void setChannelPan(uint8_t channel, float panValue);
     
+    // LFO support
+    void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform);
+    void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms);
+    void setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bool enable);
+    
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
     { 

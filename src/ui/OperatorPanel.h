@@ -42,6 +42,10 @@ private:
     
     std::vector<ControlPair> controls;
     
+    // AMS enable checkbox
+    std::unique_ptr<juce::ToggleButton> amsEnableButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> amsEnableAttachment;
+    
     // Static control specifications
     static const std::vector<ControlSpec> controlSpecs;
     

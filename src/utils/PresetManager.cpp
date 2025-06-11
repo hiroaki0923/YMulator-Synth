@@ -36,8 +36,8 @@ static const VOPMVoice FACTORY_VOICES[] = {
     // Brass Section
     {
         2, "Brass Section",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 4, 4, 0, 0, 15, 0}, // Channel
+        {50, 20, 0, 0, 0}, // LFO: Slow vibrato (rate=50, amd=20)
+        {3, 4, 4, 1, 3, 15, 0}, // Channel: AMS=1, PMS=3 for vibrato
         {
             {25, 14, 6, 7, 1, 45, 1, 1, 3, 1, 0}, // M1
             {28, 14, 3, 7, 1, 29, 1, 1, 3, 2, 0}, // C1
@@ -49,8 +49,8 @@ static const VOPMVoice FACTORY_VOICES[] = {
     // String Pad
     {
         3, "String Pad",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 2, 6, 0, 0, 15, 0}, // Channel
+        {30, 15, 25, 2, 0}, // LFO: Gentle triangle wave tremolo/vibrato (rate=30, amd=15, pmd=25, triangle)
+        {3, 2, 6, 2, 4, 15, 0}, // Channel: AMS=2, PMS=4 for lush modulation
         {
             {20, 7, 7, 1, 1, 24, 0, 1, 3, 1, 0}, // M1
             {25, 4, 4, 1, 1, 16, 0, 1, 3, 1, 0}, // C1
@@ -62,8 +62,8 @@ static const VOPMVoice FACTORY_VOICES[] = {
     // Lead Synth
     {
         4, "Lead Synth",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 4, 7, 0, 0, 15, 0}, // Channel
+        {80, 0, 40, 1, 0}, // LFO: Fast square wave vibrato (rate=80, pmd=40, square)
+        {3, 4, 7, 0, 5, 15, 0}, // Channel: PMS=5 for expressive vibrato
         {
             {31, 6, 2, 7, 0, 18, 2, 1, 3, 2, 0}, // M1
             {31, 6, 2, 7, 0, 0, 2, 1, 3, 1, 0},  // C1
@@ -123,6 +123,18 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
     preset.algorithm = voice.channel.algorithm;
     preset.feedback = voice.channel.feedback;
     
+    // Set LFO parameters from VOPM voice
+    preset.lfo.rate = voice.lfo.frequency;
+    preset.lfo.amd = voice.lfo.amd;
+    preset.lfo.pmd = voice.lfo.pmd;
+    preset.lfo.waveform = voice.lfo.waveform;
+    
+    // Set channel AMS/PMS parameters (same for all channels in VOPM format)
+    for (int ch = 0; ch < 8; ++ch) {
+        preset.channels[ch].ams = voice.channel.ams;
+        preset.channels[ch].pms = voice.channel.pms;
+    }
+    
     for (int i = 0; i < 4; ++i)
     {
         const auto& op = voice.operators[i];
@@ -137,6 +149,7 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
         preset.operators[i].decay2Rate = static_cast<float>(op.decay2Rate);
         preset.operators[i].releaseRate = static_cast<float>(op.releaseRate);
         preset.operators[i].sustainLevel = static_cast<float>(op.decay1Level);
+        preset.operators[i].amsEnable = (op.amsEnable != 0);
     }
     
     return preset;
@@ -152,6 +165,18 @@ VOPMVoice Preset::toVOPM() const
     voice.channel.pan = 3; // Center (internal representation)
     voice.channel.slotMask = 15; // All slots enabled (internal representation)
     
+    // Set LFO parameters to VOPM voice
+    voice.lfo.frequency = lfo.rate;
+    voice.lfo.amd = lfo.amd;
+    voice.lfo.pmd = lfo.pmd;
+    voice.lfo.waveform = lfo.waveform;
+    voice.lfo.noiseFreq = 0; // Default value
+    
+    // Use channel 0's AMS/PMS settings (VOPM format has one setting per voice)
+    voice.channel.ams = channels[0].ams;
+    voice.channel.pms = channels[0].pms;
+    voice.channel.noiseEnable = 0; // Default value
+    
     for (int i = 0; i < 4; ++i)
     {
         auto& op = voice.operators[i];
@@ -166,6 +191,7 @@ VOPMVoice Preset::toVOPM() const
         op.decay2Rate = static_cast<int>(operators[i].decay2Rate);
         op.releaseRate = static_cast<int>(operators[i].releaseRate);
         op.decay1Level = static_cast<int>(operators[i].sustainLevel);
+        op.amsEnable = operators[i].amsEnable ? 1 : 0;
     }
     
     return voice;
@@ -407,6 +433,18 @@ void PresetManager::validatePreset(Preset& preset) const
     // Clamp values to valid ranges
     preset.algorithm = juce::jlimit(0, 7, preset.algorithm);
     preset.feedback = juce::jlimit(0, 7, preset.feedback);
+    
+    // Validate LFO parameters
+    preset.lfo.rate = juce::jlimit(0, 255, preset.lfo.rate);
+    preset.lfo.amd = juce::jlimit(0, 127, preset.lfo.amd);
+    preset.lfo.pmd = juce::jlimit(0, 127, preset.lfo.pmd);
+    preset.lfo.waveform = juce::jlimit(0, 3, preset.lfo.waveform);
+    
+    // Validate channel AMS/PMS parameters
+    for (int ch = 0; ch < 8; ++ch) {
+        preset.channels[ch].ams = juce::jlimit(0, 3, preset.channels[ch].ams);
+        preset.channels[ch].pms = juce::jlimit(0, 7, preset.channels[ch].pms);
+    }
     
     for (int i = 0; i < 4; ++i)
     {

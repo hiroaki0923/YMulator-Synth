@@ -373,12 +373,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
     
+    // LFO parameters
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoRate, "LFO Rate", 0, 255, 0)); // 0-255
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoAmd, "LFO AMD", 0, 127, 0)); // 0-127
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoPmd, "LFO PMD", 0, 127, 0)); // 0-127
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoWaveform, "LFO Waveform", 0, 3, 0)); // 0=Saw, 1=Square, 2=Triangle, 3=Noise
+    
     // Channel pan parameters (channels 0-7)
     for (int ch = 0; ch < 8; ++ch)
     {
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             ParamID::Channel::pan(ch), "Channel " + juce::String(ch) + " Pan", 
             0.0f, 1.0f, 0.5f)); // Default 0.5 (center)
+            
+        params.push_back(std::make_unique<juce::AudioParameterInt>(
+            ParamID::Channel::ams(ch), "Channel " + juce::String(ch) + " AMS", 
+            0, 3, 0)); // 0-3 AMS sensitivity
+            
+        params.push_back(std::make_unique<juce::AudioParameterInt>(
+            ParamID::Channel::pms(ch), "Channel " + juce::String(ch) + " PMS", 
+            0, 7, 0)); // 0-7 PMS sensitivity
     }
     
     // Operator parameters (4 operators)
@@ -451,6 +469,16 @@ void ChipSynthAudioProcessor::setupCCMapping()
     // Global parameters
     ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Algorithm));
     ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Feedback));
+    
+    // LFO parameters (CC 76-79)
+    ccToParameterMap[ParamID::MIDI_CC::LfoRate] = 
+        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoRate));
+    ccToParameterMap[ParamID::MIDI_CC::LfoAmd] = 
+        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoAmd));
+    ccToParameterMap[ParamID::MIDI_CC::LfoPmd] = 
+        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoPmd));
+    ccToParameterMap[ParamID::MIDI_CC::LfoWaveform] = 
+        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoWaveform));
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -630,6 +658,30 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
     }
     
+    // Set LFO parameters with UI notification
+    if (auto* lfoRateParam = parameters.getParameter(ParamID::Global::LfoRate)) {
+        lfoRateParam->setValueNotifyingHost(lfoRateParam->convertTo0to1(preset->lfo.rate));
+    }
+    if (auto* lfoAmdParam = parameters.getParameter(ParamID::Global::LfoAmd)) {
+        lfoAmdParam->setValueNotifyingHost(lfoAmdParam->convertTo0to1(preset->lfo.amd));
+    }
+    if (auto* lfoPmdParam = parameters.getParameter(ParamID::Global::LfoPmd)) {
+        lfoPmdParam->setValueNotifyingHost(lfoPmdParam->convertTo0to1(preset->lfo.pmd));
+    }
+    if (auto* lfoWaveformParam = parameters.getParameter(ParamID::Global::LfoWaveform)) {
+        lfoWaveformParam->setValueNotifyingHost(lfoWaveformParam->convertTo0to1(preset->lfo.waveform));
+    }
+    
+    // Set channel AMS/PMS parameters with UI notification
+    for (int ch = 0; ch < 8; ++ch) {
+        if (auto* amsParam = parameters.getParameter(ParamID::Channel::ams(ch))) {
+            amsParam->setValueNotifyingHost(amsParam->convertTo0to1(preset->channels[ch].ams));
+        }
+        if (auto* pmsParam = parameters.getParameter(ParamID::Channel::pms(ch))) {
+            pmsParam->setValueNotifyingHost(pmsParam->convertTo0to1(preset->channels[ch].pms));
+        }
+    }
+    
     // Set operator parameters with UI notification
     for (int op = 0; op < 4; ++op)
     {
@@ -667,7 +719,7 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
         }
         if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
-            param->setValueNotifyingHost(0.0f);
+            param->setValueNotifyingHost(preset->operators[op].amsEnable ? 1.0f : 0.0f);
         }
     }
     
@@ -777,7 +829,27 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
         CS_ASSERT_PAN_RANGE(pan);
         ymfmWrapper.setChannelPan(channel, pan);
+        
+        // Update channel AMS/PMS settings
+        int ams = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::ams(channel).c_str()));
+        int pms = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::pms(channel).c_str()));
+        CS_ASSERT_PARAMETER_RANGE(ams, 0, 3);
+        CS_ASSERT_PARAMETER_RANGE(pms, 0, 7);
+        ymfmWrapper.setChannelAmsPms(channel, ams, pms);
     }
+    
+    // Update global LFO settings
+    int lfoRate = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoRate));
+    int lfoAmd = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoAmd));
+    int lfoPmd = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoPmd));
+    int lfoWaveform = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoWaveform));
+    
+    CS_ASSERT_PARAMETER_RANGE(lfoRate, 0, 255);
+    CS_ASSERT_PARAMETER_RANGE(lfoAmd, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(lfoPmd, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(lfoWaveform, 0, 3);
+    
+    ymfmWrapper.setLfoParameters(lfoRate, lfoAmd, lfoPmd, lfoWaveform);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
