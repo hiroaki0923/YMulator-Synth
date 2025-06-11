@@ -578,7 +578,7 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
         it->second->setValueNotifyingHost(normalizedValue);
         
         CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
-            " -> " + it->second->name + " = " + juce::String(it->second->get()));
+            " -> " + it->second->name + " = " + juce::String(it->second->getValue()));
     }
 }
 

@@ -102,12 +102,14 @@ public:
      */
     static int convertOpmPanToInternal(int opmPan);
     static int convertOpmAmeToInternal(int opmAme);
+    static int convertOpmSlotToInternal(int opmSlot);
     
     /**
      * Convert internal values to OPM format
      */
     static int convertInternalPanToOpm(int internalPan);
     static int convertInternalAmeToOpm(int internalAme);
+    static int convertInternalSlotToOpm(int internalSlot);
 
 private:
     static void parseVoiceHeader(const juce::String& line, VOPMVoice& voice);
