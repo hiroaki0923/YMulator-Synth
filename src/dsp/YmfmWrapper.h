@@ -63,6 +63,12 @@ public:
                               uint8_t tl, uint8_t ar, uint8_t d1r, uint8_t d2r, 
                               uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1, uint8_t dt2);
     
+    // Envelope optimization methods
+    void setOperatorEnvelope(uint8_t channel, uint8_t operator_num, 
+                            uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l);
+    void batchUpdateChannelParameters(uint8_t channel, uint8_t algorithm, uint8_t feedback,
+                                     const std::array<std::array<uint8_t, 10>, 4>& operatorParams);
+    
     // Pitch bend support
     void setPitchBend(uint8_t channel, float semitones);
     
@@ -73,6 +79,18 @@ public:
     void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform);
     void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms);
     void setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bool enable);
+    
+    // Envelope monitoring and debugging
+    struct EnvelopeDebugInfo {
+        uint32_t currentState;     // Current envelope state (attack, decay, sustain, release)
+        uint32_t currentLevel;     // Current attenuation level
+        uint32_t effectiveRate;    // Effective rate with KSR applied
+        bool isActive;             // Whether envelope is actively changing
+    };
+    
+    EnvelopeDebugInfo getEnvelopeDebugInfo(uint8_t channel, uint8_t operator_num) const;
+    void setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity);
+    void applyVelocityToChannel(uint8_t channel, uint8_t velocity);
     
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
@@ -112,6 +130,9 @@ private:
         bool active = false;       // Is this channel playing a note
     };
     std::array<ChannelState, 8> channelStates;
+    
+    // Velocity sensitivity per operator (32 operators total: 8 channels × 4 operators)
+    std::array<std::array<float, 4>, 8> velocitySensitivity;
     
     // Helper methods
     void initializeOPM();
