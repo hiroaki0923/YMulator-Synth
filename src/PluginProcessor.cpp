@@ -735,10 +735,38 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         ", AR: " + juce::String(preset->operators[0].attackRate) +
         ", MUL: " + juce::String(preset->operators[0].multiple));
     
-    // Force parameter update to ymfm
-    updateYmfmParameters();
-    
-    CS_DBG(" Preset loading complete");
+    // Use optimized batch update for preset loading (more efficient than updateYmfmParameters)
+    if (ymfmWrapper.isInitialized()) {
+        // Prepare batch parameter data for all channels
+        for (int channel = 0; channel < 8; ++channel) {
+            std::array<std::array<uint8_t, 10>, 4> operatorParams;
+            
+            for (int op = 0; op < 4; ++op) {
+                operatorParams[op][0] = static_cast<uint8_t>(preset->operators[op].totalLevel);
+                operatorParams[op][1] = static_cast<uint8_t>(preset->operators[op].attackRate);
+                operatorParams[op][2] = static_cast<uint8_t>(preset->operators[op].decay1Rate);
+                operatorParams[op][3] = static_cast<uint8_t>(preset->operators[op].decay2Rate);
+                operatorParams[op][4] = static_cast<uint8_t>(preset->operators[op].releaseRate);
+                operatorParams[op][5] = static_cast<uint8_t>(preset->operators[op].sustainLevel);
+                operatorParams[op][6] = static_cast<uint8_t>(preset->operators[op].keyScale);
+                operatorParams[op][7] = static_cast<uint8_t>(preset->operators[op].multiple);
+                operatorParams[op][8] = static_cast<uint8_t>(preset->operators[op].detune1);
+                operatorParams[op][9] = static_cast<uint8_t>(preset->operators[op].detune2);
+            }
+            
+            // Batch update entire channel at once
+            ymfmWrapper.batchUpdateChannelParameters(channel, preset->algorithm, preset->feedback, operatorParams);
+        }
+        
+        // Update LFO and other global settings
+        updateYmfmParameters();
+        
+        CS_DBG(" Optimized batch preset loading complete");
+    } else {
+        // Fallback to standard update if ymfm not initialized
+        updateYmfmParameters();
+        CS_DBG(" Standard preset loading complete (ymfm not initialized)");
+    }
 }
 
 void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
@@ -822,7 +850,15 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
             int dt1 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt1(op + 1).c_str()));
             int dt2 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt2(op + 1).c_str()));
             
-            ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1, dt2);
+            // Use optimized envelope setting for envelope parameters only
+            ymfmWrapper.setOperatorEnvelope(channel, op, ar, d1r, d2r, rr, d1l);
+            
+            // Set non-envelope parameters individually (they're changed less frequently)
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::TotalLevel, tl);
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::KeyScale, ks);
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::Multiple, mul);
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::Detune1, dt1);
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::Detune2, dt2);
         }
         
         // Update channel pan
@@ -835,7 +871,7 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         int pms = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::pms(channel).c_str()));
         CS_ASSERT_PARAMETER_RANGE(ams, 0, 3);
         CS_ASSERT_PARAMETER_RANGE(pms, 0, 7);
-        ymfmWrapper.setChannelAmsPms(channel, ams, pms);
+        ymfmWrapper.setChannelAmsPms(channel, static_cast<uint8_t>(ams), static_cast<uint8_t>(pms));
     }
     
     // Update global LFO settings
@@ -849,7 +885,8 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     CS_ASSERT_PARAMETER_RANGE(lfoPmd, 0, 127);
     CS_ASSERT_PARAMETER_RANGE(lfoWaveform, 0, 3);
     
-    ymfmWrapper.setLfoParameters(lfoRate, lfoAmd, lfoPmd, lfoWaveform);
+    ymfmWrapper.setLfoParameters(static_cast<uint8_t>(lfoRate), static_cast<uint8_t>(lfoAmd), 
+                                  static_cast<uint8_t>(lfoPmd), static_cast<uint8_t>(lfoWaveform));
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

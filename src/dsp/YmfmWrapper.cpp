@@ -18,6 +18,13 @@ YmfmWrapper::YmfmWrapper()
 {
     // Initialize register cache
     std::memset(currentRegisters, 0, sizeof(currentRegisters));
+    
+    // Initialize velocity sensitivity to default values (1.0 = no scaling)
+    for (auto& channel : velocitySensitivity) {
+        for (auto& op : channel) {
+            op = 1.0f;
+        }
+    }
 }
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
@@ -247,6 +254,9 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Write KC and KF
         writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
         writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
+        
+        // Apply velocity sensitivity to channel before key on
+        applyVelocityToChannel(channel, velocity);
         
         // Key On (all operators enabled)
         writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_ON_ALL_OPS | channel);
@@ -674,6 +684,193 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
         CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
                ", channel=" + juce::String((int)channel) +
                ", value=0x" + juce::String::toHexString(newValue));
+    }
+}
+
+// Envelope optimization methods implementation
+void YmfmWrapper::setOperatorEnvelope(uint8_t channel, uint8_t operator_num, 
+                                     uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_OPERATOR(operator_num);
+    CS_ASSERT_PARAMETER_RANGE(ar, 0, 31);
+    CS_ASSERT_PARAMETER_RANGE(d1r, 0, 31);
+    CS_ASSERT_PARAMETER_RANGE(d2r, 0, 31);
+    CS_ASSERT_PARAMETER_RANGE(rr, 0, 15);
+    CS_ASSERT_PARAMETER_RANGE(d1l, 0, 15);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
+    
+    CS_DBG("Batch setting envelope for operator " + juce::String((int)operator_num) + 
+           " on channel " + juce::String((int)channel) + 
+           " AR=" + juce::String((int)ar) + 
+           ", D1R=" + juce::String((int)d1r) +
+           ", D2R=" + juce::String((int)d2r) +
+           ", RR=" + juce::String((int)rr) +
+           ", D1L=" + juce::String((int)d1l));
+    
+    if (chipType == ChipType::OPM) {
+        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        
+        // Batch update all envelope registers for this operator
+        writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, 
+                     (readCurrentRegister(YM2151Regs::REG_KS_AR_BASE + base_addr) & YM2151Regs::MASK_KEY_SCALE_PRESERVE) | ar);
+        
+        writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, 
+                     (readCurrentRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr) & YM2151Regs::MASK_AMS_PRESERVE) | d1r);
+        
+        writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, 
+                     (readCurrentRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr) & YM2151Regs::MASK_DETUNE2_PRESERVE) | d2r);
+        
+        writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, 
+                     (d1l << YM2151Regs::SHIFT_SUSTAIN_LEVEL) | rr);
+    }
+}
+
+void YmfmWrapper::batchUpdateChannelParameters(uint8_t channel, uint8_t algorithm, uint8_t feedback,
+                                              const std::array<std::array<uint8_t, 10>, 4>& operatorParams)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_PARAMETER_RANGE(algorithm, 0, 7);
+    CS_ASSERT_PARAMETER_RANGE(feedback, 0, 7);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    
+    CS_DBG("Batch updating channel " + juce::String((int)channel) + 
+           " with algorithm=" + juce::String((int)algorithm) + 
+           ", feedback=" + juce::String((int)feedback));
+    
+    if (chipType == ChipType::OPM) {
+        // Update algorithm and feedback first
+        uint8_t conn_value = (feedback << YM2151Regs::SHIFT_FEEDBACK) | algorithm;
+        writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, conn_value);
+        
+        // Batch update all operators for this channel
+        for (int op = 0; op < 4; ++op) {
+            const auto& params = operatorParams[op];
+            // params order: TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
+            
+            uint8_t tl = params[0];
+            uint8_t ar = params[1];
+            uint8_t d1r = params[2];
+            uint8_t d2r = params[3];
+            uint8_t rr = params[4];
+            uint8_t d1l = params[5];
+            uint8_t ks = params[6];
+            uint8_t mul = params[7];
+            uint8_t dt1 = params[8];
+            uint8_t dt2 = params[9];
+            
+            uint8_t base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+            
+            // Batch write all operator registers
+            writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, 
+                         (dt1 << YM2151Regs::SHIFT_DETUNE1) | mul);
+            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, tl);
+            writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, 
+                         (ks << YM2151Regs::SHIFT_KEY_SCALE) | ar);
+            writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, 
+                         (readCurrentRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr) & YM2151Regs::MASK_AMS_PRESERVE) | d1r);
+            writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, 
+                         (dt2 << YM2151Regs::SHIFT_DETUNE2) | d2r);
+            writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, 
+                         (d1l << YM2151Regs::SHIFT_SUSTAIN_LEVEL) | rr);
+        }
+        
+        CS_DBG("Batch update completed for channel " + juce::String((int)channel));
+    }
+}
+
+YmfmWrapper::EnvelopeDebugInfo YmfmWrapper::getEnvelopeDebugInfo(uint8_t channel, uint8_t operator_num) const
+{
+    EnvelopeDebugInfo info = {0, 0, 0, false};
+    
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_OPERATOR(operator_num);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) {
+        return info;
+    }
+    
+    if (chipType == ChipType::OPM && opmChip) {
+        // Note: This is a simplified implementation. In practice, we would need
+        // to access ymfm's internal state to get actual envelope information.
+        // For now, we return basic information based on register values.
+        
+        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        
+        // Read envelope-related registers to estimate state
+        uint8_t ar_ks = currentRegisters[YM2151Regs::REG_KS_AR_BASE + base_addr];
+        uint8_t d1l_rr = currentRegisters[YM2151Regs::REG_D1L_RR_BASE + base_addr];
+        
+        info.effectiveRate = ar_ks & YM2151Regs::MASK_ATTACK_RATE;
+        info.currentLevel = (d1l_rr >> YM2151Regs::SHIFT_SUSTAIN_LEVEL) & YM2151Regs::MASK_SUSTAIN_LEVEL;
+        info.isActive = channelStates[channel].active;
+        
+        // Estimate current state based on channel activity
+        if (info.isActive) {
+            info.currentState = 1; // Assume attack or decay state when active
+        } else {
+            info.currentState = 0; // Assume silent state
+        }
+    }
+    
+    return info;
+}
+
+void YmfmWrapper::setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_OPERATOR(operator_num);
+    CS_ASSERT_PARAMETER_RANGE(sensitivity, 0.0f, 2.0f);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
+    
+    velocitySensitivity[channel][operator_num] = sensitivity;
+    
+    CS_DBG("Set velocity sensitivity for channel " + juce::String((int)channel) + 
+           ", operator " + juce::String((int)operator_num) + 
+           " to " + juce::String(sensitivity, 3));
+}
+
+void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_VELOCITY(velocity);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || chipType != ChipType::OPM) return;
+    
+    // Normalize velocity to 0.0-1.0 range
+    float normalizedVelocity = velocity / 127.0f;
+    
+    CS_DBG("Applying velocity " + juce::String((int)velocity) + 
+           " (normalized: " + juce::String(normalizedVelocity, 3) + 
+           ") to channel " + juce::String((int)channel));
+    
+    // Apply velocity sensitivity to each operator's Total Level
+    for (int op = 0; op < 4; ++op) {
+        float sensitivity = velocitySensitivity[channel][op];
+        
+        // Only apply velocity if sensitivity is not 1.0 (default)
+        if (std::abs(sensitivity - 1.0f) > 0.001f) {
+            uint8_t base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+            
+            // Read current TL value
+            uint8_t currentTL = currentRegisters[YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr];
+            
+            // Calculate velocity-adjusted TL
+            // Lower velocity = higher TL (quieter), Higher velocity = lower TL (louder)
+            float velocityAdjustment = (1.0f - normalizedVelocity) * sensitivity * 32.0f; // Up to 32 TL steps
+            uint8_t adjustedTL = juce::jlimit(0, 127, static_cast<int>(currentTL + velocityAdjustment));
+            
+            // Write adjusted TL
+            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, adjustedTL);
+            
+            CS_DBG("Operator " + juce::String(op) + 
+                   " TL adjusted from " + juce::String((int)currentTL) + 
+                   " to " + juce::String((int)adjustedTL) + 
+                   " (sensitivity=" + juce::String(sensitivity, 2) + ")");
+        }
     }
 }
 

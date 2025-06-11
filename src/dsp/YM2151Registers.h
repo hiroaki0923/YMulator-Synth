@@ -47,6 +47,23 @@ constexpr uint8_t REG_OPNA_TL_OP2_BASE = 0x44;       // 0x44 + channel
 constexpr uint8_t REG_OPNA_KEY_ON_OFF = 0x28;        // OPNA key on/off
 
 // =============================================================================
+// =============================================================================
+// Preserve Masks for Read-Modify-Write Operations
+// =============================================================================
+
+// Key Scale and Attack Rate register (REG_KS_AR_BASE) preserve masks
+constexpr uint8_t MASK_KEY_SCALE_PRESERVE = 0xC0;       // Preserve KS bits (6-7) when updating AR
+constexpr uint8_t MASK_ATTACK_RATE_PRESERVE = 0x1F;     // Preserve AR bits (0-4) when updating KS
+
+// AMS and Decay1 Rate register (REG_AMS_D1R_BASE) preserve masks  
+constexpr uint8_t MASK_AMS_PRESERVE = 0x80;             // Preserve AMS bit (7) when updating D1R
+constexpr uint8_t MASK_DECAY1_RATE_PRESERVE = 0x1F;     // Preserve D1R bits (0-4) when updating AMS
+
+// Detune2 and Decay2 Rate register (REG_DT2_D2R_BASE) preserve masks
+constexpr uint8_t MASK_DETUNE2_PRESERVE = 0xC0;         // Preserve DT2 bits (6-7) when updating D2R
+constexpr uint8_t MASK_DECAY2_RATE_PRESERVE = 0x1F;     // Preserve D2R bits (0-4) when updating DT2
+
+// =============================================================================
 // Bitmask Constants
 // =============================================================================
 
