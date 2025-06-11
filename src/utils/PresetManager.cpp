@@ -152,6 +152,8 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
         preset.operators[i].releaseRate = static_cast<float>(op.releaseRate);
         preset.operators[i].sustainLevel = static_cast<float>(op.decay1Level);
         preset.operators[i].amsEnable = (op.amsEnable != 0);
+        // Extract SLOT enable from channel slotMask
+        preset.operators[i].slotEnable = (voice.channel.slotMask & (1 << i)) != 0;
     }
     
     return preset;
@@ -165,7 +167,15 @@ VOPMVoice Preset::toVOPM() const
     voice.channel.algorithm = algorithm;
     voice.channel.feedback = feedback;
     voice.channel.pan = 3; // Center (internal representation)
-    voice.channel.slotMask = 15; // All slots enabled (internal representation)
+    
+    // Build SLOT mask from individual operator SLOT enable flags
+    int slotMask = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (operators[i].slotEnable) {
+            slotMask |= (1 << i);
+        }
+    }
+    voice.channel.slotMask = slotMask;
     
     // Set LFO parameters to VOPM voice
     voice.lfo.frequency = lfo.rate;

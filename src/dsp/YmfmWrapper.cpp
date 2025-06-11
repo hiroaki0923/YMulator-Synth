@@ -1008,3 +1008,4 @@ void YmfmWrapper::testNoiseChannel()
     CS_DBG("IMPORTANT: YM2151 noise only works on channel 7, operator 4 due to hardware design!");
 }
 
+

@@ -49,6 +49,7 @@ struct Preset
         float releaseRate = 7.0f;
         float sustainLevel = 0.0f;
         bool amsEnable = false;  // AMS enable flag
+        bool slotEnable = true;  // SLOT enable flag (default true for compatibility)
     } operators[4];
     
     /**

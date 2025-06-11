@@ -92,6 +92,7 @@ namespace Op {
     constexpr const char* Detune2 = "_dt2";
     constexpr const char* KeyScale = "_ks";
     constexpr const char* AmsEnable = "_ams_en";
+    constexpr const char* SlotEnable = "_slot_en";
     
     // Helper functions to generate operator parameter IDs
     inline std::string tl(int opNum) { 
@@ -138,9 +139,13 @@ namespace Op {
         return "op" + std::to_string(opNum) + AmsEnable; 
     }
     
+    inline std::string slot_en(int opNum) { 
+        return "op" + std::to_string(opNum) + SlotEnable; 
+    }
+    
     // Convenience function to get all parameter IDs for an operator
     struct OperatorParams {
-        std::string tl, ar, d1r, d2r, rr, d1l, mul, dt1, dt2, ks, ams_en;
+        std::string tl, ar, d1r, d2r, rr, d1l, mul, dt1, dt2, ks, ams_en, slot_en;
         
         OperatorParams(int opNum) 
             : tl(Op::tl(opNum))
@@ -154,6 +159,7 @@ namespace Op {
             , dt2(Op::dt2(opNum))
             , ks(Op::ks(opNum))
             , ams_en(Op::ams_en(opNum))
+            , slot_en(Op::slot_en(opNum))
         {}
     };
     
@@ -307,7 +313,7 @@ namespace Validation {
                 paramID == Op::rr(op) || paramID == Op::d1l(op) ||
                 paramID == Op::mul(op) || paramID == Op::dt1(op) ||
                 paramID == Op::dt2(op) || paramID == Op::ks(op) ||
-                paramID == Op::ams_en(op)) {
+                paramID == Op::ams_en(op) || paramID == Op::slot_en(op)) {
                 return true;
             }
         }

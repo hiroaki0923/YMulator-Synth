@@ -42,15 +42,25 @@ void OperatorPanel::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff1f2937));
     g.fillRoundedRectangle(titleArea.toFloat().reduced(2, 2), 3.0f);
     
+    // Draw title text (left side of title area, leaving space for checkbox)
+    auto textArea = titleArea.reduced(5, 0);
+    textArea.removeFromRight(30); // Space for SLOT checkbox
     g.setColour(juce::Colours::white);
     g.setFont(juce::Font(14.0f, juce::Font::bold));
-    g.drawText("Operator " + juce::String(operatorNum), titleArea, juce::Justification::centred);
+    g.drawText("Operator " + juce::String(operatorNum), textArea, juce::Justification::centredLeft);
 }
 
 void OperatorPanel::resized()
 {
     auto bounds = getLocalBounds().reduced(5);
-    bounds.removeFromTop(25); // Title area
+    auto titleArea = bounds.removeFromTop(25); // Title area
+    
+    // Position SLOT checkbox in title bar (right side)
+    if (slotEnableButton != nullptr) {
+        auto checkboxArea = titleArea.removeFromRight(25).reduced(2);
+        checkboxArea = checkboxArea.withY(checkboxArea.getY() - 2); // Move up by 2 pixels
+        slotEnableButton->setBounds(checkboxArea);
+    }
     
     const int rowHeight = 24;  // Reduced from 28 to 24
     const int labelWidth = 45; // Reduced from 50 to 45
@@ -81,6 +91,19 @@ void OperatorPanel::resized()
 
 void OperatorPanel::setupControls()
 {
+    // Create SLOT enable button (in title bar)
+    slotEnableButton = std::make_unique<juce::ToggleButton>();
+    slotEnableButton->setButtonText(""); // No text to avoid "..." display
+    slotEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    slotEnableButton->setColour(juce::ToggleButton::tickColourId, juce::Colour(0xff4ade80)); // Green when enabled
+    slotEnableButton->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colour(0xff6b7280)); // Gray when disabled
+    slotEnableButton->setToggleState(true, juce::dontSendNotification); // Default enabled
+    addAndMakeVisible(*slotEnableButton);
+    
+    // Attach SLOT parameter
+    slotEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Op::slot_en(operatorNum), *slotEnableButton);
+    
     // Create controls from specifications
     controls.reserve(controlSpecs.size());
     

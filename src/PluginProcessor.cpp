@@ -466,6 +466,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
         // AM Enable (AMS-EN) - 0-1, default 0
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             ParamID::Op::ams_en(op).c_str(), "OP" + juce::String(op) + " AMS-EN", false));
+        
+        // SLOT Enable - 0-1, default 1 (enabled)
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParamID::Op::slot_en(op).c_str(), "OP" + juce::String(op) + " SLOT", true));
     }
     
     return { params.begin(), params.end() };
@@ -744,6 +748,10 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
             param->setValueNotifyingHost(preset->operators[op].amsEnable ? 1.0f : 0.0f);
         }
+        if (auto* param = parameters.getParameter(ParamID::Op::slot_en(op + 1))) {
+            // Use the actual SLOT enable state from the preset
+            param->setValueNotifyingHost(preset->operators[op].slotEnable ? 1.0f : 0.0f);
+        }
     }
     
     // Re-add all listeners immediately - all preset loading is done
@@ -876,8 +884,10 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
             // Use optimized envelope setting for envelope parameters only
             ymfmWrapper.setOperatorEnvelope(channel, op, ar, d1r, d2r, rr, d1l);
             
-            // Set non-envelope parameters individually (they're changed less frequently)
-            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::TotalLevel, tl);
+            // Set TL considering SLOT enable/disable state
+            bool slotEnabled = *parameters.getRawParameterValue(ParamID::Op::slot_en(op + 1).c_str()) >= 0.5f;
+            int effectiveTL = slotEnabled ? tl : 127; // Mute if slot disabled
+            ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::TotalLevel, effectiveTL);
             ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::KeyScale, ks);
             ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::Multiple, mul);
             ymfmWrapper.setOperatorParameter(channel, op, YmfmWrapper::OperatorParameter::Detune1, dt1);
@@ -895,6 +905,7 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         CS_ASSERT_PARAMETER_RANGE(ams, 0, 3);
         CS_ASSERT_PARAMETER_RANGE(pms, 0, 7);
         ymfmWrapper.setChannelAmsPms(channel, static_cast<uint8_t>(ams), static_cast<uint8_t>(pms));
+        
     }
     
     // Update global LFO settings
