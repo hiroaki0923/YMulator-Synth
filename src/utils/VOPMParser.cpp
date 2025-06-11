@@ -268,7 +268,7 @@ juce::String VOPMParser::voiceToString(const VOPMVoice& voice)
            << voice.channel.algorithm << " "
            << voice.channel.ams << " "
            << voice.channel.pms << " "
-           << voice.channel.slotMask << " "
+           << convertInternalSlotToOpm(voice.channel.slotMask) << " "
            << voice.channel.noiseEnable << "\n";
     
     // Operator lines
@@ -334,6 +334,19 @@ int VOPMParser::convertInternalAmeToOpm(int internalAme)
     return (internalAme > 0) ? 128 : 0;
 }
 
+int VOPMParser::convertOpmSlotToInternal(int opmSlot)
+{
+    // VOPMex OpMsk format: 3-bit left shift from internal value
+    // Convert back to internal 0-15 range
+    return (opmSlot >> 3) & 0x0F;
+}
+
+int VOPMParser::convertInternalSlotToOpm(int internalSlot)
+{
+    // Internal 0-15 range to VOPMex OpMsk format: 3-bit left shift
+    return (internalSlot & 0x0F) << 3;
+}
+
 // Private helper methods
 
 void VOPMParser::parseVoiceHeader(const juce::String& line, VOPMVoice& voice)
@@ -380,7 +393,8 @@ void VOPMParser::parseChannel(const juce::String& line, VOPMVoice::Channel& chan
         channel.algorithm = tokens[2].getIntValue();
         channel.ams = tokens[3].getIntValue();
         channel.pms = tokens[4].getIntValue();
-        channel.slotMask = tokens[5].getIntValue();
+        // Convert VOPMex OpMsk format to internal (3-bit right shift)
+        channel.slotMask = convertOpmSlotToInternal(tokens[5].getIntValue());
         channel.noiseEnable = tokens[6].getIntValue();
     }
 }

@@ -58,12 +58,19 @@ struct FMVoiceParameters {
         // LFO
         uint8_t ams_enable;     // 0-1
         uint8_t pms_depth;      // 0-7
+        
+        // SLOT control
+        uint8_t slot_enable;    // 0-1 (individual operator ON/OFF)
     } operators[4];
     
     // Global parameters
     uint8_t lfo_frequency;      // 0-7
     uint8_t lfo_waveform;       // 0-3
     uint8_t panning;            // 0-3 (L, R, LR)
+    
+    // Noise generator (YM2151 only)
+    uint8_t noise_enable;       // 0-1 (noise enable)
+    uint8_t noise_frequency;    // 0-31 (noise frequency)
 };
 ```
 
@@ -169,6 +176,12 @@ enum class VopmCC : uint8_t {
     VELOCITY_SENS_OP1 = 87,// CC 87-90: ベロシティ感度
     OP_MASK = 93,         // CC 93: オペレータマスク
     
+    // SLOT制御（個別オペレータON/OFF）
+    SLOT_OP1 = 83,        // CC 83-86: SLOT Enable OP1-4
+    SLOT_OP2 = 84,        
+    SLOT_OP3 = 85,        
+    SLOT_OP4 = 86,
+    
     // S98録音
     S98_LOOP_MARK = 118,  // CC 118: ループポイント設定
     S98_RECORD = 119,     // CC 119: 録音開始/停止
@@ -241,6 +254,185 @@ struct NRPNCommands {
     static constexpr uint8_t PARAM_MODE_LSB = 127;
     static constexpr uint8_t PARAM_MODE_MSB = 126;
 };
+```
+
+### 1.6 YM2151ノイズジェネレータ実装
+
+#### 1.6.1 ハードウェア制約
+```cpp
+namespace YM2151NoiseConstraints {
+    // YM2151 ハードウェア制約
+    constexpr uint8_t NOISE_CHANNEL = 7;           // ノイズはチャンネル7でのみ動作
+    constexpr uint8_t NOISE_OPERATOR = 3;          // ノイズはオペレータ4（インデックス3）でのみ生成
+    constexpr uint8_t REG_NOISE_CONTROL = 0x0F;    // ノイズ制御レジスタ
+    
+    // ノイズ制御マスク
+    constexpr uint8_t MASK_NOISE_ENABLE = 0x80;    // ビット7: ノイズ有効
+    constexpr uint8_t MASK_NOISE_FREQUENCY = 0x1F; // ビット0-4: ノイズ周波数
+    
+    // 周波数範囲
+    constexpr uint8_t NOISE_FREQUENCY_MIN = 0;     // 最高周波数（最も速い）
+    constexpr uint8_t NOISE_FREQUENCY_MAX = 31;    // 最低周波数（最も遅い）
+    constexpr uint8_t NOISE_FREQUENCY_DEFAULT = 16; // デフォルト周波数
+}
+```
+
+#### 1.6.2 ノイズジェネレータ実装
+```cpp
+class YmfmWrapper {
+public:
+    // ノイズ制御API
+    void setNoiseEnable(bool enable);
+    void setNoiseFrequency(uint8_t frequency);  // 0-31
+    void setNoiseParameters(bool enable, uint8_t frequency);
+    
+    bool getNoiseEnable() const;
+    uint8_t getNoiseFrequency() const;
+    
+    // テスト用メソッド
+    void testNoiseChannel();
+    
+private:
+    void configureNoiseChannel();
+};
+
+// 実装例
+void YmfmWrapper::setNoiseParameters(bool enable, uint8_t frequency) {
+    CS_ASSERT_PARAMETER_RANGE(frequency, YM2151Regs::NOISE_FREQUENCY_MIN, YM2151Regs::NOISE_FREQUENCY_MAX);
+    
+    if (chipType != ChipType::OPM) {
+        CS_DBG("Warning: Noise is only supported on OPM (YM2151) chip");
+        return;
+    }
+    
+    // レジスタ0x0Fに書き込み：ビット7=有効、ビット0-4=周波数
+    uint8_t noiseValue = (enable ? YM2151Regs::MASK_NOISE_ENABLE : 0) | 
+                         (frequency & YM2151Regs::MASK_NOISE_FREQUENCY);
+    
+    writeRegister(YM2151Regs::REG_NOISE_CONTROL, noiseValue);
+}
+```
+
+#### 1.6.3 リズム音色プリセット対応
+```cpp
+// リズム系プリセットの設定例
+struct RhythmPresetConfig {
+    const char* name;
+    uint8_t noiseFrequency;
+    bool noiseEnable;
+    uint8_t operatorConfig[4][10]; // TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
+};
+
+const RhythmPresetConfig rhythmPresets[] = {
+    {"Kick Drum",    8, true, {{31,31,0,15,0,0,2,0,0,0}, {31,31,20,15,0,50,3,1,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
+    {"Snare Drum",   20, true, {{31,31,0,15,0,0,3,15,0,0}, {31,31,31,15,0,40,3,1,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
+    {"Hi-Hat",       25, true, {{31,31,0,15,0,0,3,15,0,0}, {31,31,31,15,0,35,3,15,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
+    {"Crash Cymbal", 15, true, {{31,31,31,10,0,0,3,15,0,0}, {31,20,20,5,15,20,3,15,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}}
+};
+```
+
+#### 1.6.4 ノイズ対応スマートボイス割り当て
+
+```cpp
+// VoiceManagerでノイズ対応プリセットを自動的にチャンネル7に割り当て
+class VoiceManager {
+public:
+    // 通常の割り当て（後方互換性）
+    int allocateVoice(uint8_t note, uint8_t velocity);
+    
+    // ノイズ対応割り当て（推奨）
+    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise);
+
+private:
+    // ノイズ優先割り当てロジック
+    int findAvailableVoiceWithNoisePriority(bool needsNoise) {
+        if (needsNoise) {
+            // ノイズプリセット：チャンネル7を最優先
+            if (!voices[7].active) return 7;
+            
+            // チャンネル7が使用中の場合は6→0の順で検索
+            for (int i = 6; i >= 0; --i) {
+                if (!voices[i].active) return i;
+            }
+            
+            // 全チャンネル使用中：ノイズプリセットのためにチャンネル7を奪取
+            return 7;
+        } else {
+            // 非ノイズプリセット：チャンネル7を避ける（6→0の順）
+            for (int i = 6; i >= 0; --i) {
+                if (!voices[i].active) return i;
+            }
+            
+            // チャンネル0-6が全て使用中の場合のみチャンネル7を使用
+            if (!voices[7].active) return 7;
+            
+            // 通常のポリシーでボイススティーリング
+            return findAvailableVoice();
+        }
+    }
+};
+
+// PluginProcessorでの使用例
+void processMidiMessage(const juce::MidiMessage& message) {
+    if (message.isNoteOn()) {
+        // 現在のプリセットがノイズを使用するかチェック
+        bool needsNoise = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
+        
+        // ノイズ対応割り当てを使用
+        int channel = voiceManager.allocateVoiceWithNoisePriority(
+            message.getNoteNumber(), 
+            message.getVelocity(), 
+            needsNoise
+        );
+        
+        ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
+    }
+}
+```
+
+#### 1.6.5 アルゴリズムとノイズの関係
+```cpp
+// YM2151ノイズはオペレータ4の正弦波出力をノイズに置き換える
+// アルゴリズムに関係なく、オペレータ4が最終出力に寄与する場合にノイズが聞こえる
+
+// オペレータ4が出力に寄与するアルゴリズム：
+// - アルゴリズム 0, 1, 2, 3, 4, 5, 6, 7 (全アルゴリズム)
+// オペレータ4が出力に寄与しないアルゴリズム：
+// - なし（YM2151では全アルゴリズムでオペレータ4が出力される）
+
+// ノイズを確実に聞かせるための設定例（テスト用）
+void setupNoiseChannelForTesting() {
+    const uint8_t noiseChannel = 7;  // 必須：チャンネル7
+    
+    // アルゴリズム7を使用（全オペレータ並列で最も分かりやすい）
+    // 注意：他のアルゴリズムでもノイズは動作する
+    uint8_t algorithmValue = 0x07;
+    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
+                  algorithmValue | YM2151Regs::PAN_CENTER);
+    
+    // オペレータ1-3を無音に設定（ノイズを際立たせるため）
+    for (int op = 0; op < 3; op++) {
+        int baseAddr = op * 8 + noiseChannel;
+        writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + baseAddr, 127); // 最大減衰
+    }
+    
+    // オペレータ4（ノイズ用）を設定
+    int op4BaseAddr = 3 * 8 + noiseChannel;
+    writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + op4BaseAddr, 32); // 適度な音量
+    // その他のオペレータ4パラメータ設定...
+}
+
+// 既存の音色にノイズを追加する場合の例
+void addNoiseToExistingVoice(uint8_t algorithm) {
+    const uint8_t noiseChannel = 7;  // 必須：チャンネル7
+    
+    // 既存のアルゴリズムをそのまま使用可能
+    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
+                  algorithm | YM2151Regs::PAN_CENTER);
+    
+    // オペレータ4の設定により、正弦波＋ノイズのミックスが可能
+    // オペレータ1-3は既存の音色設定を維持
+}
 ```
 
 ### 1.6 ポリフォニック実装仕様

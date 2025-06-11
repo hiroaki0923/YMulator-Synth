@@ -11,12 +11,12 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         0, "Electric Piano",
         {0, 0, 0, 0, 0}, // LFO
-        {3, 5, 5, 0, 0, 15, 0}, // Channel (pan=3=center, slotMask=15=all)
+        {3, 6, 4, 0, 0, 15, 0}, // Channel (pan=3=center, slotMask=15=all)
         {
-            {31, 14, 0, 7, 1, 10, 0, 1, 3, 0, 0}, // M1
-            {31, 10, 2, 7, 2, 8, 0, 1, 3, 0, 0},  // C1
-            {31, 12, 0, 7, 0, 23, 1, 7, 3, 0, 0}, // M2
-            {31, 10, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+            {22, 5, 0, 3, 5, 30, 0, 2, 3, 0, 0}, // M1
+            {16, 8, 8, 7, 2, 0, 1, 2, 3, 0, 0},  // C1
+            {20, 5, 0, 3, 5, 34, 0, 4, 7, 0, 0}, // M2
+            {17, 8, 7, 7, 2, 0, 1, 2, 7, 0, 0}   // C2
         }
     },
     
@@ -24,51 +24,51 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         1, "Synth Bass",
         {0, 0, 0, 0, 0}, // LFO
-        {3, 6, 7, 0, 0, 15, 0}, // Channel
+        {3, 7, 6, 0, 0, 15, 0}, // Channel
         {
-            {31, 8, 0, 7, 0, 16, 2, 1, 3, 0, 0}, // M1
-            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0},  // C1
-            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0},  // M2
-            {31, 8, 0, 7, 0, 0, 2, 1, 3, 0, 0}   // C2
+            {31, 0, 0, 12, 1, 18, 1, 1, 0, 0, 0}, // M1
+            {31, 0, 1, 12, 1, 4, 1, 2, 0, 0, 0},  // C1
+            {31, 0, 0, 9, 0, 3, 0, 1, 7, 0, 0},  // M2
+            {31, 0, 0, 9, 0, 3, 0, 1, 3, 0, 0}   // C2
         }
     },
     
     // Brass Section
     {
         2, "Brass Section",
-        {50, 20, 0, 0, 0}, // LFO: Slow vibrato (rate=50, amd=20)
-        {3, 4, 4, 1, 3, 15, 0}, // Channel: AMS=1, PMS=3 for vibrato
+        {0, 0, 0, 0, 0}, // LFO
+        {3, 7, 2, 0, 0, 15, 0}, // Channel
         {
-            {25, 14, 6, 7, 1, 45, 1, 1, 3, 1, 0}, // M1
-            {28, 14, 3, 7, 1, 29, 1, 1, 3, 2, 0}, // C1
-            {25, 11, 11, 7, 1, 18, 1, 1, 3, 0, 0}, // M2
-            {28, 14, 6, 7, 1, 3, 1, 1, 3, 1, 0}   // C2
+            {13, 6, 0, 8, 1, 25, 2, 2, 3, 0, 0}, // M1
+            {15, 8, 0, 8, 1, 32, 1, 6, 7, 0, 0}, // C1
+            {21, 7, 0, 8, 2, 42, 0, 2, 3, 0, 0}, // M2
+            {18, 4, 0, 8, 2, 0, 1, 2, 0, 0, 0}   // C2
         }
     },
     
     // String Pad
     {
         3, "String Pad",
-        {30, 15, 25, 2, 0}, // LFO: Gentle triangle wave tremolo/vibrato (rate=30, amd=15, pmd=25, triangle)
-        {3, 2, 6, 2, 4, 15, 0}, // Channel: AMS=2, PMS=4 for lush modulation
+        {0, 0, 0, 0, 0}, // LFO
+        {3, 7, 2, 0, 0, 15, 0}, // Channel
         {
-            {20, 7, 7, 1, 1, 24, 0, 1, 3, 1, 0}, // M1
-            {25, 4, 4, 1, 1, 16, 0, 1, 3, 1, 0}, // C1
-            {22, 7, 7, 1, 1, 0, 0, 1, 3, 0, 0},  // M2
-            {25, 4, 4, 1, 1, 0, 0, 1, 3, 0, 0}   // C2
+            {25, 10, 0, 5, 1, 29, 1, 1, 1, 0, 0}, // M1
+            {25, 11, 0, 8, 5, 15, 1, 5, 1, 0, 0}, // C1
+            {28, 13, 0, 6, 2, 45, 1, 1, 0, 0, 0}, // M2
+            {14, 4, 0, 6, 0, 0, 1, 1, 0, 0, 0}   // C2
         }
     },
     
     // Lead Synth
     {
         4, "Lead Synth",
-        {80, 0, 40, 1, 0}, // LFO: Fast square wave vibrato (rate=80, pmd=40, square)
-        {3, 4, 7, 0, 5, 15, 0}, // Channel: PMS=5 for expressive vibrato
+        {0, 0, 0, 0, 0}, // LFO
+        {3, 4, 7, 0, 0, 15, 0}, // Channel
         {
-            {31, 6, 2, 7, 0, 18, 2, 1, 3, 2, 0}, // M1
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 1, 0},  // C1
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0},  // M2
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0}   // C2
+            {31, 0, 0, 10, 0, 24, 0, 1, 0, 0, 0}, // M1
+            {31, 0, 0, 10, 0, 22, 0, 2, 0, 0, 0}, // C1
+            {31, 0, 0, 10, 0, 26, 0, 3, 0, 0, 0}, // M2
+            {31, 0, 0, 10, 0, 0, 0, 1, 0, 0, 0}   // C2
         }
     },
     
@@ -78,10 +78,10 @@ static const VOPMVoice FACTORY_VOICES[] = {
         {0, 0, 0, 0, 0}, // LFO
         {3, 0, 7, 0, 0, 15, 0}, // Channel
         {
-            {31, 0, 0, 7, 0, 20, 0, 2, 3, 0, 0}, // M1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // M2
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+            {31, 0, 0, 9, 0, 33, 0, 5, 7, 0, 0}, // M1
+            {31, 13, 0, 9, 1, 0, 0, 3, 3, 0, 0}, // C1
+            {31, 0, 0, 9, 0, 3, 0, 2, 3, 0, 0},  // M2
+            {31, 0, 0, 9, 0, 0, 0, 1, 7, 0, 0}   // C2
         }
     },
     
@@ -89,12 +89,12 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         6, "Bells",
         {0, 0, 0, 0, 0}, // LFO
-        {3, 0, 1, 0, 0, 15, 0}, // Channel
+        {3, 3, 4, 0, 0, 15, 0}, // Channel
         {
-            {31, 18, 0, 4, 3, 26, 1, 14, 3, 1, 0}, // M1
-            {31, 18, 0, 4, 3, 22, 1, 1, 3, 2, 0},  // C1
-            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0},   // M2
-            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0}    // C2
+            {31, 12, 0, 10, 5, 38, 0, 6, 3, 0, 0}, // M1
+            {31, 8, 4, 6, 11, 4, 0, 2, 3, 0, 0},  // C1
+            {31, 12, 4, 6, 2, 40, 1, 6, 7, 0, 0}, // M2
+            {31, 6, 4, 6, 11, 0, 0, 2, 7, 0, 0}   // C2
         }
     },
     
@@ -102,12 +102,12 @@ static const VOPMVoice FACTORY_VOICES[] = {
     {
         7, "Init",
         {0, 0, 0, 0, 0}, // LFO
-        {3, 0, 7, 0, 0, 15, 0}, // Channel
+        {3, 2, 6, 0, 0, 15, 0}, // Channel
         {
-            {31, 0, 0, 7, 0, 32, 0, 1, 3, 0, 0}, // M1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // C1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // M2
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // C2
+            {31, 0, 0, 15, 0, 43, 0, 0, 0, 0, 0}, // M1
+            {31, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},  // C1
+            {31, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0},  // M2
+            {31, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0}   // C2
         }
     }
 };
@@ -128,11 +128,13 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
     preset.lfo.amd = voice.lfo.amd;
     preset.lfo.pmd = voice.lfo.pmd;
     preset.lfo.waveform = voice.lfo.waveform;
+    preset.lfo.noiseFreq = voice.lfo.noiseFreq;
     
     // Set channel AMS/PMS parameters (same for all channels in VOPM format)
     for (int ch = 0; ch < 8; ++ch) {
         preset.channels[ch].ams = voice.channel.ams;
         preset.channels[ch].pms = voice.channel.pms;
+        preset.channels[ch].noiseEnable = voice.channel.noiseEnable;
     }
     
     for (int i = 0; i < 4; ++i)
@@ -150,6 +152,8 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
         preset.operators[i].releaseRate = static_cast<float>(op.releaseRate);
         preset.operators[i].sustainLevel = static_cast<float>(op.decay1Level);
         preset.operators[i].amsEnable = (op.amsEnable != 0);
+        // Extract SLOT enable from channel slotMask
+        preset.operators[i].slotEnable = (voice.channel.slotMask & (1 << i)) != 0;
     }
     
     return preset;
@@ -163,19 +167,27 @@ VOPMVoice Preset::toVOPM() const
     voice.channel.algorithm = algorithm;
     voice.channel.feedback = feedback;
     voice.channel.pan = 3; // Center (internal representation)
-    voice.channel.slotMask = 15; // All slots enabled (internal representation)
+    
+    // Build SLOT mask from individual operator SLOT enable flags
+    int slotMask = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (operators[i].slotEnable) {
+            slotMask |= (1 << i);
+        }
+    }
+    voice.channel.slotMask = slotMask;
     
     // Set LFO parameters to VOPM voice
     voice.lfo.frequency = lfo.rate;
     voice.lfo.amd = lfo.amd;
     voice.lfo.pmd = lfo.pmd;
     voice.lfo.waveform = lfo.waveform;
-    voice.lfo.noiseFreq = 0; // Default value
+    voice.lfo.noiseFreq = lfo.noiseFreq;
     
     // Use channel 0's AMS/PMS settings (VOPM format has one setting per voice)
     voice.channel.ams = channels[0].ams;
     voice.channel.pms = channels[0].pms;
-    voice.channel.noiseEnable = 0; // Default value
+    voice.channel.noiseEnable = channels[0].noiseEnable;
     
     for (int i = 0; i < 4; ++i)
     {
@@ -439,11 +451,13 @@ void PresetManager::validatePreset(Preset& preset) const
     preset.lfo.amd = juce::jlimit(0, 127, preset.lfo.amd);
     preset.lfo.pmd = juce::jlimit(0, 127, preset.lfo.pmd);
     preset.lfo.waveform = juce::jlimit(0, 3, preset.lfo.waveform);
+    preset.lfo.noiseFreq = juce::jlimit(0, 31, preset.lfo.noiseFreq);
     
     // Validate channel AMS/PMS parameters
     for (int ch = 0; ch < 8; ++ch) {
         preset.channels[ch].ams = juce::jlimit(0, 3, preset.channels[ch].ams);
         preset.channels[ch].pms = juce::jlimit(0, 7, preset.channels[ch].pms);
+        preset.channels[ch].noiseEnable = juce::jlimit(0, 1, preset.channels[ch].noiseEnable);
     }
     
     for (int i = 0; i < 4; ++i)

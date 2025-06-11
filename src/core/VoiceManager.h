@@ -20,6 +20,7 @@ public:
     
     // Voice allocation
     int allocateVoice(uint8_t note, uint8_t velocity);
+    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise);
     void releaseVoice(uint8_t note);
     void releaseAllVoices();
     
@@ -52,4 +53,5 @@ private:
     
     // Find a free voice or steal one according to policy
     int findAvailableVoice();
+    int findAvailableVoiceWithNoisePriority(bool needsNoise);
 };

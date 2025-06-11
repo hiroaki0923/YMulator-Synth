@@ -28,6 +28,9 @@ constexpr uint8_t REG_D1L_RR_BASE = 0xE0;            // 0xE0 + base_addr
 // System Control Registers
 constexpr uint8_t REG_KEY_ON_OFF = 0x08;             // Key on/off register
 
+// Noise Control Registers
+constexpr uint8_t REG_NOISE_CONTROL = 0x0F;          // Noise enable and frequency control
+
 // LFO Control Registers
 constexpr uint8_t REG_LFO_RATE = 0x18;               // LFO frequency (0-255)
 constexpr uint8_t REG_LFO_AMD = 0x19;                // LFO amplitude modulation depth (0-127)
@@ -93,6 +96,10 @@ constexpr uint8_t MASK_LEFT_ENABLE = 0x80;           // Left output enable (bit 
 constexpr uint8_t MASK_RIGHT_ENABLE = 0x40;          // Right output enable (bit 6)
 constexpr uint8_t MASK_PAN_LR = 0xC0;                // Both L/R enable bits (bits 6-7)
 
+// Noise Control Masks (for register 0x0F)
+constexpr uint8_t MASK_NOISE_FREQUENCY = 0x1F;       // Noise frequency (bits 0-4)
+constexpr uint8_t MASK_NOISE_ENABLE = 0x80;          // Noise enable (bit 7)
+
 // Preserve Field Masks (for read-modify-write operations)
 constexpr uint8_t PRESERVE_ALG_FB_LR = 0xF8;         // Preserve L/R/FB, update ALG
 constexpr uint8_t PRESERVE_ALG_LR = 0xC7;            // Preserve L/R/ALG, update FB
@@ -155,6 +162,20 @@ constexpr uint8_t MIDI_NOTE_C4 = 60;                 // Middle C
 constexpr uint8_t MIDI_NOTE_A4 = 69;                 // A4 reference note
 constexpr uint8_t MAX_VELOCITY = 127;                // Maximum MIDI velocity
 constexpr uint8_t VELOCITY_TO_TL_OFFSET = 127;       // Velocity to TL conversion
+
+// =============================================================================
+// Noise Generator Constants
+// =============================================================================
+
+constexpr uint8_t NOISE_FREQUENCY_MIN = 0;           // Minimum noise frequency (fastest)
+constexpr uint8_t NOISE_FREQUENCY_MAX = 31;          // Maximum noise frequency (slowest)
+constexpr uint8_t NOISE_FREQUENCY_DEFAULT = 16;      // Default noise frequency (medium)
+constexpr uint8_t NOISE_DISABLED = 0;                // Noise disabled state
+constexpr uint8_t NOISE_ENABLED = 1;                 // Noise enabled state
+
+// YM2151 Hardware Noise Constraints
+constexpr uint8_t NOISE_CHANNEL = 7;                 // Noise only works on channel 7
+constexpr uint8_t NOISE_OPERATOR = 3;                // Noise only generates on operator 4 (index 3)
 constexpr uint8_t MAX_OCTAVE = 7;                    // Maximum octave for YM2151
 constexpr uint8_t MIN_OCTAVE = 0;                    // Minimum octave
 constexpr uint8_t NOTES_PER_OCTAVE = 12;             // Chromatic scale

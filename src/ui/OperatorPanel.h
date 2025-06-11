@@ -42,6 +42,10 @@ private:
     
     std::vector<ControlPair> controls;
     
+    // SLOT enable checkbox (in title bar)
+    std::unique_ptr<juce::ToggleButton> slotEnableButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> slotEnableAttachment;
+    
     // AMS enable checkbox
     std::unique_ptr<juce::ToggleButton> amsEnableButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> amsEnableAttachment;

@@ -16,6 +16,7 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 - **4-operator FM synthesis controls** with familiar layout
 - **Global parameters**: Algorithm selection and Feedback control
 - **Per-operator controls**: TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
+- **SLOT enable/disable**: Individual operator ON/OFF control via title bar checkboxes
 - **Real-time parameter updates** with < 3ms latency
 
 ### 🎵 Professional Features
@@ -24,6 +25,9 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 - **Full MIDI CC Support**: VOPMex-compatible CC mapping (14-62)
 - **Polyphonic voice allocation** with automatic voice stealing
 - **Enhanced presets** utilizing DT2, Key Scale, and Feedback for rich timbres
+- **LFO support**: AMD/PMD modulation with 4 waveforms (Saw/Square/Triangle/Noise)
+- **YM2151 Noise Generator**: Channel 7 hardware-accurate noise synthesis
+- **Pitch Bend**: Real-time pitch modulation with configurable range
 
 ### 🔧 Modern Workflow
 - **Audio Unit v2/v3 compatible** (Music Effect type)
@@ -154,8 +158,9 @@ auval -v aumu ChpS Vend
 
 This project is actively developed with the following status:
 - **Phase 1 (Foundation)**: ✅ 100% Complete
-- **Phase 2 (Core Audio)**: 🔄 80% Complete (OPM focused)
-- **Overall Progress**: ~65% Complete
+- **Phase 2 (Core Audio)**: ✅ 100% Complete (OPM focused)
+- **Phase 3 (UI Enhancement)**: 🔄 30% Complete (SLOT control implemented)
+- **Overall Progress**: ~95% Complete
 
 See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md) for detailed progress tracking.
 

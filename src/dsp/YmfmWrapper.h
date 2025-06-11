@@ -92,6 +92,14 @@ public:
     void setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity);
     void applyVelocityToChannel(uint8_t channel, uint8_t velocity);
     
+    // Noise generator control
+    void setNoiseEnable(bool enable);
+    void setNoiseFrequency(uint8_t frequency);
+    bool getNoiseEnable() const;
+    uint8_t getNoiseFrequency() const;
+    void setNoiseParameters(bool enable, uint8_t frequency);
+    void testNoiseChannel();  // Test method to verify noise functionality
+    
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
     { 
@@ -141,6 +149,6 @@ private:
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
-    uint8_t readCurrentRegister(int address);
+    uint8_t readCurrentRegister(int address) const;
     void updateRegisterCache(uint8_t address, uint8_t value);
 };

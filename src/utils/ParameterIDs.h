@@ -31,6 +31,10 @@ namespace Global {
     constexpr const char* LfoAmd = "lfo_amd";
     constexpr const char* LfoPmd = "lfo_pmd";
     constexpr const char* LfoWaveform = "lfo_waveform";
+    
+    // Noise parameters
+    constexpr const char* NoiseEnable = "noise_enable";
+    constexpr const char* NoiseFrequency = "noise_frequency";
 } // namespace Global
 
 // =============================================================================
@@ -88,6 +92,7 @@ namespace Op {
     constexpr const char* Detune2 = "_dt2";
     constexpr const char* KeyScale = "_ks";
     constexpr const char* AmsEnable = "_ams_en";
+    constexpr const char* SlotEnable = "_slot_en";
     
     // Helper functions to generate operator parameter IDs
     inline std::string tl(int opNum) { 
@@ -134,9 +139,13 @@ namespace Op {
         return "op" + std::to_string(opNum) + AmsEnable; 
     }
     
+    inline std::string slot_en(int opNum) { 
+        return "op" + std::to_string(opNum) + SlotEnable; 
+    }
+    
     // Convenience function to get all parameter IDs for an operator
     struct OperatorParams {
-        std::string tl, ar, d1r, d2r, rr, d1l, mul, dt1, dt2, ks, ams_en;
+        std::string tl, ar, d1r, d2r, rr, d1l, mul, dt1, dt2, ks, ams_en, slot_en;
         
         OperatorParams(int opNum) 
             : tl(Op::tl(opNum))
@@ -150,6 +159,7 @@ namespace Op {
             , dt2(Op::dt2(opNum))
             , ks(Op::ks(opNum))
             , ams_en(Op::ams_en(opNum))
+            , slot_en(Op::slot_en(opNum))
         {}
     };
     
@@ -169,6 +179,10 @@ namespace MIDI_CC {
     constexpr int LfoAmd = 77;        // LFO amplitude modulation depth
     constexpr int LfoPmd = 78;        // LFO phase modulation depth  
     constexpr int LfoWaveform = 79;   // LFO waveform (0-3)
+    
+    // Noise parameters (using next available CC numbers)
+    constexpr int NoiseEnable = 80;   // Noise enable (0/127)
+    constexpr int NoiseFrequency = 81; // Noise frequency (0-31)
     
     // Channel Pan (CC 32-39) - ChipSynth extension
     constexpr int Ch0_Pan = 32;
@@ -299,7 +313,7 @@ namespace Validation {
                 paramID == Op::rr(op) || paramID == Op::d1l(op) ||
                 paramID == Op::mul(op) || paramID == Op::dt1(op) ||
                 paramID == Op::dt2(op) || paramID == Op::ks(op) ||
-                paramID == Op::ams_en(op)) {
+                paramID == Op::ams_en(op) || paramID == Op::slot_en(op)) {
                 return true;
             }
         }
