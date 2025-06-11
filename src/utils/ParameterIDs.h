@@ -25,6 +25,12 @@ namespace Global {
     // Global settings
     constexpr const char* PitchBendRange = "pitch_bend_range";
     constexpr const char* MasterPan = "master_pan";
+    
+    // LFO parameters
+    constexpr const char* LfoRate = "lfo_rate";
+    constexpr const char* LfoAmd = "lfo_amd";
+    constexpr const char* LfoPmd = "lfo_pmd";
+    constexpr const char* LfoWaveform = "lfo_waveform";
 } // namespace Global
 
 // =============================================================================
@@ -34,18 +40,32 @@ namespace Global {
 namespace Channel {
     // Parameter name suffix for channels
     constexpr const char* Pan = "_pan";
+    constexpr const char* Ams = "_ams";
+    constexpr const char* Pms = "_pms";
     
     // Helper function to generate channel parameter IDs (channels 0-7)
     inline std::string pan(int channelNum) {
         return "ch" + std::to_string(channelNum) + Pan;
     }
     
+    inline std::string ams(int channelNum) {
+        return "ch" + std::to_string(channelNum) + Ams;
+    }
+    
+    inline std::string pms(int channelNum) {
+        return "ch" + std::to_string(channelNum) + Pms;
+    }
+    
     // Convenience function to get all parameter IDs for a channel
     struct ChannelParams {
         std::string pan;
+        std::string ams;
+        std::string pms;
         
         ChannelParams(int channelNum) 
             : pan(Channel::pan(channelNum))
+            , ams(Channel::ams(channelNum))
+            , pms(Channel::pms(channelNum))
         {}
     };
     
@@ -143,6 +163,12 @@ namespace MIDI_CC {
     // VOPMex compatible MIDI CC mapping
     constexpr int Algorithm = 14;
     constexpr int Feedback = 15;
+    
+    // LFO parameters (using undefined CC numbers in VOPMex range)
+    constexpr int LfoRate = 76;       // LFO frequency
+    constexpr int LfoAmd = 77;        // LFO amplitude modulation depth
+    constexpr int LfoPmd = 78;        // LFO phase modulation depth  
+    constexpr int LfoWaveform = 79;   // LFO waveform (0-3)
     
     // Channel Pan (CC 32-39) - ChipSynth extension
     constexpr int Ch0_Pan = 32;

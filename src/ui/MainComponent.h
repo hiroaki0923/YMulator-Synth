@@ -33,14 +33,29 @@ private:
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
     
+    // LFO controls
+    std::unique_ptr<juce::Slider> lfoRateSlider;
+    std::unique_ptr<juce::Label> lfoRateLabel;
+    std::unique_ptr<juce::Slider> lfoAmdSlider;
+    std::unique_ptr<juce::Label> lfoAmdLabel;
+    std::unique_ptr<juce::Slider> lfoPmdSlider;
+    std::unique_ptr<juce::Label> lfoPmdLabel;
+    std::unique_ptr<juce::ComboBox> lfoWaveformComboBox;
+    std::unique_ptr<juce::Label> lfoWaveformLabel;
+    
     // Operator panels
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;
     
     // Parameter attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> algorithmAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoRateAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoPmdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfoWaveformAttachment;
     
     void setupGlobalControls();
+    void setupLfoControls();
     void setupOperatorPanels();
     void setupPresetSelector();
     void updatePresetComboBox();

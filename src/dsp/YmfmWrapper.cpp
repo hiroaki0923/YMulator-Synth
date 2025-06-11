@@ -586,3 +586,94 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
     }
 }
 
+void YmfmWrapper::setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform)
+{
+    CS_ASSERT_PARAMETER_RANGE(rate, 0, 255);
+    CS_ASSERT_PARAMETER_RANGE(amd, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(pmd, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(waveform, 0, 3);
+    
+    CS_DBG("Setting LFO parameters - rate=" + juce::String((int)rate) + 
+           ", amd=" + juce::String((int)amd) + 
+           ", pmd=" + juce::String((int)pmd) + 
+           ", waveform=" + juce::String((int)waveform));
+    
+    if (chipType == ChipType::OPM) {
+        // Write LFO frequency
+        writeRegister(YM2151Regs::REG_LFO_RATE, rate);
+        
+        // Write amplitude modulation depth (7-bit value)
+        writeRegister(YM2151Regs::REG_LFO_AMD, amd & 0x7F);
+        
+        // Write phase modulation depth (7-bit value)
+        writeRegister(YM2151Regs::REG_LFO_PMD, pmd & 0x7F);
+        
+        // Read current waveform register to preserve CT1/CT2 bits
+        uint8_t currentWaveform = readCurrentRegister(YM2151Regs::REG_LFO_WAVEFORM);
+        
+        // Clear waveform bits and set new waveform (bits 0-1)
+        uint8_t newWaveform = (currentWaveform & 0xFC) | (waveform & YM2151Regs::MASK_LFO_WAVEFORM);
+        
+        writeRegister(YM2151Regs::REG_LFO_WAVEFORM, newWaveform);
+        
+        CS_DBG("LFO registers updated - rate=0x" + juce::String::toHexString(rate) +
+               ", amd=0x" + juce::String::toHexString(amd) +
+               ", pmd=0x" + juce::String::toHexString(pmd) +
+               ", waveform=0x" + juce::String::toHexString(newWaveform));
+    }
+}
+
+void YmfmWrapper::setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_PARAMETER_RANGE(ams, 0, 3);
+    CS_ASSERT_PARAMETER_RANGE(pms, 0, 7);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    
+    CS_DBG("Setting channel " + juce::String((int)channel) + 
+           " AMS=" + juce::String((int)ams) + 
+           ", PMS=" + juce::String((int)pms));
+    
+    if (chipType == ChipType::OPM) {
+        // AMS is bits 0-1, PMS is bits 4-6
+        uint8_t value = (ams & YM2151Regs::MASK_LFO_AMS) | 
+                       ((pms & YM2151Regs::MASK_LFO_PMS) << YM2151Regs::SHIFT_LFO_PMS);
+        
+        writeRegister(YM2151Regs::REG_LFO_AMS_PMS_BASE + channel, value);
+        
+        CS_DBG("AMS/PMS register updated - channel=" + juce::String((int)channel) +
+               ", value=0x" + juce::String::toHexString(value));
+    }
+}
+
+void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bool enable)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_OPERATOR(operator_num);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
+    
+    CS_DBG("Setting operator " + juce::String((int)operator_num) + 
+           " on channel " + juce::String((int)channel) + 
+           " AMS enable=" + juce::String(enable ? "true" : "false"));
+    
+    if (chipType == ChipType::OPM) {
+        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        
+        // Read current register value to preserve D1R bits
+        uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr);
+        
+        // AMS enable is bit 7
+        uint8_t newValue = enable ? 
+            (currentValue | (YM2151Regs::MASK_AMS_ENABLE << YM2151Regs::SHIFT_AMS_ENABLE)) :
+            (currentValue & ~(YM2151Regs::MASK_AMS_ENABLE << YM2151Regs::SHIFT_AMS_ENABLE));
+        
+        writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, newValue);
+        
+        CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
+               ", channel=" + juce::String((int)channel) +
+               ", value=0x" + juce::String::toHexString(newValue));
+    }
+}
+

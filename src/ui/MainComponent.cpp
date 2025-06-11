@@ -8,6 +8,7 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     : audioProcessor(processor)
 {
     setupGlobalControls();
+    setupLfoControls();
     setupOperatorPanels();
     setupPresetSelector();
     
@@ -17,7 +18,7 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     // Ensure preset list is up to date when UI is opened
     updatePresetComboBox();
     
-    setSize(800, 600);
+    setSize(800, 700);  // Increased height for LFO controls
 }
 
 MainComponent::~MainComponent()
@@ -44,7 +45,8 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff4a5568));
     g.drawHorizontalLine(40, 0.0f, static_cast<float>(getWidth()));
     g.drawHorizontalLine(120, 0.0f, static_cast<float>(getWidth()));
-    g.drawVerticalLine(getWidth() / 2, 120.0f, static_cast<float>(getHeight()));
+    g.drawHorizontalLine(200, 0.0f, static_cast<float>(getWidth()));  // LFO section divider
+    g.drawVerticalLine(getWidth() / 2, 200.0f, static_cast<float>(getHeight()));
 }
 
 void MainComponent::resized()
@@ -74,6 +76,33 @@ void MainComponent::resized()
     auto presetArea = globalRight.removeFromTop(35);
     presetLabel->setBounds(presetArea.removeFromLeft(80));
     presetComboBox->setBounds(presetArea);
+    
+    // LFO controls area
+    auto lfoArea = bounds.removeFromTop(80);
+    auto lfoLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
+    auto lfoMidLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
+    auto lfoMidRight = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
+    auto lfoRight = lfoArea.reduced(10);
+    
+    // LFO Rate
+    auto lfoRateArea = lfoLeft.removeFromTop(35);
+    lfoRateLabel->setBounds(lfoRateArea.removeFromLeft(60));
+    lfoRateSlider->setBounds(lfoRateArea);
+    
+    // LFO AMD
+    auto lfoAmdArea = lfoMidLeft.removeFromTop(35);
+    lfoAmdLabel->setBounds(lfoAmdArea.removeFromLeft(60));
+    lfoAmdSlider->setBounds(lfoAmdArea);
+    
+    // LFO PMD
+    auto lfoPmdArea = lfoMidRight.removeFromTop(35);
+    lfoPmdLabel->setBounds(lfoPmdArea.removeFromLeft(60));
+    lfoPmdSlider->setBounds(lfoPmdArea);
+    
+    // LFO Waveform
+    auto lfoWaveformArea = lfoRight.removeFromTop(35);
+    lfoWaveformLabel->setBounds(lfoWaveformArea.removeFromLeft(80));
+    lfoWaveformComboBox->setBounds(lfoWaveformArea);
     
     // Operator panels area
     auto operatorArea = bounds.reduced(10);
@@ -118,6 +147,68 @@ void MainComponent::setupGlobalControls()
     // Attach to parameters
     feedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getParameters(), "feedback", *feedbackSlider);
+}
+
+void MainComponent::setupLfoControls()
+{
+    // LFO Rate slider
+    lfoRateSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    lfoRateSlider->setRange(0, 255, 1);
+    lfoRateSlider->setValue(0);
+    addAndMakeVisible(*lfoRateSlider);
+    
+    lfoRateLabel = std::make_unique<juce::Label>("", "LFO Rate");
+    lfoRateLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoRateLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*lfoRateLabel);
+    
+    lfoRateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::LfoRate, *lfoRateSlider);
+    
+    // LFO AMD slider
+    lfoAmdSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    lfoAmdSlider->setRange(0, 127, 1);
+    lfoAmdSlider->setValue(0);
+    addAndMakeVisible(*lfoAmdSlider);
+    
+    lfoAmdLabel = std::make_unique<juce::Label>("", "LFO AMD");
+    lfoAmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoAmdLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*lfoAmdLabel);
+    
+    lfoAmdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::LfoAmd, *lfoAmdSlider);
+    
+    // LFO PMD slider
+    lfoPmdSlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    lfoPmdSlider->setRange(0, 127, 1);
+    lfoPmdSlider->setValue(0);
+    addAndMakeVisible(*lfoPmdSlider);
+    
+    lfoPmdLabel = std::make_unique<juce::Label>("", "LFO PMD");
+    lfoPmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoPmdLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*lfoPmdLabel);
+    
+    lfoPmdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::LfoPmd, *lfoPmdSlider);
+    
+    // LFO Waveform combo box
+    lfoWaveformComboBox = std::make_unique<juce::ComboBox>();
+    lfoWaveformComboBox->addItem("Saw", 1);
+    lfoWaveformComboBox->addItem("Square", 2);
+    lfoWaveformComboBox->addItem("Triangle", 3);
+    lfoWaveformComboBox->addItem("Noise", 4);
+    lfoWaveformComboBox->setSelectedId(1);
+    addAndMakeVisible(*lfoWaveformComboBox);
+    
+    lfoWaveformLabel = std::make_unique<juce::Label>("", "LFO Wave");
+    lfoWaveformLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoWaveformLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*lfoWaveformLabel);
+    
+    lfoWaveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::LfoWaveform, *lfoWaveformComboBox);
 }
 
 void MainComponent::setupOperatorPanels()

@@ -71,6 +71,12 @@ void OperatorPanel::resized()
         control.label->setBounds(controlArea.removeFromLeft(labelWidth));
         control.slider->setBounds(controlArea.reduced(2));
     }
+    
+    // Position AMS enable button at the bottom
+    if (amsEnableButton != nullptr) {
+        auto amsArea = bounds.removeFromBottom(25).reduced(10, 2);
+        amsEnableButton->setBounds(amsArea);
+    }
 }
 
 void OperatorPanel::setupControls()
@@ -81,6 +87,15 @@ void OperatorPanel::setupControls()
     for (const auto& spec : controlSpecs) {
         createControlFromSpec(spec);
     }
+    
+    // Create AMS enable button
+    amsEnableButton = std::make_unique<juce::ToggleButton>("AMS Enable");
+    amsEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(*amsEnableButton);
+    
+    // Attach to parameter
+    amsEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Op::ams_en(operatorNum), *amsEnableButton);
     
     CS_DBG("OperatorPanel: Created " + juce::String(controls.size()) + " controls for operator " + juce::String(operatorNum));
 }
