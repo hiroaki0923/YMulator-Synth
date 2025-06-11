@@ -52,9 +52,9 @@ void OperatorPanel::resized()
     auto bounds = getLocalBounds().reduced(5);
     bounds.removeFromTop(25); // Title area
     
-    const int rowHeight = 28;
-    const int labelWidth = 50;
-    const int spacing = 5;
+    const int rowHeight = 24;  // Reduced from 28 to 24
+    const int labelWidth = 45; // Reduced from 50 to 45
+    const int spacing = 3;     // Reduced from 5 to 3
     
     // Split into two columns
     auto leftColumn = bounds.removeFromLeft(bounds.getWidth() / 2 - spacing);
@@ -74,7 +74,7 @@ void OperatorPanel::resized()
     
     // Position AMS enable button at the bottom
     if (amsEnableButton != nullptr) {
-        auto amsArea = bounds.removeFromBottom(25).reduced(10, 2);
+        auto amsArea = bounds.removeFromBottom(22).reduced(8, 2);  // Reduced height and margin
         amsEnableButton->setBounds(amsArea);
     }
 }

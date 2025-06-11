@@ -18,7 +18,7 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     // Ensure preset list is up to date when UI is opened
     updatePresetComboBox();
     
-    setSize(800, 740);  // Increased height for LFO and Noise controls
+    setSize(800, 800);  // Increased height for better operator panel spacing
 }
 
 MainComponent::~MainComponent()
@@ -45,8 +45,8 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff4a5568));
     g.drawHorizontalLine(40, 0.0f, static_cast<float>(getWidth()));
     g.drawHorizontalLine(120, 0.0f, static_cast<float>(getWidth()));
-    g.drawHorizontalLine(200, 0.0f, static_cast<float>(getWidth()));  // LFO section divider
-    g.drawVerticalLine(getWidth() / 2, 200.0f, static_cast<float>(getHeight()));
+    g.drawHorizontalLine(220, 0.0f, static_cast<float>(getWidth()));  // LFO section divider (adjusted)
+    g.drawVerticalLine(getWidth() / 2, 230.0f, static_cast<float>(getHeight()));  // Vertical divider (adjusted)
 }
 
 void MainComponent::resized()
@@ -77,8 +77,8 @@ void MainComponent::resized()
     presetLabel->setBounds(presetArea.removeFromLeft(80));
     presetComboBox->setBounds(presetArea);
     
-    // LFO and Noise controls area (expanded to 120 pixels for 2 rows)
-    auto lfoArea = bounds.removeFromTop(120);
+    // LFO and Noise controls area (optimized to 100 pixels for 2 rows)
+    auto lfoArea = bounds.removeFromTop(100);
     auto lfoLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
     auto lfoMidLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
     auto lfoMidRight = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
@@ -119,7 +119,8 @@ void MainComponent::resized()
     noiseFrequencyLabel->setBounds(noiseFreqArea.removeFromLeft(80));
     noiseFrequencySlider->setBounds(noiseFreqArea);
     
-    // Operator panels area
+    // Operator panels area with better vertical spacing
+    bounds.removeFromTop(10);  // Add some space above operators
     auto operatorArea = bounds.reduced(10);
     int panelWidth = operatorArea.getWidth() / 2;
     int panelHeight = operatorArea.getHeight() / 2;
