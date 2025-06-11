@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "utils/Debug.h"
+#include "utils/ParameterIDs.h"
 
 ChipSynthAudioProcessor::ChipSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
@@ -344,13 +345,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     
     // Global parameters
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "algorithm", "Algorithm", 0, 7, 0));
+        ParamID::Global::Algorithm, "Algorithm", 0, 7, 0));
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "feedback", "Feedback", 0, 7, 0));
+        ParamID::Global::Feedback, "Feedback", 0, 7, 0));
     
     // Pitch bend parameters
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "pitch_bend_range", "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
+        ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -359,57 +360,57 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
         
         // Total Level (TL) - 0-127, default values for safe volume
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_tl", "OP" + juce::String(op) + " TL", 
+            ParamID::Op::tl(op).c_str(), "OP" + juce::String(op) + " TL", 
             0, 127, op == 1 ? 80 : 127)); // OP1=80, others=127 (quiet)
         
         // Attack Rate (AR) - 0-31, default 31
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_ar", "OP" + juce::String(op) + " AR", 
+            ParamID::Op::ar(op).c_str(), "OP" + juce::String(op) + " AR", 
             0, 31, 31));
         
         // Decay Rate (D1R) - 0-31, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d1r", "OP" + juce::String(op) + " D1R", 
+            ParamID::Op::d1r(op).c_str(), "OP" + juce::String(op) + " D1R", 
             0, 31, 0));
         
         // Sustain Rate (D2R) - 0-31, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d2r", "OP" + juce::String(op) + " D2R", 
+            ParamID::Op::d2r(op).c_str(), "OP" + juce::String(op) + " D2R", 
             0, 31, 0));
         
         // Release Rate (RR) - 0-15, default 7
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_rr", "OP" + juce::String(op) + " RR", 
+            ParamID::Op::rr(op).c_str(), "OP" + juce::String(op) + " RR", 
             0, 15, 7));
         
         // Sustain Level (D1L) - 0-15, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d1l", "OP" + juce::String(op) + " D1L", 
+            ParamID::Op::d1l(op).c_str(), "OP" + juce::String(op) + " D1L", 
             0, 15, 0));
         
         // Multiple (MUL) - 0-15, default 1
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_mul", "OP" + juce::String(op) + " MUL", 
+            ParamID::Op::mul(op).c_str(), "OP" + juce::String(op) + " MUL", 
             0, 15, 1));
         
         // Detune 1 (DT1) - 0-7, default 3 (center)
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_dt1", "OP" + juce::String(op) + " DT1", 
+            ParamID::Op::dt1(op).c_str(), "OP" + juce::String(op) + " DT1", 
             0, 7, 3));
         
         // Detune 2 (DT2) - 0-3, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_dt2", "OP" + juce::String(op) + " DT2", 
+            ParamID::Op::dt2(op).c_str(), "OP" + juce::String(op) + " DT2", 
             0, 3, 0));
         
         // Key Scale (KS) - 0-3, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_ks", "OP" + juce::String(op) + " KS", 
+            ParamID::Op::ks(op).c_str(), "OP" + juce::String(op) + " KS", 
             0, 3, 0));
         
         // AM Enable (AMS-EN) - 0-1, default 0
         params.push_back(std::make_unique<juce::AudioParameterBool>(
-            opId + "_ams_en", "OP" + juce::String(op) + " AMS-EN", false));
+            ParamID::Op::ams_en(op).c_str(), "OP" + juce::String(op) + " AMS-EN", false));
     }
     
     return { params.begin(), params.end() };
@@ -420,8 +421,8 @@ void ChipSynthAudioProcessor::setupCCMapping()
     // VOPMex compatible MIDI CC mapping
     
     // Global parameters
-    ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter("algorithm"));
-    ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter("feedback"));
+    ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Algorithm));
+    ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Feedback));
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -431,43 +432,43 @@ void ChipSynthAudioProcessor::setupCCMapping()
         
         // Total Level (CC 16-19)
         ccToParameterMap[16 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_tl"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::tl(op)));
         
         // Multiple (CC 20-23)
         ccToParameterMap[20 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_mul"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::mul(op)));
         
         // Detune1 (CC 24-27)
         ccToParameterMap[24 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt1"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt1(op)));
         
         // Detune2 (CC 28-31)
         ccToParameterMap[28 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt2"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt2(op)));
         
         // Key Scale (CC 39-42)
         ccToParameterMap[39 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_ks"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ks(op)));
         
         // Attack Rate (CC 43-46)
         ccToParameterMap[43 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_ar"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ar(op)));
         
         // Decay1 Rate (CC 47-50)
         ccToParameterMap[47 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d1r"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1r(op)));
         
         // Sustain Rate (CC 51-54)
         ccToParameterMap[51 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d2r"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d2r(op)));
         
         // Release Rate (CC 55-58)
         ccToParameterMap[55 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_rr"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::rr(op)));
         
         // Sustain Level (CC 59-62)
         ccToParameterMap[59 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d1l"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1l(op)));
     }
 }
 
@@ -493,7 +494,7 @@ void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
     currentPitchBend = pitchBendValue;
     
     // Get pitch bend range from parameter (1-12 semitones)
-    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue("pitch_bend_range"));
+    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::PitchBendRange));
     
     // Calculate pitch bend amount in semitones
     // MIDI pitch bend: 0-16383, center = 8192
@@ -562,10 +563,10 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
     
     // Set global parameters with UI notification
-    if (auto* algorithmParam = parameters.getParameter("algorithm")) {
+    if (auto* algorithmParam = parameters.getParameter(ParamID::Global::Algorithm)) {
         algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
     }
-    if (auto* feedbackParam = parameters.getParameter("feedback")) {
+    if (auto* feedbackParam = parameters.getParameter(ParamID::Global::Feedback)) {
         feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
     }
     
@@ -575,37 +576,37 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         juce::String opId = "op" + juce::String(op + 1);
         const auto& opData = preset->operators[op];
         
-        if (auto* param = parameters.getParameter(opId + "_ar")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ar(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.attackRate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d1r")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d1r(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay1Rate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d2r")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d2r(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay2Rate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_rr")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::rr(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.releaseRate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d1l")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d1l(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
         }
-        if (auto* param = parameters.getParameter(opId + "_tl")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::tl(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel)));
         }
-        if (auto* param = parameters.getParameter(opId + "_ks")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ks(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
         }
-        if (auto* param = parameters.getParameter(opId + "_mul")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::mul(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.multiple)));
         }
-        if (auto* param = parameters.getParameter(opId + "_dt1")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::dt1(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune1)));
         }
-        if (auto* param = parameters.getParameter(opId + "_dt2")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::dt2(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
         }
-        if (auto* param = parameters.getParameter(opId + "_ams_en")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
             param->setValueNotifyingHost(0.0f);
         }
     }
@@ -671,8 +672,8 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     }
     
     // Get current parameter values
-    int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
-    int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
+    int algorithm = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Algorithm));
+    int feedback = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Feedback));
     
     static int updateCounter = 0;
     if (updateCounter++ % 100 == 0) {
@@ -692,16 +693,16 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         {
             juce::String opId = "op" + juce::String(op + 1);
             
-            int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
-            int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
-            int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
-            int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
-            int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
-            int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
-            int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
-            int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
-            int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
-            int dt2 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt2"));
+            int tl = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::tl(op + 1).c_str()));
+            int ar = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ar(op + 1).c_str()));
+            int d1r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1r(op + 1).c_str()));
+            int d2r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d2r(op + 1).c_str()));
+            int rr = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::rr(op + 1).c_str()));
+            int d1l = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1l(op + 1).c_str()));
+            int ks = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ks(op + 1).c_str()));
+            int mul = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::mul(op + 1).c_str()));
+            int dt1 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt1(op + 1).c_str()));
+            int dt2 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt2(op + 1).c_str()));
             
             ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1, dt2);
         }
