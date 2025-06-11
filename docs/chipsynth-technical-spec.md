@@ -322,7 +322,66 @@ const RhythmPresetConfig rhythmPresets[] = {
 };
 ```
 
-#### 1.6.4 アルゴリズムとノイズの関係
+#### 1.6.4 ノイズ対応スマートボイス割り当て
+
+```cpp
+// VoiceManagerでノイズ対応プリセットを自動的にチャンネル7に割り当て
+class VoiceManager {
+public:
+    // 通常の割り当て（後方互換性）
+    int allocateVoice(uint8_t note, uint8_t velocity);
+    
+    // ノイズ対応割り当て（推奨）
+    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise);
+
+private:
+    // ノイズ優先割り当てロジック
+    int findAvailableVoiceWithNoisePriority(bool needsNoise) {
+        if (needsNoise) {
+            // ノイズプリセット：チャンネル7を最優先
+            if (!voices[7].active) return 7;
+            
+            // チャンネル7が使用中の場合は6→0の順で検索
+            for (int i = 6; i >= 0; --i) {
+                if (!voices[i].active) return i;
+            }
+            
+            // 全チャンネル使用中：ノイズプリセットのためにチャンネル7を奪取
+            return 7;
+        } else {
+            // 非ノイズプリセット：チャンネル7を避ける（6→0の順）
+            for (int i = 6; i >= 0; --i) {
+                if (!voices[i].active) return i;
+            }
+            
+            // チャンネル0-6が全て使用中の場合のみチャンネル7を使用
+            if (!voices[7].active) return 7;
+            
+            // 通常のポリシーでボイススティーリング
+            return findAvailableVoice();
+        }
+    }
+};
+
+// PluginProcessorでの使用例
+void processMidiMessage(const juce::MidiMessage& message) {
+    if (message.isNoteOn()) {
+        // 現在のプリセットがノイズを使用するかチェック
+        bool needsNoise = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
+        
+        // ノイズ対応割り当てを使用
+        int channel = voiceManager.allocateVoiceWithNoisePriority(
+            message.getNoteNumber(), 
+            message.getVelocity(), 
+            needsNoise
+        );
+        
+        ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
+    }
+}
+```
+
+#### 1.6.5 アルゴリズムとノイズの関係
 ```cpp
 // YM2151ノイズはオペレータ4の正弦波出力をノイズに置き換える
 // アルゴリズムに関係なく、オペレータ4が最終出力に寄与する場合にノイズが聞こえる
