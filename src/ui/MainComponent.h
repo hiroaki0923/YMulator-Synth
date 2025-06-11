@@ -43,6 +43,12 @@ private:
     std::unique_ptr<juce::ComboBox> lfoWaveformComboBox;
     std::unique_ptr<juce::Label> lfoWaveformLabel;
     
+    // Noise controls
+    std::unique_ptr<juce::ToggleButton> noiseEnableButton;
+    std::unique_ptr<juce::Label> noiseEnableLabel;
+    std::unique_ptr<juce::Slider> noiseFrequencySlider;
+    std::unique_ptr<juce::Label> noiseFrequencyLabel;
+    
     // Operator panels
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;
     
@@ -53,6 +59,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoPmdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfoWaveformAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> noiseEnableAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> noiseFrequencyAttachment;
     
     void setupGlobalControls();
     void setupLfoControls();

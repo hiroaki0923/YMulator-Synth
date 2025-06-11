@@ -18,7 +18,7 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     // Ensure preset list is up to date when UI is opened
     updatePresetComboBox();
     
-    setSize(800, 700);  // Increased height for LFO controls
+    setSize(800, 740);  // Increased height for LFO and Noise controls
 }
 
 MainComponent::~MainComponent()
@@ -77,13 +77,14 @@ void MainComponent::resized()
     presetLabel->setBounds(presetArea.removeFromLeft(80));
     presetComboBox->setBounds(presetArea);
     
-    // LFO controls area
-    auto lfoArea = bounds.removeFromTop(80);
+    // LFO and Noise controls area (expanded to 120 pixels for 2 rows)
+    auto lfoArea = bounds.removeFromTop(120);
     auto lfoLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
     auto lfoMidLeft = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
     auto lfoMidRight = lfoArea.removeFromLeft(getWidth() / 4).reduced(10);
     auto lfoRight = lfoArea.reduced(10);
     
+    // First row - LFO controls
     // LFO Rate
     auto lfoRateArea = lfoLeft.removeFromTop(35);
     lfoRateLabel->setBounds(lfoRateArea.removeFromLeft(60));
@@ -103,6 +104,20 @@ void MainComponent::resized()
     auto lfoWaveformArea = lfoRight.removeFromTop(35);
     lfoWaveformLabel->setBounds(lfoWaveformArea.removeFromLeft(80));
     lfoWaveformComboBox->setBounds(lfoWaveformArea);
+    
+    // Second row - Noise controls
+    lfoLeft.removeFromTop(10); // Small gap
+    lfoMidLeft.removeFromTop(10);
+    
+    // Noise Enable
+    auto noiseEnableArea = lfoLeft.removeFromTop(35);
+    noiseEnableLabel->setBounds(noiseEnableArea.removeFromLeft(60));
+    noiseEnableButton->setBounds(noiseEnableArea);
+    
+    // Noise Frequency
+    auto noiseFreqArea = lfoMidLeft.removeFromTop(35);
+    noiseFrequencyLabel->setBounds(noiseFreqArea.removeFromLeft(80));
+    noiseFrequencySlider->setBounds(noiseFreqArea);
     
     // Operator panels area
     auto operatorArea = bounds.reduced(10);
@@ -209,6 +224,34 @@ void MainComponent::setupLfoControls()
     
     lfoWaveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getParameters(), ParamID::Global::LfoWaveform, *lfoWaveformComboBox);
+    
+    // Noise Enable toggle button
+    noiseEnableButton = std::make_unique<juce::ToggleButton>();
+    noiseEnableButton->setButtonText("Noise Enable");
+    noiseEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(*noiseEnableButton);
+    
+    noiseEnableLabel = std::make_unique<juce::Label>("", "Noise");
+    noiseEnableLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    noiseEnableLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*noiseEnableLabel);
+    
+    noiseEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::NoiseEnable, *noiseEnableButton);
+    
+    // Noise Frequency slider
+    noiseFrequencySlider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    noiseFrequencySlider->setRange(0, 31, 1);
+    noiseFrequencySlider->setValue(16);
+    addAndMakeVisible(*noiseFrequencySlider);
+    
+    noiseFrequencyLabel = std::make_unique<juce::Label>("", "Noise Freq");
+    noiseFrequencyLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    noiseFrequencyLabel->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*noiseFrequencyLabel);
+    
+    noiseFrequencyAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::NoiseFrequency, *noiseFrequencySlider);
 }
 
 void MainComponent::setupOperatorPanels()

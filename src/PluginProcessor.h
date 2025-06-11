@@ -61,7 +61,7 @@ private:
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
-    std::unordered_map<int, juce::AudioParameterInt*> ccToParameterMap;
+    std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     std::atomic<int> parameterUpdateCounter{0};
     static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     

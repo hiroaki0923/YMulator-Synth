@@ -31,6 +31,10 @@ namespace Global {
     constexpr const char* LfoAmd = "lfo_amd";
     constexpr const char* LfoPmd = "lfo_pmd";
     constexpr const char* LfoWaveform = "lfo_waveform";
+    
+    // Noise parameters
+    constexpr const char* NoiseEnable = "noise_enable";
+    constexpr const char* NoiseFrequency = "noise_frequency";
 } // namespace Global
 
 // =============================================================================
@@ -169,6 +173,10 @@ namespace MIDI_CC {
     constexpr int LfoAmd = 77;        // LFO amplitude modulation depth
     constexpr int LfoPmd = 78;        // LFO phase modulation depth  
     constexpr int LfoWaveform = 79;   // LFO waveform (0-3)
+    
+    // Noise parameters (using next available CC numbers)
+    constexpr int NoiseEnable = 80;   // Noise enable (0/127)
+    constexpr int NoiseFrequency = 81; // Noise frequency (0-31)
     
     // Channel Pan (CC 32-39) - ChipSynth extension
     constexpr int Ch0_Pan = 32;

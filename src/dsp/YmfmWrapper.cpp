@@ -124,7 +124,7 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     }
 }
 
-uint8_t YmfmWrapper::readCurrentRegister(int address)
+uint8_t YmfmWrapper::readCurrentRegister(int address) const
 {
     return currentRegisters[static_cast<uint8_t>(address)];
 }
@@ -872,5 +872,139 @@ void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
                    " (sensitivity=" + juce::String(sensitivity, 2) + ")");
         }
     }
+}
+
+// =============================================================================
+// Noise Generator Implementation
+// =============================================================================
+
+void YmfmWrapper::setNoiseEnable(bool enable)
+{
+    if (chipType != ChipType::OPM) {
+        CS_DBG("Warning: Noise is only supported on OPM (YM2151) chip");
+        return;
+    }
+    
+    // Read current noise control register value
+    uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_NOISE_CONTROL);
+    
+    // Update noise enable bit while preserving frequency
+    uint8_t newValue = (currentValue & YM2151Regs::MASK_NOISE_FREQUENCY) | 
+                       (enable ? YM2151Regs::MASK_NOISE_ENABLE : 0);
+    
+    writeRegister(YM2151Regs::REG_NOISE_CONTROL, newValue);
+    
+    CS_DBG("Noise " + juce::String(enable ? "enabled" : "disabled") + 
+           " (register 0x0F = 0x" + juce::String::toHexString(newValue) + ")");
+}
+
+void YmfmWrapper::setNoiseFrequency(uint8_t frequency)
+{
+    CS_ASSERT_PARAMETER_RANGE(frequency, YM2151Regs::NOISE_FREQUENCY_MIN, YM2151Regs::NOISE_FREQUENCY_MAX);
+    
+    if (chipType != ChipType::OPM) {
+        CS_DBG("Warning: Noise is only supported on OPM (YM2151) chip");
+        return;
+    }
+    
+    // Read current noise control register value
+    uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_NOISE_CONTROL);
+    
+    // Update noise frequency while preserving enable bit
+    uint8_t newValue = (currentValue & YM2151Regs::MASK_NOISE_ENABLE) | 
+                       (frequency & YM2151Regs::MASK_NOISE_FREQUENCY);
+    
+    writeRegister(YM2151Regs::REG_NOISE_CONTROL, newValue);
+    
+    CS_DBG("Noise frequency set to " + juce::String((int)frequency) + 
+           " (register 0x0F = 0x" + juce::String::toHexString(newValue) + ")");
+}
+
+bool YmfmWrapper::getNoiseEnable() const
+{
+    if (chipType != ChipType::OPM) {
+        return false;
+    }
+    
+    uint8_t noiseRegister = readCurrentRegister(YM2151Regs::REG_NOISE_CONTROL);
+    return (noiseRegister & YM2151Regs::MASK_NOISE_ENABLE) != 0;
+}
+
+uint8_t YmfmWrapper::getNoiseFrequency() const
+{
+    if (chipType != ChipType::OPM) {
+        return 0;
+    }
+    
+    uint8_t noiseRegister = readCurrentRegister(YM2151Regs::REG_NOISE_CONTROL);
+    return noiseRegister & YM2151Regs::MASK_NOISE_FREQUENCY;
+}
+
+void YmfmWrapper::setNoiseParameters(bool enable, uint8_t frequency)
+{
+    CS_ASSERT_PARAMETER_RANGE(frequency, YM2151Regs::NOISE_FREQUENCY_MIN, YM2151Regs::NOISE_FREQUENCY_MAX);
+    
+    if (chipType != ChipType::OPM) {
+        CS_DBG("Warning: Noise is only supported on OPM (YM2151) chip");
+        return;
+    }
+    
+    // Combine enable and frequency into single register write for efficiency
+    uint8_t noiseValue = (enable ? YM2151Regs::MASK_NOISE_ENABLE : 0) | 
+                         (frequency & YM2151Regs::MASK_NOISE_FREQUENCY);
+    
+    writeRegister(YM2151Regs::REG_NOISE_CONTROL, noiseValue);
+    
+    CS_DBG("Noise parameters set - Enable: " + juce::String(enable ? "ON" : "OFF") + 
+           ", Frequency: " + juce::String((int)frequency) + 
+           " (register 0x0F = 0x" + juce::String::toHexString(noiseValue) + ")");
+}
+
+void YmfmWrapper::testNoiseChannel()
+{
+    if (chipType != ChipType::OPM) {
+        CS_DBG("Warning: Noise test is only supported on OPM (YM2151) chip");
+        return;
+    }
+    
+    CS_DBG("Testing YM2151 noise on channel 7 (the only channel where noise works)");
+    
+    const uint8_t noiseChannel = 7;  // Channel 7 is the only channel where noise works
+    
+    // Set up channel 7 for noise output using algorithm 7 (all operators parallel)
+    // This ensures operator 4 (which becomes noise) contributes to the final output
+    uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, algFbLr);
+    
+    // Configure operators 1-3 to be silent (high TL values)
+    for (int op = 0; op < 3; op++) {  // Operators 0, 1, 2
+        int base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + noiseChannel;
+        writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, 127);  // Maximum attenuation (silent)
+    }
+    
+    // Configure operator 4 (the noise operator) with audible settings
+    int op4_base_addr = 3 * YM2151Regs::OPERATOR_ADDRESS_STEP + noiseChannel;  // Operator 3 = index 3
+    
+    writeRegister(YM2151Regs::REG_DT1_MUL_BASE + op4_base_addr, YM2151Regs::DEFAULT_DT1_MUL);      // DT1=0, MUL=1
+    writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + op4_base_addr, 32);                           // Moderate volume for noise
+    writeRegister(YM2151Regs::REG_KS_AR_BASE + op4_base_addr, YM2151Regs::DEFAULT_KS_AR);          // KS=0, AR=31
+    writeRegister(YM2151Regs::REG_AMS_D1R_BASE + op4_base_addr, YM2151Regs::DEFAULT_AMS_D1R);      // AMS-EN=0, D1R=0
+    writeRegister(YM2151Regs::REG_DT2_D2R_BASE + op4_base_addr, YM2151Regs::DEFAULT_DT2_D2R);      // DT2=0, D2R=0
+    writeRegister(YM2151Regs::REG_D1L_RR_BASE + op4_base_addr, YM2151Regs::DEFAULT_D1L_RR);        // D1L=15, RR=7
+    
+    // Enable noise with medium frequency
+    setNoiseParameters(true, YM2151Regs::NOISE_FREQUENCY_DEFAULT);
+    
+    // Play a note on channel 7 to trigger the noise
+    noteOn(noiseChannel, YM2151Regs::MIDI_NOTE_C4, YM2151Regs::MAX_VELOCITY);
+    
+    CS_DBG("Noise test setup complete:");
+    CS_DBG("- Channel: " + juce::String((int)noiseChannel) + " (only channel where noise works)");
+    CS_DBG("- Algorithm: 7 (all operators parallel, noise from op4)");
+    CS_DBG("- Operators 1-3: Silent (TL=127)");
+    CS_DBG("- Operator 4: Configured for noise output (TL=32)");
+    CS_DBG("- Noise: Enabled with frequency " + juce::String((int)YM2151Regs::NOISE_FREQUENCY_DEFAULT));
+    CS_DBG("- Note: C4 triggered on channel 7");
+    CS_DBG("IMPORTANT: YM2151 noise only works on channel 7, operator 4 due to hardware design!");
 }
 

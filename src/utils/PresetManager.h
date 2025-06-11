@@ -25,6 +25,7 @@ struct Preset
         int amd = 0;         // Amplitude modulation depth (0-127)
         int pmd = 0;         // Phase modulation depth (0-127)
         int waveform = 0;    // Waveform (0-3)
+        int noiseFreq = 0;   // Noise frequency (0-31)
     } lfo;
     
     // Channel AMS/PMS settings (for all 8 channels)
@@ -32,6 +33,7 @@ struct Preset
     {
         int ams = 0;         // Amplitude modulation sensitivity (0-3)
         int pms = 0;         // Phase modulation sensitivity (0-7)
+        int noiseEnable = 0; // Noise enable (0-1)
     } channels[8];
     
     struct OperatorData

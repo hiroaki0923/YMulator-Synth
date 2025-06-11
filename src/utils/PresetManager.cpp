@@ -128,11 +128,13 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
     preset.lfo.amd = voice.lfo.amd;
     preset.lfo.pmd = voice.lfo.pmd;
     preset.lfo.waveform = voice.lfo.waveform;
+    preset.lfo.noiseFreq = voice.lfo.noiseFreq;
     
     // Set channel AMS/PMS parameters (same for all channels in VOPM format)
     for (int ch = 0; ch < 8; ++ch) {
         preset.channels[ch].ams = voice.channel.ams;
         preset.channels[ch].pms = voice.channel.pms;
+        preset.channels[ch].noiseEnable = voice.channel.noiseEnable;
     }
     
     for (int i = 0; i < 4; ++i)
@@ -170,12 +172,12 @@ VOPMVoice Preset::toVOPM() const
     voice.lfo.amd = lfo.amd;
     voice.lfo.pmd = lfo.pmd;
     voice.lfo.waveform = lfo.waveform;
-    voice.lfo.noiseFreq = 0; // Default value
+    voice.lfo.noiseFreq = lfo.noiseFreq;
     
     // Use channel 0's AMS/PMS settings (VOPM format has one setting per voice)
     voice.channel.ams = channels[0].ams;
     voice.channel.pms = channels[0].pms;
-    voice.channel.noiseEnable = 0; // Default value
+    voice.channel.noiseEnable = channels[0].noiseEnable;
     
     for (int i = 0; i < 4; ++i)
     {
@@ -439,11 +441,13 @@ void PresetManager::validatePreset(Preset& preset) const
     preset.lfo.amd = juce::jlimit(0, 127, preset.lfo.amd);
     preset.lfo.pmd = juce::jlimit(0, 127, preset.lfo.pmd);
     preset.lfo.waveform = juce::jlimit(0, 3, preset.lfo.waveform);
+    preset.lfo.noiseFreq = juce::jlimit(0, 31, preset.lfo.noiseFreq);
     
     // Validate channel AMS/PMS parameters
     for (int ch = 0; ch < 8; ++ch) {
         preset.channels[ch].ams = juce::jlimit(0, 3, preset.channels[ch].ams);
         preset.channels[ch].pms = juce::jlimit(0, 7, preset.channels[ch].pms);
+        preset.channels[ch].noiseEnable = juce::jlimit(0, 1, preset.channels[ch].noiseEnable);
     }
     
     for (int i = 0; i < 4; ++i)

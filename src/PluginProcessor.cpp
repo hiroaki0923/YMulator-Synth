@@ -383,6 +383,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::LfoWaveform, "LFO Waveform", 0, 3, 0)); // 0=Saw, 1=Square, 2=Triangle, 3=Noise
     
+    // Noise parameters
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        ParamID::Global::NoiseEnable, "Noise Enable", false)); // Default OFF
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::NoiseFrequency, "Noise Frequency", 0, 31, 16)); // Default medium frequency
+    
     // Channel pan parameters (channels 0-7)
     for (int ch = 0; ch < 8; ++ch)
     {
@@ -467,18 +473,24 @@ void ChipSynthAudioProcessor::setupCCMapping()
     // VOPMex compatible MIDI CC mapping
     
     // Global parameters
-    ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Algorithm));
-    ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Feedback));
+    ccToParameterMap[14] = parameters.getParameter(ParamID::Global::Algorithm);
+    ccToParameterMap[15] = parameters.getParameter(ParamID::Global::Feedback);
     
     // LFO parameters (CC 76-79)
     ccToParameterMap[ParamID::MIDI_CC::LfoRate] = 
-        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoRate));
+        parameters.getParameter(ParamID::Global::LfoRate);
     ccToParameterMap[ParamID::MIDI_CC::LfoAmd] = 
-        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoAmd));
+        parameters.getParameter(ParamID::Global::LfoAmd);
     ccToParameterMap[ParamID::MIDI_CC::LfoPmd] = 
-        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoPmd));
+        parameters.getParameter(ParamID::Global::LfoPmd);
     ccToParameterMap[ParamID::MIDI_CC::LfoWaveform] = 
-        dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::LfoWaveform));
+        parameters.getParameter(ParamID::Global::LfoWaveform);
+    
+    // Noise parameters - AudioParameterBool needs special handling for MIDI CC
+    ccToParameterMap[ParamID::MIDI_CC::NoiseEnable] = 
+        parameters.getParameter(ParamID::Global::NoiseEnable);
+    ccToParameterMap[ParamID::MIDI_CC::NoiseFrequency] = 
+        parameters.getParameter(ParamID::Global::NoiseFrequency);
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -488,43 +500,43 @@ void ChipSynthAudioProcessor::setupCCMapping()
         
         // Total Level (CC 16-19)
         ccToParameterMap[16 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::tl(op)));
+            parameters.getParameter(ParamID::Op::tl(op));
         
         // Multiple (CC 20-23)
         ccToParameterMap[20 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::mul(op)));
+            parameters.getParameter(ParamID::Op::mul(op));
         
         // Detune1 (CC 24-27)
         ccToParameterMap[24 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt1(op)));
+            parameters.getParameter(ParamID::Op::dt1(op));
         
         // Detune2 (CC 28-31)
         ccToParameterMap[28 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt2(op)));
+            parameters.getParameter(ParamID::Op::dt2(op));
         
         // Key Scale (CC 39-42)
         ccToParameterMap[39 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ks(op)));
+            parameters.getParameter(ParamID::Op::ks(op));
         
         // Attack Rate (CC 43-46)
         ccToParameterMap[43 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ar(op)));
+            parameters.getParameter(ParamID::Op::ar(op));
         
         // Decay1 Rate (CC 47-50)
         ccToParameterMap[47 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1r(op)));
+            parameters.getParameter(ParamID::Op::d1r(op));
         
         // Sustain Rate (CC 51-54)
         ccToParameterMap[51 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d2r(op)));
+            parameters.getParameter(ParamID::Op::d2r(op));
         
         // Release Rate (CC 55-58)
         ccToParameterMap[55 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::rr(op)));
+            parameters.getParameter(ParamID::Op::rr(op));
         
         // Sustain Level (CC 59-62)
         ccToParameterMap[59 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1l(op)));
+            parameters.getParameter(ParamID::Op::d1l(op));
     }
     
     // Note: Channel pan parameters are handled separately in handleMidiCC() 
@@ -670,6 +682,14 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
     if (auto* lfoWaveformParam = parameters.getParameter(ParamID::Global::LfoWaveform)) {
         lfoWaveformParam->setValueNotifyingHost(lfoWaveformParam->convertTo0to1(preset->lfo.waveform));
+    }
+    
+    // Set noise parameters with UI notification
+    if (auto* noiseEnableParam = parameters.getParameter(ParamID::Global::NoiseEnable)) {
+        noiseEnableParam->setValueNotifyingHost(preset->channels[0].noiseEnable > 0 ? 1.0f : 0.0f);
+    }
+    if (auto* noiseFreqParam = parameters.getParameter(ParamID::Global::NoiseFrequency)) {
+        noiseFreqParam->setValueNotifyingHost(noiseFreqParam->convertTo0to1(preset->lfo.noiseFreq));
     }
     
     // Set channel AMS/PMS parameters with UI notification
@@ -887,6 +907,14 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     
     ymfmWrapper.setLfoParameters(static_cast<uint8_t>(lfoRate), static_cast<uint8_t>(lfoAmd), 
                                   static_cast<uint8_t>(lfoPmd), static_cast<uint8_t>(lfoWaveform));
+    
+    // Update noise parameters
+    bool noiseEnable = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
+    int noiseFrequency = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::NoiseFrequency));
+    
+    CS_ASSERT_PARAMETER_RANGE(noiseFrequency, 0, 31);
+    
+    ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFrequency));
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
