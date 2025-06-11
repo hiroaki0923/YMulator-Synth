@@ -58,6 +58,9 @@ struct FMVoiceParameters {
         // LFO
         uint8_t ams_enable;     // 0-1
         uint8_t pms_depth;      // 0-7
+        
+        // SLOT control
+        uint8_t slot_enable;    // 0-1 (individual operator ON/OFF)
     } operators[4];
     
     // Global parameters
@@ -172,6 +175,12 @@ enum class VopmCC : uint8_t {
     PITCH_BEND_RANGE = 81, // CC 81: ピッチベンド幅
     VELOCITY_SENS_OP1 = 87,// CC 87-90: ベロシティ感度
     OP_MASK = 93,         // CC 93: オペレータマスク
+    
+    // SLOT制御（個別オペレータON/OFF）
+    SLOT_OP1 = 83,        // CC 83-86: SLOT Enable OP1-4
+    SLOT_OP2 = 84,        
+    SLOT_OP3 = 85,        
+    SLOT_OP4 = 86,
     
     // S98録音
     S98_LOOP_MARK = 118,  // CC 118: ループポイント設定
