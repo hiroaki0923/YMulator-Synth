@@ -24,7 +24,32 @@ namespace Global {
     
     // Global settings
     constexpr const char* PitchBendRange = "pitch_bend_range";
+    constexpr const char* MasterPan = "master_pan";
 } // namespace Global
+
+// =============================================================================
+// Channel-Specific Parameters
+// =============================================================================
+
+namespace Channel {
+    // Parameter name suffix for channels
+    constexpr const char* Pan = "_pan";
+    
+    // Helper function to generate channel parameter IDs (channels 0-7)
+    inline std::string pan(int channelNum) {
+        return "ch" + std::to_string(channelNum) + Pan;
+    }
+    
+    // Convenience function to get all parameter IDs for a channel
+    struct ChannelParams {
+        std::string pan;
+        
+        ChannelParams(int channelNum) 
+            : pan(Channel::pan(channelNum))
+        {}
+    };
+    
+} // namespace Channel
 
 // =============================================================================
 // Operator-Specific Parameters
@@ -118,6 +143,16 @@ namespace MIDI_CC {
     // VOPMex compatible MIDI CC mapping
     constexpr int Algorithm = 14;
     constexpr int Feedback = 15;
+    
+    // Channel Pan (CC 32-39) - ChipSynth extension
+    constexpr int Ch0_Pan = 32;
+    constexpr int Ch1_Pan = 33;
+    constexpr int Ch2_Pan = 34;
+    constexpr int Ch3_Pan = 35;
+    constexpr int Ch4_Pan = 36;
+    constexpr int Ch5_Pan = 37;
+    constexpr int Ch6_Pan = 38;
+    constexpr int Ch7_Pan = 39;
     
     // Operator Total Level (CC 16-19)
     constexpr int Op1_TL = 16;
@@ -219,8 +254,16 @@ namespace Validation {
             paramID == Global::PresetIndex ||
             paramID == Global::PresetIndexChanged ||
             paramID == Global::IsCustomMode ||
-            paramID == Global::PitchBendRange) {
+            paramID == Global::PitchBendRange ||
+            paramID == Global::MasterPan) {
             return true;
+        }
+        
+        // Check channel parameters (ch0-ch7)
+        for (int ch = 0; ch < 8; ++ch) {
+            if (paramID == Channel::pan(ch)) {
+                return true;
+            }
         }
         
         // Check operator parameters (op1-op4)

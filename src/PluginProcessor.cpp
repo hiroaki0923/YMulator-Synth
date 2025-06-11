@@ -131,6 +131,10 @@ void ChipSynthAudioProcessor::changeProgramName(int index, const juce::String& n
 
 void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // Assert valid sample rate and buffer size
+    CS_ASSERT_SAMPLE_RATE(sampleRate);
+    CS_ASSERT_BUFFER_SIZE(samplesPerBlock);
+    
     juce::ignoreUnused(samplesPerBlock);
     
     // Debug output
@@ -170,6 +174,10 @@ bool ChipSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts)
 void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                           juce::MidiBuffer& midiMessages)
 {
+    // Assert buffer validity
+    CS_ASSERT_BUFFER_SIZE(buffer.getNumSamples());
+    CS_ASSERT(buffer.getNumChannels() >= 1 && buffer.getNumChannels() <= 2);
+    
     juce::ScopedNoDenormals noDenormals;
     
     static int processBlockCallCounter = 0;
@@ -196,6 +204,10 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const auto message = metadata.getMessage();
         
         if (message.isNoteOn()) {
+            // Assert valid MIDI note and velocity
+            CS_ASSERT_NOTE(message.getNoteNumber());
+            CS_ASSERT_VELOCITY(message.getVelocity());
+            
             CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
             
@@ -206,11 +218,17 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
             
         } else if (message.isNoteOff()) {
+            // Assert valid MIDI note
+            CS_ASSERT_NOTE(message.getNoteNumber());
+            
             CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
             
             // Find which channel is playing this note
             int channel = voiceManager.getChannelForNote(message.getNoteNumber());
             if (channel >= 0) {
+                // Assert valid channel allocation
+                CS_ASSERT_CHANNEL(channel);
+                
                 // Tell ymfm to stop this note
                 ymfmWrapper.noteOff(channel, message.getNoteNumber());
                 
@@ -245,14 +263,16 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 ", numSamples: " + juce::String(numSamples));
         }
         
-        ymfmWrapper.generateSamples(buffer.getWritePointer(0), numSamples);
+        // Generate true stereo output
+        float* leftBuffer = buffer.getWritePointer(0);
+        float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
+        
+        ymfmWrapper.generateSamples(leftBuffer, rightBuffer, numSamples);
         
         // Apply moderate gain to prevent clipping
         buffer.applyGain(0, 0, numSamples, 2.0f);
-        
-        // Copy left channel to right channel for stereo
         if (buffer.getNumChannels() > 1) {
-            buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+            buffer.applyGain(1, 0, numSamples, 2.0f);
         }
         
         // Check for non-zero audio (debug)
@@ -352,6 +372,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     // Pitch bend parameters
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
+    
+    // Channel pan parameters (channels 0-7)
+    for (int ch = 0; ch < 8; ++ch)
+    {
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            ParamID::Channel::pan(ch), "Channel " + juce::String(ch) + " Pan", 
+            0.0f, 1.0f, 0.5f)); // Default 0.5 (center)
+    }
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -470,10 +498,33 @@ void ChipSynthAudioProcessor::setupCCMapping()
         ccToParameterMap[59 + opIndex] = 
             dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1l(op)));
     }
+    
+    // Note: Channel pan parameters are handled separately in handleMidiCC() 
+    // since they are AudioParameterFloat, not AudioParameterInt
 }
 
 void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 {
+    // Assert valid CC number and value ranges
+    CS_ASSERT_PARAMETER_RANGE(ccNumber, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(value, 0, 127);
+    
+    // Handle channel pan CCs (32-39)
+    if (ccNumber >= ParamID::MIDI_CC::Ch0_Pan && ccNumber <= ParamID::MIDI_CC::Ch7_Pan)
+    {
+        int channel = ccNumber - ParamID::MIDI_CC::Ch0_Pan;
+        if (auto* param = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter(ParamID::Channel::pan(channel))))
+        {
+            // Normalize CC value (0-127) to parameter range (0.0-1.0)
+            float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
+            param->setValueNotifyingHost(normalizedValue);
+            
+            CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
+                " -> Channel " + juce::String(channel) + " Pan = " + juce::String(normalizedValue, 3));
+        }
+        return;
+    }
+    
     auto it = ccToParameterMap.find(ccNumber);
     if (it != ccToParameterMap.end() && it->second != nullptr)
     {
@@ -490,6 +541,9 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 
 void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
 {
+    // Assert valid pitch bend range (14-bit value)
+    CS_ASSERT_PARAMETER_RANGE(pitchBendValue, 0, 16383);
+    
     // Store the current pitch bend value (0-16383, center is 8192)
     currentPitchBend = pitchBendValue;
     
@@ -521,6 +575,9 @@ void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
 
 void ChipSynthAudioProcessor::setCurrentPreset(int index)
 {
+    // Assert valid preset index range
+    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
+    
     if (index >= 0 && index < presetManager.getNumPresets())
     {
         currentPreset = index;
@@ -541,6 +598,9 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
 
 void ChipSynthAudioProcessor::loadPreset(int index)
 {
+    // Assert valid preset index range
+    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
+    
     auto preset = presetManager.getPreset(index);
     if (preset != nullptr)
     {
@@ -684,6 +744,9 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     // Update parameters for all 8 channels to keep them in sync
     for (int channel = 0; channel < 8; ++channel)
     {
+        // Assert valid channel index
+        CS_ASSERT_CHANNEL(channel);
+        
         // Update global parameters for each channel
         ymfmWrapper.setAlgorithm(channel, algorithm);
         ymfmWrapper.setFeedback(channel, feedback);
@@ -691,6 +754,9 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         // Update operator parameters
         for (int op = 0; op < 4; ++op)
         {
+            // Assert valid operator index
+            CS_ASSERT_OPERATOR(op);
+            
             juce::String opId = "op" + juce::String(op + 1);
             
             int tl = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::tl(op + 1).c_str()));
@@ -706,6 +772,11 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
             
             ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1, dt2);
         }
+        
+        // Update channel pan
+        float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
+        CS_ASSERT_PAN_RANGE(pan);
+        ymfmWrapper.setChannelPan(channel, pan);
     }
 }
 

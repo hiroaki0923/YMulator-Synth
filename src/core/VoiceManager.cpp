@@ -15,6 +15,8 @@ VoiceManager::VoiceManager()
 
 int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
 {
+    CS_ASSERT_NOTE(note);
+    CS_ASSERT_VELOCITY(velocity);
     // First check if this note is already playing (retriggering)
     int existingChannel = getChannelForNote(note);
     if (existingChannel >= 0) {
@@ -40,6 +42,7 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
 
 void VoiceManager::releaseVoice(uint8_t note)
 {
+    CS_ASSERT_NOTE(note);
     for (int i = 0; i < MAX_VOICES; ++i) {
         if (voices[i].active && voices[i].note == note) {
             voices[i].active = false;
@@ -78,6 +81,7 @@ uint8_t VoiceManager::getVelocityForChannel(int channel) const
 
 int VoiceManager::getChannelForNote(uint8_t note) const
 {
+    CS_ASSERT_NOTE(note);
     for (int i = 0; i < MAX_VOICES; ++i) {
         if (voices[i].active && voices[i].note == note) {
             return i;

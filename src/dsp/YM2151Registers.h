@@ -63,9 +63,15 @@ constexpr uint8_t MASK_KEY_FRACTION = 0x3F;          // Key fraction field (bits
 constexpr uint8_t MASK_KEY_CODE = 0x7F;              // Key code field (bits 0-6)
 constexpr uint8_t MASK_OCTAVE = 0x07;                // Octave field (bits 0-2)
 
+// Pan Control Masks (for register 0x20 + channel)
+constexpr uint8_t MASK_LEFT_ENABLE = 0x80;           // Left output enable (bit 7)
+constexpr uint8_t MASK_RIGHT_ENABLE = 0x40;          // Right output enable (bit 6)
+constexpr uint8_t MASK_PAN_LR = 0xC0;                // Both L/R enable bits (bits 6-7)
+
 // Preserve Field Masks (for read-modify-write operations)
 constexpr uint8_t PRESERVE_ALG_FB_LR = 0xF8;         // Preserve L/R/FB, update ALG
 constexpr uint8_t PRESERVE_ALG_LR = 0xC7;            // Preserve L/R/ALG, update FB
+constexpr uint8_t PRESERVE_ALG_FB = 0x3F;            // Preserve ALG/FB, update L/R
 constexpr uint8_t PRESERVE_KS = 0xC0;                // Preserve KS, update AR
 constexpr uint8_t PRESERVE_AMS = 0x80;               // Preserve AMS-EN, update D1R
 constexpr uint8_t PRESERVE_DT2 = 0xC0;               // Preserve DT2, update D2R
@@ -143,6 +149,12 @@ constexpr uint8_t DEFAULT_DT2_D2R = 0x00;            // DT2=0, D2R=0
 constexpr uint8_t DEFAULT_D1L_RR = 0xF7;             // D1L=15, RR=7
 constexpr uint8_t OPNA_MODE_VALUE = 0x9f;            // OPNA extended mode enable
 
+// Pan Setting Values (for register 0x20 + channel bits 6-7)
+constexpr uint8_t PAN_OFF = 0x00;                    // No output (L=0, R=0)
+constexpr uint8_t PAN_RIGHT_ONLY = 0x40;             // Right only (L=0, R=1)
+constexpr uint8_t PAN_LEFT_ONLY = 0x80;              // Left only (L=1, R=0)
+constexpr uint8_t PAN_CENTER = 0xC0;                 // Center/Both (L=1, R=1)
+
 // =============================================================================
 // Debug and Testing Constants
 // =============================================================================
@@ -163,6 +175,17 @@ constexpr uint8_t getOperatorRegister(uint8_t baseReg, uint8_t operator_num, uin
 // Calculate channel register address
 constexpr uint8_t getChannelRegister(uint8_t baseReg, uint8_t channel) {
     return baseReg + channel;
+}
+
+// Convert pan parameter (0.0=left, 0.5=center, 1.0=right) to YM2151 pan bits
+constexpr uint8_t panValueToPanBits(float panValue) {
+    if (panValue <= 0.25f) {
+        return PAN_LEFT_ONLY;
+    } else if (panValue >= 0.75f) {
+        return PAN_RIGHT_ONLY;
+    } else {
+        return PAN_CENTER;
+    }
 }
 
 } // namespace YM2151Regs
