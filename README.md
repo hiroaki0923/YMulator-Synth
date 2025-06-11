@@ -162,6 +162,12 @@ This project is actively developed with the following status:
 - **Phase 3 (UI Enhancement)**: 🔄 30% Complete (SLOT control implemented)
 - **Overall Progress**: ~95% Complete
 
+### Version 0.0.3 Features
+- **SLOT Control**: Individual operator enable/disable controls via title bar checkboxes
+- **VOPM Compatibility**: Full SLOT mask compatibility with existing VOPM presets
+- **Enhanced UI**: Improved operator panel layout with SLOT controls
+- **Backward Compatibility**: All existing presets remain fully functional
+
 See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md) for detailed progress tracking.
 
 ### Known Issues
