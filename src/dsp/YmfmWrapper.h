@@ -6,22 +6,6 @@
 #include <cstdint>
 #include <memory>
 
-// ymfm interface implementation
-class ChipSynthInterface : public ymfm::ymfm_interface
-{
-public:
-    // External memory reads/writes (not used for OPM/OPNA)
-    uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
-    { 
-        return 0; 
-    }
-    
-    void ymfm_external_write(ymfm::access_class type, uint32_t address, uint8_t data) override 
-    {
-        // Not used for OPM/OPNA
-    }
-};
-
 // Minimal ymfm wrapper for ChipSynth AU
 class YmfmWrapper : public ymfm::ymfm_interface
 {

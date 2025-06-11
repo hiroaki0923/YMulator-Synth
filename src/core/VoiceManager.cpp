@@ -1,4 +1,5 @@
 #include "VoiceManager.h"
+#include "../utils/Debug.h"
 #include <juce_core/juce_core.h>
 
 VoiceManager::VoiceManager()
@@ -20,7 +21,7 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
         // Update the existing voice
         voices[existingChannel].velocity = velocity;
         voices[existingChannel].timestamp = ++currentTimestamp;
-        DBG("VoiceManager: Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
+        CS_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
         return existingChannel;
     }
     
@@ -33,7 +34,7 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
     voices[channel].velocity = velocity;
     voices[channel].timestamp = ++currentTimestamp;
     
-    DBG("VoiceManager: Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
+    CS_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
     return channel;
 }
 
@@ -42,11 +43,11 @@ void VoiceManager::releaseVoice(uint8_t note)
     for (int i = 0; i < MAX_VOICES; ++i) {
         if (voices[i].active && voices[i].note == note) {
             voices[i].active = false;
-            DBG("VoiceManager: Released note " + juce::String(note) + " from channel " + juce::String(i));
+            CS_DBG(" Released note " + juce::String(note) + " from channel " + juce::String(i));
             return;
         }
     }
-    DBG("VoiceManager: Note " + juce::String(note) + " not found for release");
+    CS_DBG(" Note " + juce::String(note) + " not found for release");
 }
 
 void VoiceManager::releaseAllVoices()
@@ -54,7 +55,7 @@ void VoiceManager::releaseAllVoices()
     for (auto& voice : voices) {
         voice.active = false;
     }
-    DBG("VoiceManager: Released all voices");
+    CS_DBG(" Released all voices");
 }
 
 bool VoiceManager::isVoiceActive(int channel) const
@@ -105,7 +106,7 @@ int VoiceManager::findAvailableVoice()
                     victimChannel = i;
                 }
             }
-            DBG("VoiceManager: Stealing oldest voice on channel " + juce::String(victimChannel));
+            CS_DBG(" Stealing oldest voice on channel " + juce::String(victimChannel));
             break;
             
         case StealingPolicy::QUIETEST:
@@ -115,7 +116,7 @@ int VoiceManager::findAvailableVoice()
                     victimChannel = i;
                 }
             }
-            DBG("VoiceManager: Stealing quietest voice on channel " + juce::String(victimChannel));
+            CS_DBG(" Stealing quietest voice on channel " + juce::String(victimChannel));
             break;
             
         case StealingPolicy::LOWEST:
@@ -125,7 +126,7 @@ int VoiceManager::findAvailableVoice()
                     victimChannel = i;
                 }
             }
-            DBG("VoiceManager: Stealing lowest voice on channel " + juce::String(victimChannel));
+            CS_DBG(" Stealing lowest voice on channel " + juce::String(victimChannel));
             break;
     }
     

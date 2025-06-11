@@ -1,12 +1,13 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "utils/Debug.h"
 
 ChipSynthAudioProcessor::ChipSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("ChipSynth"), createParameterLayout())
 {
-    DBG("ChipSynth: Constructor called");
+    CS_DBG(" Constructor called");
     
     setupCCMapping();
     
@@ -25,7 +26,7 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
         param->addListener(this);
     }
     
-    DBG("ChipSynth: Constructor completed - default preset: " + juce::String(currentPreset));
+    CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
 ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
@@ -81,19 +82,19 @@ int ChipSynthAudioProcessor::getCurrentProgram()
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
-    DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index) + 
+    CS_DBG(" setCurrentProgram called with index: " + juce::String(index) + 
         ", current isCustomPreset: " + juce::String(isCustomPreset ? "true" : "false"));
     
     // Check if this is the custom preset index
     if (index == presetManager.getNumPresets() && isCustomPreset) {
         // Stay in custom mode, don't change anything
-        DBG("ChipSynth: Staying in custom preset mode");
+        CS_DBG(" Staying in custom preset mode");
         return;
     }
     
     // Reset custom state and load factory preset
     isCustomPreset = false;
-    DBG("ChipSynth: Reset isCustomPreset to false, calling setCurrentPreset");
+    CS_DBG(" Reset isCustomPreset to false, calling setCurrentPreset");
     setCurrentPreset(index);
     
     // Notify host about program change
@@ -132,7 +133,7 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     juce::ignoreUnused(samplesPerBlock);
     
     // Debug output
-    DBG("ChipSynth: prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
+    CS_DBG(" prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
         ", samplesPerBlock: " + juce::String(samplesPerBlock) + 
         ", currentPreset: " + juce::String(currentPreset));
     
@@ -146,10 +147,10 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     if (needsPresetReapply) {
         loadPreset(currentPreset);
         needsPresetReapply = false;
-        DBG("ChipSynth: Applied deferred preset " + juce::String(currentPreset));
+        CS_DBG(" Applied deferred preset " + juce::String(currentPreset));
     }
     
-    DBG("ChipSynth: ymfm initialization complete");
+    CS_DBG(" ymfm initialization complete");
 }
 
 void ChipSynthAudioProcessor::releaseResources()
@@ -176,7 +177,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     processBlockCallCounter++;
     
     if (!hasLoggedFirstCall) {
-        DBG("ChipSynth: processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
+        CS_DBG(" processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
             ", samples: " + juce::String(buffer.getNumSamples()));
         hasLoggedFirstCall = true;
     }
@@ -186,7 +187,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     // Debug MIDI events
     if (!midiMessages.isEmpty()) {
-        DBG("ChipSynth: Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
+        CS_DBG(" Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
     }
     
     // Process MIDI events
@@ -194,7 +195,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const auto message = metadata.getMessage();
         
         if (message.isNoteOn()) {
-            DBG("ChipSynth: Note ON - Note: " + juce::String(message.getNoteNumber()) + 
+            CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
             
             // Allocate a voice for this note
@@ -204,7 +205,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
             
         } else if (message.isNoteOff()) {
-            DBG("ChipSynth: Note OFF - Note: " + juce::String(message.getNoteNumber()));
+            CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
             
             // Find which channel is playing this note
             int channel = voiceManager.getChannelForNote(message.getNoteNumber());
@@ -216,11 +217,11 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 voiceManager.releaseVoice(message.getNoteNumber());
             }
         } else if (message.isController()) {
-            DBG("ChipSynth: MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
+            CS_DBG(" MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
             handleMidiCC(message.getControllerNumber(), message.getControllerValue());
         } else if (message.isPitchWheel()) {
-            DBG("ChipSynth: Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
+            CS_DBG(" Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
             handlePitchBend(message.getPitchWheelValue());
         }
     }
@@ -239,7 +240,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     if (numSamples > 0) {
         if (audioCallCounter % 1000 == 0) {  // Log every 1000 calls to avoid spam
-            DBG("ChipSynth: processBlock audio generation - call #" + juce::String(audioCallCounter) + 
+            CS_DBG(" processBlock audio generation - call #" + juce::String(audioCallCounter) + 
                 ", numSamples: " + juce::String(numSamples));
         }
         
@@ -263,7 +264,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     break;
                 }
             }
-            DBG("ChipSynth: Audio check - " + juce::String(hasAudio ? "HAS AUDIO" : "SILENT"));
+            CS_DBG(" Audio check - " + juce::String(hasAudio ? "HAS AUDIO" : "SILENT"));
         }
     }
 }
@@ -290,19 +291,19 @@ void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
     
-    DBG("ChipSynth: State saved - preset: " + juce::String(currentPreset) + 
+    CS_DBG(" State saved - preset: " + juce::String(currentPreset) + 
         ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
 }
 
 void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    DBG("ChipSynth: setStateInformation called - size: " + juce::String(sizeInBytes));
+    CS_DBG(" setStateInformation called - size: " + juce::String(sizeInBytes));
     
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     
     if (xmlState.get() != nullptr)
     {
-        DBG("ChipSynth: XML state parsed successfully");
+        CS_DBG(" XML state parsed successfully");
         if (xmlState->hasTagName(parameters.state.getType()))
         {
             auto newState = juce::ValueTree::fromXml(*xmlState);
@@ -313,27 +314,27 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
             isCustomPreset = newState.getProperty("isCustomPreset", false);
             customPresetName = newState.getProperty("customPresetName", "Custom");
             
-            DBG("ChipSynth: State loaded - preset: " + juce::String(currentPreset) + 
+            CS_DBG(" State loaded - preset: " + juce::String(currentPreset) + 
                 ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
             
             // If not in custom mode and ymfm is initialized, apply the preset
             if (!isCustomPreset && ymfmWrapper.isInitialized()) {
-                DBG("ChipSynth: Applying preset after state restore");
+                CS_DBG(" Applying preset after state restore");
                 setCurrentPreset(currentPreset);
             } else if (!isCustomPreset) {
-                DBG("ChipSynth: Deferring preset application until ymfm init");
+                CS_DBG(" Deferring preset application until ymfm init");
                 needsPresetReapply = true;
             } else {
-                DBG("ChipSynth: Staying in custom mode after state restore");
+                CS_DBG(" Staying in custom mode after state restore");
             }
             
             // Update host display
             updateHostDisplay();
         } else {
-            DBG("ChipSynth: XML state tag mismatch");
+            CS_DBG(" XML state tag mismatch");
         }
     } else {
-        DBG("ChipSynth: Failed to parse XML state");
+        CS_DBG(" Failed to parse XML state");
     }
 }
 
@@ -481,7 +482,7 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
         // Update parameter (thread-safe)
         it->second->setValueNotifyingHost(normalizedValue);
         
-        DBG("ChipSynth: MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
+        CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
             " -> " + it->second->name + " = " + juce::String(it->second->get()));
     }
 }
@@ -512,7 +513,7 @@ void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
         }
     }
     
-    DBG("ChipSynth: Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
+    CS_DBG(" Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
         ", Range: " + juce::String(pitchBendRange) + " semitones" +
         ", Amount: " + juce::String(pitchBendSemitones, 3) + " semitones");
 }
@@ -526,10 +527,10 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
         
         if (ymfmWrapper.isInitialized()) {
             loadPreset(index);
-            DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
+            CS_DBG(" Loaded preset " + juce::String(index) + ": " + getProgramName(index));
         } else {
             needsPresetReapply = true;
-            DBG("ChipSynth: Preset " + juce::String(index) + " will be applied when ymfm is initialized");
+            CS_DBG(" Preset " + juce::String(index) + " will be applied when ymfm is initialized");
         }
         
         // Update host display
@@ -550,7 +551,7 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
 {
     if (preset == nullptr) return;
     
-    DBG("ChipSynth: Loading preset '" + preset->name + "' - Algorithm: " + 
+    CS_DBG(" Loading preset '" + preset->name + "' - Algorithm: " + 
         juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
     
     // Temporarily remove all listeners to prevent any custom state triggering
@@ -617,14 +618,14 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
     
     // Debug: print one operator's parameters for verification
-    DBG("ChipSynth: OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
+    CS_DBG(" OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
         ", AR: " + juce::String(preset->operators[0].attackRate) +
         ", MUL: " + juce::String(preset->operators[0].multiple));
     
     // Force parameter update to ymfm
     updateYmfmParameters();
     
-    DBG("ChipSynth: Preset loading complete");
+    CS_DBG(" Preset loading complete");
 }
 
 void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
@@ -633,7 +634,7 @@ void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float ne
     
     // Only switch to custom if not already in custom mode and gesture is in progress
     if (!isCustomPreset && userGestureInProgress) {
-        DBG("ChipSynth: Parameter changed by user gesture, switching to custom preset");
+        CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
         
         // Update host display on message thread
@@ -648,7 +649,7 @@ void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool g
     juce::ignoreUnused(parameterIndex);
     
     userGestureInProgress = gestureIsStarting;
-    DBG("ChipSynth: User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
+    CS_DBG(" User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
 }
 
 void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
@@ -658,14 +659,14 @@ void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhos
     
     // ValueTree changes no longer trigger custom state
     // Custom state is only triggered by user gestures via parameterValueChanged()
-    DBG("ChipSynth: ValueTree property changed: " + property.toString() + " (no custom state change)");
+    CS_DBG(" ValueTree property changed: " + property.toString() + " (no custom state change)");
 }
 
 void ChipSynthAudioProcessor::updateYmfmParameters()
 {
     // Check if ymfm is initialized
     if (!ymfmWrapper.isInitialized()) {
-        DBG("ChipSynth: updateYmfmParameters called before ymfm initialization");
+        CS_DBG(" updateYmfmParameters called before ymfm initialization");
         return;
     }
     
@@ -675,7 +676,7 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
     
     static int updateCounter = 0;
     if (updateCounter++ % 100 == 0) {
-        DBG("ChipSynth: updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
+        CS_DBG(" updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
             ", Feedback: " + juce::String(feedback));
     }
     

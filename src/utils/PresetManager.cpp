@@ -1,4 +1,5 @@
 #include "PresetManager.h"
+#include "Debug.h"
 #include "VOPMParser.h"
 #include "BinaryData.h"
 
@@ -181,14 +182,14 @@ void PresetManager::initialize()
     loadFactoryPresets();
     loadBundledPresets();
     
-    DBG("PresetManager initialized with " + juce::String(presets.size()) + " presets");
+    CS_DBG("PresetManager initialized with " + juce::String(presets.size()) + " presets");
 }
 
 int PresetManager::loadOPMFile(const juce::File& file)
 {
     if (!file.exists())
     {
-        DBG("OPM file does not exist: " + file.getFullPathName());
+        CS_DBG("OPM file does not exist: " + file.getFullPathName());
         return 0;
     }
     
@@ -205,7 +206,7 @@ int PresetManager::loadOPMFile(const juce::File& file)
         loaded++;
     }
     
-    DBG("Loaded " + juce::String(loaded) + " presets from " + file.getFileName());
+    CS_DBG("Loaded " + juce::String(loaded) + " presets from " + file.getFileName());
     return loaded;
 }
 
@@ -230,7 +231,7 @@ int PresetManager::loadBundledPresets()
             totalLoaded++;
         }
         
-        DBG("Loaded " + juce::String(totalLoaded) + " presets from bundled resources");
+        CS_DBG("Loaded " + juce::String(totalLoaded) + " presets from bundled resources");
         return totalLoaded;
     }
     
@@ -238,7 +239,7 @@ int PresetManager::loadBundledPresets()
     auto presetsDir = getPresetsDirectory();
     if (!presetsDir.exists())
     {
-        DBG("Presets directory does not exist: " + presetsDir.getFullPathName());
+        CS_DBG("Presets directory does not exist: " + presetsDir.getFullPathName());
         return 0;
     }
     
@@ -363,7 +364,7 @@ void PresetManager::loadFactoryPresets()
         presets.push_back(preset);
     }
     
-    DBG("Loaded " + juce::String(NUM_FACTORY_PRESETS) + " factory presets");
+    CS_DBG("Loaded " + juce::String(NUM_FACTORY_PRESETS) + " factory presets");
 }
 
 juce::File PresetManager::getPresetsDirectory() const

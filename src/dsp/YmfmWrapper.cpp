@@ -1,4 +1,5 @@
 #include "YmfmWrapper.h"
+#include "utils/Debug.h"
 #include <juce_core/juce_core.h>
 #include <memory>
 #include <cmath>
@@ -32,7 +33,7 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         // Calculate the actual internal sample rate like S98Player does
         if (opmChip) {
             internalSampleRate = opmChip->sample_rate(opm_clock);
-            DBG("YmfmWrapper: OPM clock=" + juce::String(opm_clock) + ", chip_rate=" + juce::String(internalSampleRate) + ", output_rate=" + juce::String(outputSampleRate));
+            CS_DBG("OPM clock=" + juce::String(opm_clock) + ", chip_rate=" + juce::String(internalSampleRate) + ", output_rate=" + juce::String(outputSampleRate));
         }
     } else {
         internalSampleRate = 55466;  // OPNA internal rate  
@@ -55,17 +56,17 @@ void YmfmWrapper::reset()
 
 void YmfmWrapper::initializeOPM()
 {
-    DBG("YmfmWrapper: Creating OPM chip instance");
-    std::cout << "YmfmWrapper: Creating OPM chip instance" << std::endl;
+    CS_DBG("Creating OPM chip instance");
+    CS_LOG("Creating OPM chip instance");
     
     opmChip = std::make_unique<ymfm::ym2151>(*this);
     
-    DBG("YmfmWrapper: Resetting OPM chip");
-    std::cout << "YmfmWrapper: Resetting OPM chip" << std::endl;
+    CS_DBG("Resetting OPM chip");
+    CS_LOG("Resetting OPM chip");
     opmChip->reset();
     
-    DBG("YmfmWrapper: OPM chip reset complete, setting up voice");
-    std::cout << "YmfmWrapper: OPM chip reset complete, setting up voice" << std::endl;
+    CS_DBG("OPM chip reset complete, setting up voice");
+    CS_LOG("OPM chip reset complete, setting up voice");
     
     // Setup basic piano voice on all 8 channels
     for (int channel = 0; channel < 8; ++channel) {
@@ -75,8 +76,8 @@ void YmfmWrapper::initializeOPM()
     // Auto-play a note for testing (like sample code) - delay it a bit
     // playTestNote(); // Disable for now, will test via MIDI
     
-    DBG("YmfmWrapper: OPM initialization complete");
-    std::cout << "YmfmWrapper: OPM initialization complete" << std::endl;
+    CS_DBG("OPM initialization complete");
+    CS_LOG("OPM initialization complete");
 }
 
 void YmfmWrapper::initializeOPNA()
@@ -101,15 +102,14 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     currentRegisters[addr] = data;
     
     if (chipType == ChipType::OPM && opmChip) {
-        DBG("YmfmWrapper: Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
-        std::cout << "YmfmWrapper: Writing register 0x" << std::hex << (int)addr 
-                  << " = 0x" << (int)data << std::dec << std::endl;
+        CS_DBG(" Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        CS_LOGF(" Writing register 0x%02X = 0x%02X", addr, data);
         
         // Use write_address and write_data like sample code
         opmChip->write_address(addr);
         opmChip->write_data(data);
     } else if (chipType == ChipType::OPNA && opnaChip) {
-        DBG("YmfmWrapper: OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        CS_DBG(" OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
         
         opnaChip->write_address(addr);
         opnaChip->write_data(data);
@@ -152,9 +152,9 @@ void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
         
         debugCounter++;
         if ((debugCounter % 1000 == 0) || hasNonZero) {
-            DBG("YmfmWrapper: TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
-            std::cout << "YmfmWrapper: TEST MODE - generateSamples call #" << debugCounter << ", hasNonZero=" << hasNonZero 
-                      << ", samples=" << numSamples << std::endl;
+            CS_DBG(" TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
+            CS_LOGF(" TEST MODE - generateSamples call #%d, hasNonZero=%d, samples=%d", 
+                      debugCounter, hasNonZero ? 1 : 0, numSamples);
         }
         return;
     }
@@ -182,16 +182,16 @@ void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
             
             // Extra detailed debug for first few samples when we might have audio
             if (debugCounter <= 5 && i < 10) {
-                DBG("YmfmWrapper: Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
+                CS_DBG(" Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
             }
         }
         
         // Debug output every few calls to check if function is being called
         debugCounter++;
         if ((debugCounter % 1000 == 0) || hasNonZero) {
-            DBG("YmfmWrapper: generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
-            std::cout << "YmfmWrapper: generateSamples call #" << debugCounter << ", hasNonZero=" << hasNonZero 
-                      << ", maxValue=" << maxSample << ", samples=" << numSamples << std::endl;
+            CS_DBG(" generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
+            CS_LOGF(" generateSamples call #%d, hasNonZero=%d, maxValue=%d, samples=%d",
+                      debugCounter, hasNonZero ? 1 : 0, maxSample, numSamples);
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
@@ -209,8 +209,8 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 {
     if (channel >= 8) return;  // Limit to 8 channels
     
-    DBG("YmfmWrapper: noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
-    std::cout << "YmfmWrapper: noteOn - channel=" << (int)channel << ", note=" << (int)note << ", velocity=" << (int)velocity << std::endl;
+    CS_DBG(" noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
+    CS_LOGF(" noteOn - channel=%d, note=%d, velocity=%d", channel, note, velocity);
     
     // Store the base note for this channel
     channelStates[channel].baseNote = note;
@@ -225,9 +225,9 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         uint8_t kc = (fnum >> 6) & 0x7F;  // Upper 7 bits
         uint8_t kf = (fnum & 0x3F) << 2;  // Lower 6 bits, shifted for register format
         
-        DBG("YmfmWrapper: MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
+        CS_DBG(" MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
             " -> FNUM=0x" + juce::String::toHexString(fnum) + ", KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf));
-        std::cout << "YmfmWrapper: OPM noteOn - KC=0x" << std::hex << (int)kc << ", KF=0x" << (int)kf << std::dec << std::endl;
+        CS_LOGF(" OPM noteOn - KC=0x%02X, KF=0x%02X", kc, kf);
         
         // Write KC and KF
         writeRegister(0x28 + channel, kc);
@@ -236,9 +236,9 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Key On (all operators enabled)
         writeRegister(0x08, 0x78 | channel);
         
-        DBG("YmfmWrapper: Key On register 0x08 = 0x" + juce::String::toHexString(0x78 | channel));
-        DBG("YmfmWrapper: OPM registers written for note on");
-        std::cout << "YmfmWrapper: OPM registers written for note on" << std::endl;
+        CS_DBG(" Key On register 0x08 = 0x" + juce::String::toHexString(0x78 | channel));
+        CS_DBG(" OPM registers written for note on");
+        CS_LOG(" OPM registers written for note on");
         
     } else if (chipType == ChipType::OPNA) {
         uint8_t block = note / 12 - 1;
@@ -287,8 +287,8 @@ uint16_t YmfmWrapper::noteToFnum(uint8_t note)
 void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
 {
     if (chipType == ChipType::OPM) {
-        DBG("YmfmWrapper: Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
-        std::cout << "YmfmWrapper: Setting up sine wave timbre for OPM channel " << (int)channel << std::endl;
+        CS_DBG(" Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
+        CS_LOGF(" Setting up sine wave timbre for OPM channel %d", channel);
         
         // Algorithm 7 (all operators parallel), L/R both output, FB=0
         writeRegister(0x20 + channel, 0xC7);
@@ -305,16 +305,16 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
             writeRegister(0xE0 + base_addr, 0xF7);  // D1L=15, RR=7
         }
         
-        DBG("YmfmWrapper: OPM voice setup complete (sine wave timbre)");
-        std::cout << "YmfmWrapper: OPM voice setup complete (sine wave timbre)" << std::endl;
+        CS_DBG(" OPM voice setup complete (sine wave timbre)");
+        CS_LOG(" OPM voice setup complete (sine wave timbre)");
     }
 }
 
 void YmfmWrapper::playTestNote()
 {
     if (chipType == ChipType::OPM && opmChip) {
-        DBG("YmfmWrapper: Playing test note (C4) for debugging");
-        std::cout << "YmfmWrapper: Playing test note (C4) for debugging" << std::endl;
+        CS_DBG(" Playing test note (C4) for debugging");
+        CS_LOG(" Playing test note (C4) for debugging");
         
         // Play middle C (C4, note 60) with full velocity
         noteOn(0, 60, 127);
@@ -493,7 +493,7 @@ void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
         writeRegister(0x28 + channel, kc);
         writeRegister(0x30 + channel, kf);
         
-        DBG("YmfmWrapper: Pitch bend updated - channel=" + juce::String((int)channel) + 
+        CS_DBG(" Pitch bend updated - channel=" + juce::String((int)channel) + 
             ", semitones=" + juce::String(semitones, 3) + 
             ", KC=0x" + juce::String::toHexString(kc) + 
             ", KF=0x" + juce::String::toHexString(kf));
