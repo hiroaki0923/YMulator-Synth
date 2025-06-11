@@ -39,7 +39,6 @@ target_sources(ChipSynthAU
     PRIVATE
         PluginProcessor.cpp
         PluginEditor.cpp
-        core/FMCore.cpp
         core/VoiceManager.cpp
         dsp/YmfmWrapper.cpp
         dsp/EnvelopeGenerator.cpp

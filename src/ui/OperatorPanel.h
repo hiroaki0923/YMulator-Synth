@@ -2,8 +2,21 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "../utils/ParameterIDs.h"
+#include "../utils/Debug.h"
 
 class ChipSynthAudioProcessor;
+
+// Control specification for data-driven UI generation
+struct ControlSpec {
+    std::string paramIdSuffix;
+    std::string labelText;
+    int minValue;
+    int maxValue;
+    int defaultValue;
+    int column;  // 0 = left, 1 = right
+    int row;     // 0-based row in column
+};
 
 class OperatorPanel : public juce::Component
 {
@@ -19,43 +32,21 @@ private:
     int operatorNum;
     juce::String operatorId;
     
-    // Operator controls
-    std::unique_ptr<juce::Slider> totalLevelSlider;
-    std::unique_ptr<juce::Label> totalLevelLabel;
+    // Data-driven control storage
+    struct ControlPair {
+        std::unique_ptr<juce::Slider> slider;
+        std::unique_ptr<juce::Label> label;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
+        ControlSpec spec;
+    };
     
-    std::unique_ptr<juce::Slider> attackRateSlider;
-    std::unique_ptr<juce::Label> attackRateLabel;
+    std::vector<ControlPair> controls;
     
-    std::unique_ptr<juce::Slider> decay1RateSlider;
-    std::unique_ptr<juce::Label> decay1RateLabel;
-    
-    std::unique_ptr<juce::Slider> decay2RateSlider;
-    std::unique_ptr<juce::Label> decay2RateLabel;
-    
-    std::unique_ptr<juce::Slider> releaseRateSlider;
-    std::unique_ptr<juce::Label> releaseRateLabel;
-    
-    std::unique_ptr<juce::Slider> sustainLevelSlider;
-    std::unique_ptr<juce::Label> sustainLevelLabel;
-    
-    std::unique_ptr<juce::Slider> multipleSlider;
-    std::unique_ptr<juce::Label> multipleLabel;
-    
-    std::unique_ptr<juce::Slider> detune1Slider;
-    std::unique_ptr<juce::Label> detune1Label;
-    
-    std::unique_ptr<juce::Slider> detune2Slider;
-    std::unique_ptr<juce::Label> detune2Label;
-    
-    std::unique_ptr<juce::Slider> keyScaleSlider;
-    std::unique_ptr<juce::Label> keyScaleLabel;
-    
-    // Parameter attachments
-    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> attachments;
+    // Static control specifications
+    static const std::vector<ControlSpec> controlSpecs;
     
     void setupControls();
-    juce::Slider* createSlider(const juce::String& paramId, const juce::String& labelText, 
-                               int minVal, int maxVal, int defaultVal);
+    void createControlFromSpec(const ControlSpec& spec);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OperatorPanel)
 };

@@ -1,4 +1,6 @@
 #include "YmfmWrapper.h"
+#include "YM2151Registers.h"
+#include "utils/Debug.h"
 #include <juce_core/juce_core.h>
 #include <memory>
 #include <cmath>
@@ -25,17 +27,17 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
     
     if (type == ChipType::OPM) {
         // Use proper OPM clock like S98Player
-        uint32_t opm_clock = 3579545; // Default YM2151 clock from S98Player
+        uint32_t opm_clock = YM2151Regs::OPM_DEFAULT_CLOCK; // Default YM2151 clock from S98Player
         internalSampleRate = 0; // Will be calculated properly
         initializeOPM();
         
         // Calculate the actual internal sample rate like S98Player does
         if (opmChip) {
             internalSampleRate = opmChip->sample_rate(opm_clock);
-            DBG("YmfmWrapper: OPM clock=" + juce::String(opm_clock) + ", chip_rate=" + juce::String(internalSampleRate) + ", output_rate=" + juce::String(outputSampleRate));
+            CS_DBG("OPM clock=" + juce::String(opm_clock) + ", chip_rate=" + juce::String(internalSampleRate) + ", output_rate=" + juce::String(outputSampleRate));
         }
     } else {
-        internalSampleRate = 55466;  // OPNA internal rate  
+        internalSampleRate = YM2151Regs::OPNA_INTERNAL_RATE;  // OPNA internal rate  
         initializeOPNA();
     }
     
@@ -55,28 +57,28 @@ void YmfmWrapper::reset()
 
 void YmfmWrapper::initializeOPM()
 {
-    DBG("YmfmWrapper: Creating OPM chip instance");
-    std::cout << "YmfmWrapper: Creating OPM chip instance" << std::endl;
+    CS_DBG("Creating OPM chip instance");
+    CS_LOG("Creating OPM chip instance");
     
     opmChip = std::make_unique<ymfm::ym2151>(*this);
     
-    DBG("YmfmWrapper: Resetting OPM chip");
-    std::cout << "YmfmWrapper: Resetting OPM chip" << std::endl;
+    CS_DBG("Resetting OPM chip");
+    CS_LOG("Resetting OPM chip");
     opmChip->reset();
     
-    DBG("YmfmWrapper: OPM chip reset complete, setting up voice");
-    std::cout << "YmfmWrapper: OPM chip reset complete, setting up voice" << std::endl;
+    CS_DBG("OPM chip reset complete, setting up voice");
+    CS_LOG("OPM chip reset complete, setting up voice");
     
     // Setup basic piano voice on all 8 channels
-    for (int channel = 0; channel < 8; ++channel) {
+    for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
         setupBasicPianoVoice(channel);
     }
     
     // Auto-play a note for testing (like sample code) - delay it a bit
     // playTestNote(); // Disable for now, will test via MIDI
     
-    DBG("YmfmWrapper: OPM initialization complete");
-    std::cout << "YmfmWrapper: OPM initialization complete" << std::endl;
+    CS_DBG("OPM initialization complete");
+    CS_LOG("OPM initialization complete");
 }
 
 void YmfmWrapper::initializeOPNA()
@@ -85,10 +87,10 @@ void YmfmWrapper::initializeOPNA()
     opnaChip->reset();
     
     // Enable extended mode (required for OPNA)
-    writeRegister(0x29, 0x9f);
+    writeRegister(YM2151Regs::REG_OPNA_MODE, YM2151Regs::OPNA_MODE_VALUE);
     
     // Setup basic piano voice on all 6 FM channels (OPNA has 6 FM channels)
-    for (int channel = 0; channel < 6; ++channel) {
+    for (int channel = 0; channel < YM2151Regs::MAX_OPNA_FM_CHANNELS; ++channel) {
         setupBasicPianoVoice(channel);
     }
 }
@@ -101,15 +103,14 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     currentRegisters[addr] = data;
     
     if (chipType == ChipType::OPM && opmChip) {
-        DBG("YmfmWrapper: Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
-        std::cout << "YmfmWrapper: Writing register 0x" << std::hex << (int)addr 
-                  << " = 0x" << (int)data << std::dec << std::endl;
+        CS_DBG(" Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        CS_LOGF(" Writing register 0x%02X = 0x%02X", addr, data);
         
         // Use write_address and write_data like sample code
         opmChip->write_address(addr);
         opmChip->write_data(data);
     } else if (chipType == ChipType::OPNA && opnaChip) {
-        DBG("YmfmWrapper: OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        CS_DBG(" OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
         
         opnaChip->write_address(addr);
         opnaChip->write_data(data);
@@ -126,35 +127,40 @@ void YmfmWrapper::updateRegisterCache(uint8_t address, uint8_t value)
     currentRegisters[address] = value;
 }
 
-void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
+void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples)
 {
+    CS_ASSERT_BUFFER_SIZE(numSamples);
+    CS_ASSERT(leftBuffer != nullptr);
+    CS_ASSERT(rightBuffer != nullptr);
     static int debugCounter = 0;
     static bool testModeEnabled = false; // Temporary test mode - now disabled to test ymfm
     
     if (testModeEnabled) {
         // Generate a simple 440 Hz test tone instead of using ymfm
         static float phase = 0.0f;
-        const float frequency = 440.0f; // A4
-        const float amplitude = 0.3f;
+        const float frequency = YM2151Regs::TEST_FREQUENCY; // A4
+        const float amplitude = YM2151Regs::TEST_AMPLITUDE;
         const float phaseIncrement = (2.0f * M_PI * frequency) / outputSampleRate;
         
         bool hasNonZero = false;
         for (int i = 0; i < numSamples; i++) {
-            outputBuffer[i] = amplitude * std::sin(phase);
+            float sample = amplitude * std::sin(phase);
+            leftBuffer[i] = sample;
+            rightBuffer[i] = sample;  // Same signal to both channels for test mode
             phase += phaseIncrement;
             if (phase > 2.0f * M_PI) {
                 phase -= 2.0f * M_PI;
             }
-            if (outputBuffer[i] != 0.0f) {
+            if (sample != 0.0f) {
                 hasNonZero = true;
             }
         }
         
         debugCounter++;
-        if ((debugCounter % 1000 == 0) || hasNonZero) {
-            DBG("YmfmWrapper: TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
-            std::cout << "YmfmWrapper: TEST MODE - generateSamples call #" << debugCounter << ", hasNonZero=" << hasNonZero 
-                      << ", samples=" << numSamples << std::endl;
+        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
+            CS_DBG(" TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
+            CS_LOGF(" TEST MODE - generateSamples call #%d, hasNonZero=%d, samples=%d", 
+                      debugCounter, hasNonZero ? 1 : 0, numSamples);
         }
         return;
     }
@@ -168,30 +174,34 @@ void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
             // Generate 1 sample like the sample code
             opmChip->generate(&opmOutput, 1);
             
-            // Convert to float and store mono (left channel)
-            outputBuffer[i] = opmOutput.data[0] / 32768.0f;
+            // Convert to float and store stereo
+            leftBuffer[i] = opmOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            rightBuffer[i] = opmOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
             
             
-            if (opmOutput.data[0] != 0) {
+            if (opmOutput.data[0] != 0 || opmOutput.data[1] != 0) {
                 hasNonZero = true;
                 lastNonZeroSample = opmOutput.data[0];
                 if (abs(opmOutput.data[0]) > abs(maxSample)) {
                     maxSample = opmOutput.data[0];
                 }
+                if (abs(opmOutput.data[1]) > abs(maxSample)) {
+                    maxSample = opmOutput.data[1];
+                }
             }
             
             // Extra detailed debug for first few samples when we might have audio
-            if (debugCounter <= 5 && i < 10) {
-                DBG("YmfmWrapper: Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
+            if (debugCounter <= YM2151Regs::MAX_DEBUG_CALLS && i < YM2151Regs::DEBUG_SAMPLE_COUNT) {
+                CS_DBG(" Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
             }
         }
         
         // Debug output every few calls to check if function is being called
         debugCounter++;
-        if ((debugCounter % 1000 == 0) || hasNonZero) {
-            DBG("YmfmWrapper: generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
-            std::cout << "YmfmWrapper: generateSamples call #" << debugCounter << ", hasNonZero=" << hasNonZero 
-                      << ", maxValue=" << maxSample << ", samples=" << numSamples << std::endl;
+        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
+            CS_DBG(" generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
+            CS_LOGF(" generateSamples call #%d, hasNonZero=%d, maxValue=%d, samples=%d",
+                      debugCounter, hasNonZero ? 1 : 0, maxSample, numSamples);
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
@@ -199,18 +209,23 @@ void YmfmWrapper::generateSamples(float* outputBuffer, int numSamples)
             // Generate internal samples - ymfm generate() doesn't take a count parameter
             opnaChip->generate(&opnaOutput);
             
-            // Convert to float and store mono (left channel)
-            outputBuffer[i] = opnaOutput.data[0] / 32768.0f;
+            // Convert to float and store stereo
+            leftBuffer[i] = opnaOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            rightBuffer[i] = opnaOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
         }
     }
 }
 
 void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 {
-    if (channel >= 8) return;  // Limit to 8 channels
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_NOTE(note);
+    CS_ASSERT_VELOCITY(velocity);
     
-    DBG("YmfmWrapper: noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
-    std::cout << "YmfmWrapper: noteOn - channel=" << (int)channel << ", note=" << (int)note << ", velocity=" << (int)velocity << std::endl;
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;  // Limit to 8 channels
+    
+    CS_DBG(" noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
+    CS_LOGF(" noteOn - channel=%d, note=%d, velocity=%d", channel, note, velocity);
     
     // Store the base note for this channel
     channelStates[channel].baseNote = note;
@@ -222,44 +237,47 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         
         // Extract KC and KF from FNUM
         // YM2151 FNUM format: KC (key code) and KF (key fraction)
-        uint8_t kc = (fnum >> 6) & 0x7F;  // Upper 7 bits
-        uint8_t kf = (fnum & 0x3F) << 2;  // Lower 6 bits, shifted for register format
+        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;  // Upper 7 bits
+        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;  // Lower 6 bits, shifted for register format
         
-        DBG("YmfmWrapper: MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
+        CS_DBG(" MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
             " -> FNUM=0x" + juce::String::toHexString(fnum) + ", KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf));
-        std::cout << "YmfmWrapper: OPM noteOn - KC=0x" << std::hex << (int)kc << ", KF=0x" << (int)kf << std::dec << std::endl;
+        CS_LOGF(" OPM noteOn - KC=0x%02X, KF=0x%02X", kc, kf);
         
         // Write KC and KF
-        writeRegister(0x28 + channel, kc);
-        writeRegister(0x30 + channel, kf);
+        writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
+        writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
         
         // Key On (all operators enabled)
-        writeRegister(0x08, 0x78 | channel);
+        writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_ON_ALL_OPS | channel);
         
-        DBG("YmfmWrapper: Key On register 0x08 = 0x" + juce::String::toHexString(0x78 | channel));
-        DBG("YmfmWrapper: OPM registers written for note on");
-        std::cout << "YmfmWrapper: OPM registers written for note on" << std::endl;
+        CS_DBG(" Key On register 0x" + juce::String::toHexString(YM2151Regs::REG_KEY_ON_OFF) + " = 0x" + juce::String::toHexString(YM2151Regs::KEY_ON_ALL_OPS | channel));
+        CS_DBG(" OPM registers written for note on");
+        CS_LOG(" OPM registers written for note on");
         
     } else if (chipType == ChipType::OPNA) {
         uint8_t block = note / 12 - 1;
         uint16_t fnum = noteToFnum(note);
         
         // F-Number registers
-        writeRegister(0xA0 + channel, fnum & 0xFF);
-        writeRegister(0xA4 + channel, ((block & 0x07) << 3) | ((fnum >> 8) & 0x07));
+        writeRegister(YM2151Regs::REG_OPNA_FNUM_LOW_BASE + channel, fnum & 0xFF);
+        writeRegister(YM2151Regs::REG_OPNA_FNUM_HIGH_BASE + channel, ((block & YM2151Regs::MASK_OCTAVE) << YM2151Regs::SHIFT_OPNA_BLOCK) | ((fnum >> 8) & 0x07));
         
         // Apply velocity to TL (operator 2)
-        uint8_t tl = 127 - velocity;
-        writeRegister(0x44 + channel, tl);
+        uint8_t tl = YM2151Regs::VELOCITY_TO_TL_OFFSET - velocity;
+        writeRegister(YM2151Regs::REG_OPNA_TL_OP2_BASE + channel, tl);
         
         // Key On (all operators)
-        writeRegister(0x28, 0xF0 | channel);
+        writeRegister(YM2151Regs::REG_OPNA_KEY_ON_OFF, YM2151Regs::OPNA_KEY_ON_ALL_OPS | channel);
     }
 }
 
 void YmfmWrapper::noteOff(uint8_t channel, uint8_t note)
 {
-    if (channel >= 8) return;
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_NOTE(note);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
     
     // Mark channel as inactive
     channelStates[channel].active = false;
@@ -267,10 +285,10 @@ void YmfmWrapper::noteOff(uint8_t channel, uint8_t note)
     
     if (chipType == ChipType::OPM) {
         // Key Off - use sample code format
-        writeRegister(0x08, 0x00 | channel);
+        writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_OFF_MASK | channel);
     } else if (chipType == ChipType::OPNA) {
         // Key Off
-        writeRegister(0x28, channel);
+        writeRegister(YM2151Regs::REG_OPNA_KEY_ON_OFF, channel);
     }
 }
 
@@ -287,105 +305,132 @@ uint16_t YmfmWrapper::noteToFnum(uint8_t note)
 void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
 {
     if (chipType == ChipType::OPM) {
-        DBG("YmfmWrapper: Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
-        std::cout << "YmfmWrapper: Setting up sine wave timbre for OPM channel " << (int)channel << std::endl;
+        CS_DBG(" Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
+        CS_LOGF(" Setting up sine wave timbre for OPM channel %d", channel);
         
         // Algorithm 7 (all operators parallel), L/R both output, FB=0
-        writeRegister(0x20 + channel, 0xC7);
+        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+        writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
         
         // Configure all 4 operators like sample code
-        for (int op = 0; op < 4; op++) {
-            int base_addr = op * 8 + channel;
+        for (int op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; op++) {
+            int base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
             
-            writeRegister(0x40 + base_addr, 0x01);  // DT1=0, MUL=1
-            writeRegister(0x60 + base_addr, 32);    // TL=32 (moderate volume)
-            writeRegister(0x80 + base_addr, 0x1F);  // KS=0, AR=31
-            writeRegister(0xA0 + base_addr, 0x00);  // AMS-EN=0, D1R=0
-            writeRegister(0xC0 + base_addr, 0x00);  // DT2=0, D2R=0
-            writeRegister(0xE0 + base_addr, 0xF7);  // D1L=15, RR=7
+            writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, YM2151Regs::DEFAULT_DT1_MUL);     // DT1=0, MUL=1
+            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, YM2151Regs::DEFAULT_TOTAL_LEVEL);   // TL=32 (moderate volume)
+            writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, YM2151Regs::DEFAULT_KS_AR);       // KS=0, AR=31
+            writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, YM2151Regs::DEFAULT_AMS_D1R);     // AMS-EN=0, D1R=0
+            writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, YM2151Regs::DEFAULT_DT2_D2R);     // DT2=0, D2R=0
+            writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, YM2151Regs::DEFAULT_D1L_RR);      // D1L=15, RR=7
         }
         
-        DBG("YmfmWrapper: OPM voice setup complete (sine wave timbre)");
-        std::cout << "YmfmWrapper: OPM voice setup complete (sine wave timbre)" << std::endl;
+        CS_DBG(" OPM voice setup complete (sine wave timbre)");
+        CS_LOG(" OPM voice setup complete (sine wave timbre)");
     }
 }
 
 void YmfmWrapper::playTestNote()
 {
     if (chipType == ChipType::OPM && opmChip) {
-        DBG("YmfmWrapper: Playing test note (C4) for debugging");
-        std::cout << "YmfmWrapper: Playing test note (C4) for debugging" << std::endl;
+        CS_DBG(" Playing test note (C4) for debugging");
+        CS_LOG(" Playing test note (C4) for debugging");
         
         // Play middle C (C4, note 60) with full velocity
-        noteOn(0, 60, 127);
+        noteOn(0, YM2151Regs::MIDI_NOTE_C4, YM2151Regs::MAX_VELOCITY);
     }
 }
 
 void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, OperatorParameter param, uint8_t value)
 {
-    if (channel >= 8 || operator_num >= 4) return;
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_OPERATOR(operator_num);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
     
     if (chipType == ChipType::OPM) {
-        int base_addr = operator_num * 8 + channel;
+        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
         uint8_t currentValue;
         
         switch (param) {
             case OperatorParameter::TotalLevel:
-                writeRegister(0x60 + base_addr, value);
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 127);  // TL is 7-bit (0-127)
+                writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, value);
                 break;
                 
             case OperatorParameter::AttackRate:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 31);  // AR is 5-bit (0-31)
                 // Keep existing KS bits, update AR
-                currentValue = readCurrentRegister(0x80 + base_addr);
-                writeRegister(0x80 + base_addr, (currentValue & 0xC0) | (value & 0x1F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_KS_AR_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, 
+                            (currentValue & YM2151Regs::PRESERVE_KS) | (value & YM2151Regs::MASK_ATTACK_RATE));
                 break;
                 
             case OperatorParameter::Decay1Rate:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 31);  // D1R is 5-bit (0-31)
                 // Keep existing AMS-EN bit, update D1R
-                currentValue = readCurrentRegister(0xA0 + base_addr);
-                writeRegister(0xA0 + base_addr, (currentValue & 0x80) | (value & 0x1F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, 
+                            (currentValue & YM2151Regs::PRESERVE_AMS) | (value & YM2151Regs::MASK_DECAY1_RATE));
                 break;
                 
             case OperatorParameter::Decay2Rate:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 31);  // D2R is 5-bit (0-31)
                 // Keep existing DT2 bits, update D2R
-                currentValue = readCurrentRegister(0xC0 + base_addr);
-                writeRegister(0xC0 + base_addr, (currentValue & 0xC0) | (value & 0x1F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, 
+                            (currentValue & YM2151Regs::PRESERVE_DT2) | (value & YM2151Regs::MASK_DECAY2_RATE));
                 break;
                 
             case OperatorParameter::ReleaseRate:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 15);  // RR is 4-bit (0-15)
                 // Keep existing D1L bits, update RR
-                currentValue = readCurrentRegister(0xE0 + base_addr);
-                writeRegister(0xE0 + base_addr, (currentValue & 0xF0) | (value & 0x0F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, 
+                            (currentValue & YM2151Regs::PRESERVE_D1L) | (value & YM2151Regs::MASK_RELEASE_RATE));
                 break;
                 
             case OperatorParameter::SustainLevel:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 15);  // D1L is 4-bit (0-15)
                 // Keep existing RR bits, update D1L
-                currentValue = readCurrentRegister(0xE0 + base_addr);
-                writeRegister(0xE0 + base_addr, ((value & 0x0F) << 4) | (currentValue & 0x0F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, 
+                            ((value & YM2151Regs::MASK_SUSTAIN_LEVEL) << YM2151Regs::SHIFT_SUSTAIN_LEVEL) | 
+                            (currentValue & YM2151Regs::PRESERVE_RR));
                 break;
                 
             case OperatorParameter::Multiple:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 15);  // MUL is 4-bit (0-15)
                 // Keep existing DT1 bits, update MUL
-                currentValue = readCurrentRegister(0x40 + base_addr);
-                writeRegister(0x40 + base_addr, (currentValue & 0x70) | (value & 0x0F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, 
+                            (currentValue & YM2151Regs::PRESERVE_MUL) | (value & YM2151Regs::MASK_MULTIPLE));
                 break;
                 
             case OperatorParameter::Detune1:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 7);   // DT1 is 3-bit (0-7)
                 // Keep existing MUL bits, update DT1
-                currentValue = readCurrentRegister(0x40 + base_addr);
-                writeRegister(0x40 + base_addr, ((value & 0x07) << 4) | (currentValue & 0x0F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, 
+                            ((value & YM2151Regs::MASK_DETUNE1) << YM2151Regs::SHIFT_DETUNE1) | 
+                            (currentValue & YM2151Regs::PRESERVE_DT1));
                 break;
                 
             case OperatorParameter::Detune2:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 3);   // DT2 is 2-bit (0-3)
                 // Keep existing D2R bits, update DT2
-                currentValue = readCurrentRegister(0xC0 + base_addr);
-                writeRegister(0xC0 + base_addr, ((value & 0x03) << 6) | (currentValue & 0x1F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, 
+                            ((value & YM2151Regs::MASK_DETUNE2) << YM2151Regs::SHIFT_DETUNE2) | 
+                            (currentValue & YM2151Regs::PRESERVE_D2R));
                 break;
                 
             case OperatorParameter::KeyScale:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 3);   // KS is 2-bit (0-3)
                 // Keep existing AR bits, update KS
-                currentValue = readCurrentRegister(0x80 + base_addr);
-                writeRegister(0x80 + base_addr, ((value & 0x03) << 6) | (currentValue & 0x1F));
+                currentValue = readCurrentRegister(YM2151Regs::REG_KS_AR_BASE + base_addr);
+                writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, 
+                            ((value & YM2151Regs::MASK_KEY_SCALE) << YM2151Regs::SHIFT_KEY_SCALE) | 
+                            (currentValue & YM2151Regs::PRESERVE_AR));
                 break;
         }
     }
@@ -393,20 +438,26 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
 
 void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, uint8_t value)
 {
-    if (channel >= 8) return;
+    CS_ASSERT_CHANNEL(channel);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
     
     if (chipType == ChipType::OPM) {
-        uint8_t currentValue = readCurrentRegister(0x20 + channel);
+        uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
         
         switch (param) {
             case ChannelParameter::Algorithm:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 7);   // Algorithm is 3-bit (0-7)
                 // Keep existing L/R/FB bits, update ALG
-                writeRegister(0x20 + channel, (currentValue & 0xF8) | (value & 0x07));
+                writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, 
+                            (currentValue & YM2151Regs::PRESERVE_ALG_FB_LR) | (value & YM2151Regs::MASK_ALGORITHM));
                 break;
                 
             case ChannelParameter::Feedback:
+                CS_ASSERT_PARAMETER_RANGE(value, 0, 7);   // Feedback is 3-bit (0-7)
                 // Keep existing L/R/ALG bits, update FB
-                writeRegister(0x20 + channel, (currentValue & 0xC7) | ((value & 0x07) << 3));
+                writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, 
+                            (currentValue & YM2151Regs::PRESERVE_ALG_LR) | ((value & YM2151Regs::MASK_FEEDBACK) << YM2151Regs::SHIFT_FEEDBACK));
                 break;
         }
     }
@@ -444,38 +495,41 @@ uint16_t YmfmWrapper::noteToFnumWithPitchBend(uint8_t note, float pitchBendSemit
     float actualNote = note + pitchBendSemitones;
     
     // Calculate frequency from MIDI note
-    float freq = 440.0f * std::pow(2.0f, (actualNote - 69) / 12.0f);
+    float freq = YM2151Regs::REFERENCE_FREQUENCY * std::pow(YM2151Regs::SEMITONE_RATIO, (actualNote - YM2151Regs::MIDI_NOTE_A4) / YM2151Regs::NOTES_PER_OCTAVE);
     
     // Convert frequency to YM2151 KC/KF format
-    float fnote = 12.0f * log2f(freq / 440.0f) + 69.0f;
+    float fnote = YM2151Regs::NOTES_PER_OCTAVE * log2f(freq / YM2151Regs::REFERENCE_FREQUENCY) + YM2151Regs::MIDI_NOTE_A4;
     int noteInt = (int)round(fnote);
-    int octave = (noteInt / 12) - 1;
-    int noteInOctave = noteInt % 12;
+    int octave = (noteInt / YM2151Regs::NOTES_PER_OCTAVE) - 1;
+    int noteInOctave = noteInt % YM2151Regs::NOTES_PER_OCTAVE;
     
     // Clamp octave to valid range (0-7) for YM2151
-    if (octave < 0) {
-        octave = 0;
+    if (octave < YM2151Regs::MIN_OCTAVE) {
+        octave = YM2151Regs::MIN_OCTAVE;
         noteInOctave = 0;
-    } else if (octave > 7) {
-        octave = 7;
-        noteInOctave = 11;
+    } else if (octave > YM2151Regs::MAX_OCTAVE) {
+        octave = YM2151Regs::MAX_OCTAVE;
+        noteInOctave = YM2151Regs::NOTES_PER_OCTAVE - 1;
     }
     
     // YM2151 key code calculation
-    const uint8_t noteCode[12] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
-    uint8_t kc = ((octave & 0x07) << 4) | noteCode[noteInOctave];
+    const uint8_t noteCode[YM2151Regs::NOTES_PER_OCTAVE] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
+    uint8_t kc = ((octave & YM2151Regs::MASK_OCTAVE) << YM2151Regs::SHIFT_OCTAVE) | noteCode[noteInOctave];
     
     // Calculate fine tuning (KF) for the fractional part
     float fractionalPart = actualNote - noteInt;
-    uint8_t kf = (uint8_t)(fractionalPart * 64.0f); // 6-bit KF value
+    uint8_t kf = (uint8_t)(fractionalPart * YM2151Regs::KF_SCALE_FACTOR); // 6-bit KF value
     
     // Combine KC and KF into a 16-bit value for convenience
-    return (kc << 6) | (kf & 0x3F);
+    return (kc << YM2151Regs::SHIFT_KEY_CODE) | (kf & YM2151Regs::MASK_KEY_FRACTION);
 }
 
 void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
 {
-    if (channel >= 8) return;
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_PARAMETER_RANGE(semitones, -12.0f, 12.0f);  // Reasonable pitch bend range
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
     
     // Update the pitch bend state for this channel
     channelStates[channel].pitchBend = semitones;
@@ -486,17 +540,49 @@ void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
         uint16_t fnum = noteToFnumWithPitchBend(baseNote, semitones);
         
         // Extract KC and KF from FNUM
-        uint8_t kc = (fnum >> 6) & 0x7F;
-        uint8_t kf = (fnum & 0x3F) << 2;
+        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
+        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;
         
         // Update the frequency registers
-        writeRegister(0x28 + channel, kc);
-        writeRegister(0x30 + channel, kf);
+        writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
+        writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
         
-        DBG("YmfmWrapper: Pitch bend updated - channel=" + juce::String((int)channel) + 
+        CS_DBG(" Pitch bend updated - channel=" + juce::String((int)channel) + 
             ", semitones=" + juce::String(semitones, 3) + 
             ", KC=0x" + juce::String::toHexString(kc) + 
             ", KF=0x" + juce::String::toHexString(kf));
+    }
+}
+
+void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_PAN_RANGE(panValue);
+    
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    
+    CS_DBG("Setting channel " + juce::String((int)channel) + " pan to " + juce::String(panValue, 3));
+    
+    if (chipType == ChipType::OPM) {
+        // Read current register value
+        uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        
+        // Convert pan value to YM2151 pan bits
+        uint8_t panBits = YM2151Regs::panValueToPanBits(panValue);
+        
+        // Clear L/R bits and set new pan
+        uint8_t newValue = (currentValue & YM2151Regs::PRESERVE_ALG_FB) | panBits;
+        
+        writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, newValue);
+        
+        CS_DBG("Pan register updated - channel=" + juce::String((int)channel) + 
+               ", pan=" + juce::String(panValue, 3) + 
+               ", panBits=0x" + juce::String::toHexString(panBits) + 
+               ", reg=0x" + juce::String::toHexString(newValue));
+    } else if (chipType == ChipType::OPNA) {
+        // OPNA uses different pan control mechanism
+        // For now, just debug log - OPNA pan would need separate implementation
+        CS_DBG("OPNA pan control not yet implemented for channel " + juce::String((int)channel));
     }
 }
 

@@ -1,12 +1,14 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "utils/Debug.h"
+#include "utils/ParameterIDs.h"
 
 ChipSynthAudioProcessor::ChipSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("ChipSynth"), createParameterLayout())
 {
-    DBG("ChipSynth: Constructor called");
+    CS_DBG(" Constructor called");
     
     setupCCMapping();
     
@@ -25,7 +27,7 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
         param->addListener(this);
     }
     
-    DBG("ChipSynth: Constructor completed - default preset: " + juce::String(currentPreset));
+    CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
 ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
@@ -81,19 +83,19 @@ int ChipSynthAudioProcessor::getCurrentProgram()
 
 void ChipSynthAudioProcessor::setCurrentProgram(int index)
 {
-    DBG("ChipSynth: setCurrentProgram called with index: " + juce::String(index) + 
+    CS_DBG(" setCurrentProgram called with index: " + juce::String(index) + 
         ", current isCustomPreset: " + juce::String(isCustomPreset ? "true" : "false"));
     
     // Check if this is the custom preset index
     if (index == presetManager.getNumPresets() && isCustomPreset) {
         // Stay in custom mode, don't change anything
-        DBG("ChipSynth: Staying in custom preset mode");
+        CS_DBG(" Staying in custom preset mode");
         return;
     }
     
     // Reset custom state and load factory preset
     isCustomPreset = false;
-    DBG("ChipSynth: Reset isCustomPreset to false, calling setCurrentPreset");
+    CS_DBG(" Reset isCustomPreset to false, calling setCurrentPreset");
     setCurrentPreset(index);
     
     // Notify host about program change
@@ -129,10 +131,14 @@ void ChipSynthAudioProcessor::changeProgramName(int index, const juce::String& n
 
 void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // Assert valid sample rate and buffer size
+    CS_ASSERT_SAMPLE_RATE(sampleRate);
+    CS_ASSERT_BUFFER_SIZE(samplesPerBlock);
+    
     juce::ignoreUnused(samplesPerBlock);
     
     // Debug output
-    DBG("ChipSynth: prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
+    CS_DBG(" prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
         ", samplesPerBlock: " + juce::String(samplesPerBlock) + 
         ", currentPreset: " + juce::String(currentPreset));
     
@@ -146,10 +152,10 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     if (needsPresetReapply) {
         loadPreset(currentPreset);
         needsPresetReapply = false;
-        DBG("ChipSynth: Applied deferred preset " + juce::String(currentPreset));
+        CS_DBG(" Applied deferred preset " + juce::String(currentPreset));
     }
     
-    DBG("ChipSynth: ymfm initialization complete");
+    CS_DBG(" ymfm initialization complete");
 }
 
 void ChipSynthAudioProcessor::releaseResources()
@@ -168,6 +174,10 @@ bool ChipSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts)
 void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                           juce::MidiBuffer& midiMessages)
 {
+    // Assert buffer validity
+    CS_ASSERT_BUFFER_SIZE(buffer.getNumSamples());
+    CS_ASSERT(buffer.getNumChannels() >= 1 && buffer.getNumChannels() <= 2);
+    
     juce::ScopedNoDenormals noDenormals;
     
     static int processBlockCallCounter = 0;
@@ -176,7 +186,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     processBlockCallCounter++;
     
     if (!hasLoggedFirstCall) {
-        DBG("ChipSynth: processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
+        CS_DBG(" processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
             ", samples: " + juce::String(buffer.getNumSamples()));
         hasLoggedFirstCall = true;
     }
@@ -186,7 +196,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     // Debug MIDI events
     if (!midiMessages.isEmpty()) {
-        DBG("ChipSynth: Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
+        CS_DBG(" Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
     }
     
     // Process MIDI events
@@ -194,7 +204,11 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const auto message = metadata.getMessage();
         
         if (message.isNoteOn()) {
-            DBG("ChipSynth: Note ON - Note: " + juce::String(message.getNoteNumber()) + 
+            // Assert valid MIDI note and velocity
+            CS_ASSERT_NOTE(message.getNoteNumber());
+            CS_ASSERT_VELOCITY(message.getVelocity());
+            
+            CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
                 ", Velocity: " + juce::String(message.getVelocity()));
             
             // Allocate a voice for this note
@@ -204,11 +218,17 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
             
         } else if (message.isNoteOff()) {
-            DBG("ChipSynth: Note OFF - Note: " + juce::String(message.getNoteNumber()));
+            // Assert valid MIDI note
+            CS_ASSERT_NOTE(message.getNoteNumber());
+            
+            CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
             
             // Find which channel is playing this note
             int channel = voiceManager.getChannelForNote(message.getNoteNumber());
             if (channel >= 0) {
+                // Assert valid channel allocation
+                CS_ASSERT_CHANNEL(channel);
+                
                 // Tell ymfm to stop this note
                 ymfmWrapper.noteOff(channel, message.getNoteNumber());
                 
@@ -216,11 +236,11 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 voiceManager.releaseVoice(message.getNoteNumber());
             }
         } else if (message.isController()) {
-            DBG("ChipSynth: MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
+            CS_DBG(" MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
             handleMidiCC(message.getControllerNumber(), message.getControllerValue());
         } else if (message.isPitchWheel()) {
-            DBG("ChipSynth: Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
+            CS_DBG(" Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
             handlePitchBend(message.getPitchWheelValue());
         }
     }
@@ -239,18 +259,20 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     if (numSamples > 0) {
         if (audioCallCounter % 1000 == 0) {  // Log every 1000 calls to avoid spam
-            DBG("ChipSynth: processBlock audio generation - call #" + juce::String(audioCallCounter) + 
+            CS_DBG(" processBlock audio generation - call #" + juce::String(audioCallCounter) + 
                 ", numSamples: " + juce::String(numSamples));
         }
         
-        ymfmWrapper.generateSamples(buffer.getWritePointer(0), numSamples);
+        // Generate true stereo output
+        float* leftBuffer = buffer.getWritePointer(0);
+        float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
+        
+        ymfmWrapper.generateSamples(leftBuffer, rightBuffer, numSamples);
         
         // Apply moderate gain to prevent clipping
         buffer.applyGain(0, 0, numSamples, 2.0f);
-        
-        // Copy left channel to right channel for stereo
         if (buffer.getNumChannels() > 1) {
-            buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+            buffer.applyGain(1, 0, numSamples, 2.0f);
         }
         
         // Check for non-zero audio (debug)
@@ -263,7 +285,7 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     break;
                 }
             }
-            DBG("ChipSynth: Audio check - " + juce::String(hasAudio ? "HAS AUDIO" : "SILENT"));
+            CS_DBG(" Audio check - " + juce::String(hasAudio ? "HAS AUDIO" : "SILENT"));
         }
     }
 }
@@ -290,19 +312,19 @@ void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
     
-    DBG("ChipSynth: State saved - preset: " + juce::String(currentPreset) + 
+    CS_DBG(" State saved - preset: " + juce::String(currentPreset) + 
         ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
 }
 
 void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    DBG("ChipSynth: setStateInformation called - size: " + juce::String(sizeInBytes));
+    CS_DBG(" setStateInformation called - size: " + juce::String(sizeInBytes));
     
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     
     if (xmlState.get() != nullptr)
     {
-        DBG("ChipSynth: XML state parsed successfully");
+        CS_DBG(" XML state parsed successfully");
         if (xmlState->hasTagName(parameters.state.getType()))
         {
             auto newState = juce::ValueTree::fromXml(*xmlState);
@@ -313,27 +335,27 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
             isCustomPreset = newState.getProperty("isCustomPreset", false);
             customPresetName = newState.getProperty("customPresetName", "Custom");
             
-            DBG("ChipSynth: State loaded - preset: " + juce::String(currentPreset) + 
+            CS_DBG(" State loaded - preset: " + juce::String(currentPreset) + 
                 ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
             
             // If not in custom mode and ymfm is initialized, apply the preset
             if (!isCustomPreset && ymfmWrapper.isInitialized()) {
-                DBG("ChipSynth: Applying preset after state restore");
+                CS_DBG(" Applying preset after state restore");
                 setCurrentPreset(currentPreset);
             } else if (!isCustomPreset) {
-                DBG("ChipSynth: Deferring preset application until ymfm init");
+                CS_DBG(" Deferring preset application until ymfm init");
                 needsPresetReapply = true;
             } else {
-                DBG("ChipSynth: Staying in custom mode after state restore");
+                CS_DBG(" Staying in custom mode after state restore");
             }
             
             // Update host display
             updateHostDisplay();
         } else {
-            DBG("ChipSynth: XML state tag mismatch");
+            CS_DBG(" XML state tag mismatch");
         }
     } else {
-        DBG("ChipSynth: Failed to parse XML state");
+        CS_DBG(" Failed to parse XML state");
     }
 }
 
@@ -343,13 +365,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     
     // Global parameters
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "algorithm", "Algorithm", 0, 7, 0));
+        ParamID::Global::Algorithm, "Algorithm", 0, 7, 0));
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "feedback", "Feedback", 0, 7, 0));
+        ParamID::Global::Feedback, "Feedback", 0, 7, 0));
     
     // Pitch bend parameters
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        "pitch_bend_range", "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
+        ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
+    
+    // Channel pan parameters (channels 0-7)
+    for (int ch = 0; ch < 8; ++ch)
+    {
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            ParamID::Channel::pan(ch), "Channel " + juce::String(ch) + " Pan", 
+            0.0f, 1.0f, 0.5f)); // Default 0.5 (center)
+    }
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -358,57 +388,57 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
         
         // Total Level (TL) - 0-127, default values for safe volume
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_tl", "OP" + juce::String(op) + " TL", 
+            ParamID::Op::tl(op).c_str(), "OP" + juce::String(op) + " TL", 
             0, 127, op == 1 ? 80 : 127)); // OP1=80, others=127 (quiet)
         
         // Attack Rate (AR) - 0-31, default 31
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_ar", "OP" + juce::String(op) + " AR", 
+            ParamID::Op::ar(op).c_str(), "OP" + juce::String(op) + " AR", 
             0, 31, 31));
         
         // Decay Rate (D1R) - 0-31, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d1r", "OP" + juce::String(op) + " D1R", 
+            ParamID::Op::d1r(op).c_str(), "OP" + juce::String(op) + " D1R", 
             0, 31, 0));
         
         // Sustain Rate (D2R) - 0-31, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d2r", "OP" + juce::String(op) + " D2R", 
+            ParamID::Op::d2r(op).c_str(), "OP" + juce::String(op) + " D2R", 
             0, 31, 0));
         
         // Release Rate (RR) - 0-15, default 7
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_rr", "OP" + juce::String(op) + " RR", 
+            ParamID::Op::rr(op).c_str(), "OP" + juce::String(op) + " RR", 
             0, 15, 7));
         
         // Sustain Level (D1L) - 0-15, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_d1l", "OP" + juce::String(op) + " D1L", 
+            ParamID::Op::d1l(op).c_str(), "OP" + juce::String(op) + " D1L", 
             0, 15, 0));
         
         // Multiple (MUL) - 0-15, default 1
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_mul", "OP" + juce::String(op) + " MUL", 
+            ParamID::Op::mul(op).c_str(), "OP" + juce::String(op) + " MUL", 
             0, 15, 1));
         
         // Detune 1 (DT1) - 0-7, default 3 (center)
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_dt1", "OP" + juce::String(op) + " DT1", 
+            ParamID::Op::dt1(op).c_str(), "OP" + juce::String(op) + " DT1", 
             0, 7, 3));
         
         // Detune 2 (DT2) - 0-3, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_dt2", "OP" + juce::String(op) + " DT2", 
+            ParamID::Op::dt2(op).c_str(), "OP" + juce::String(op) + " DT2", 
             0, 3, 0));
         
         // Key Scale (KS) - 0-3, default 0
         params.push_back(std::make_unique<juce::AudioParameterInt>(
-            opId + "_ks", "OP" + juce::String(op) + " KS", 
+            ParamID::Op::ks(op).c_str(), "OP" + juce::String(op) + " KS", 
             0, 3, 0));
         
         // AM Enable (AMS-EN) - 0-1, default 0
         params.push_back(std::make_unique<juce::AudioParameterBool>(
-            opId + "_ams_en", "OP" + juce::String(op) + " AMS-EN", false));
+            ParamID::Op::ams_en(op).c_str(), "OP" + juce::String(op) + " AMS-EN", false));
     }
     
     return { params.begin(), params.end() };
@@ -419,8 +449,8 @@ void ChipSynthAudioProcessor::setupCCMapping()
     // VOPMex compatible MIDI CC mapping
     
     // Global parameters
-    ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter("algorithm"));
-    ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter("feedback"));
+    ccToParameterMap[14] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Algorithm));
+    ccToParameterMap[15] = dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Global::Feedback));
     
     // Operator parameters (4 operators)
     for (int op = 1; op <= 4; ++op)
@@ -430,48 +460,71 @@ void ChipSynthAudioProcessor::setupCCMapping()
         
         // Total Level (CC 16-19)
         ccToParameterMap[16 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_tl"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::tl(op)));
         
         // Multiple (CC 20-23)
         ccToParameterMap[20 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_mul"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::mul(op)));
         
         // Detune1 (CC 24-27)
         ccToParameterMap[24 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt1"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt1(op)));
         
         // Detune2 (CC 28-31)
         ccToParameterMap[28 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_dt2"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::dt2(op)));
         
         // Key Scale (CC 39-42)
         ccToParameterMap[39 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_ks"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ks(op)));
         
         // Attack Rate (CC 43-46)
         ccToParameterMap[43 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_ar"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::ar(op)));
         
         // Decay1 Rate (CC 47-50)
         ccToParameterMap[47 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d1r"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1r(op)));
         
         // Sustain Rate (CC 51-54)
         ccToParameterMap[51 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d2r"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d2r(op)));
         
         // Release Rate (CC 55-58)
         ccToParameterMap[55 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_rr"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::rr(op)));
         
         // Sustain Level (CC 59-62)
         ccToParameterMap[59 + opIndex] = 
-            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(opId + "_d1l"));
+            dynamic_cast<juce::AudioParameterInt*>(parameters.getParameter(ParamID::Op::d1l(op)));
     }
+    
+    // Note: Channel pan parameters are handled separately in handleMidiCC() 
+    // since they are AudioParameterFloat, not AudioParameterInt
 }
 
 void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 {
+    // Assert valid CC number and value ranges
+    CS_ASSERT_PARAMETER_RANGE(ccNumber, 0, 127);
+    CS_ASSERT_PARAMETER_RANGE(value, 0, 127);
+    
+    // Handle channel pan CCs (32-39)
+    if (ccNumber >= ParamID::MIDI_CC::Ch0_Pan && ccNumber <= ParamID::MIDI_CC::Ch7_Pan)
+    {
+        int channel = ccNumber - ParamID::MIDI_CC::Ch0_Pan;
+        if (auto* param = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter(ParamID::Channel::pan(channel))))
+        {
+            // Normalize CC value (0-127) to parameter range (0.0-1.0)
+            float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
+            param->setValueNotifyingHost(normalizedValue);
+            
+            CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
+                " -> Channel " + juce::String(channel) + " Pan = " + juce::String(normalizedValue, 3));
+        }
+        return;
+    }
+    
     auto it = ccToParameterMap.find(ccNumber);
     if (it != ccToParameterMap.end() && it->second != nullptr)
     {
@@ -481,18 +534,21 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
         // Update parameter (thread-safe)
         it->second->setValueNotifyingHost(normalizedValue);
         
-        DBG("ChipSynth: MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
+        CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
             " -> " + it->second->name + " = " + juce::String(it->second->get()));
     }
 }
 
 void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
 {
+    // Assert valid pitch bend range (14-bit value)
+    CS_ASSERT_PARAMETER_RANGE(pitchBendValue, 0, 16383);
+    
     // Store the current pitch bend value (0-16383, center is 8192)
     currentPitchBend = pitchBendValue;
     
     // Get pitch bend range from parameter (1-12 semitones)
-    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue("pitch_bend_range"));
+    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::PitchBendRange));
     
     // Calculate pitch bend amount in semitones
     // MIDI pitch bend: 0-16383, center = 8192
@@ -512,13 +568,16 @@ void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
         }
     }
     
-    DBG("ChipSynth: Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
+    CS_DBG(" Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
         ", Range: " + juce::String(pitchBendRange) + " semitones" +
         ", Amount: " + juce::String(pitchBendSemitones, 3) + " semitones");
 }
 
 void ChipSynthAudioProcessor::setCurrentPreset(int index)
 {
+    // Assert valid preset index range
+    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
+    
     if (index >= 0 && index < presetManager.getNumPresets())
     {
         currentPreset = index;
@@ -526,10 +585,10 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
         
         if (ymfmWrapper.isInitialized()) {
             loadPreset(index);
-            DBG("ChipSynth: Loaded preset " + juce::String(index) + ": " + getProgramName(index));
+            CS_DBG(" Loaded preset " + juce::String(index) + ": " + getProgramName(index));
         } else {
             needsPresetReapply = true;
-            DBG("ChipSynth: Preset " + juce::String(index) + " will be applied when ymfm is initialized");
+            CS_DBG(" Preset " + juce::String(index) + " will be applied when ymfm is initialized");
         }
         
         // Update host display
@@ -539,6 +598,9 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
 
 void ChipSynthAudioProcessor::loadPreset(int index)
 {
+    // Assert valid preset index range
+    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
+    
     auto preset = presetManager.getPreset(index);
     if (preset != nullptr)
     {
@@ -550,7 +612,7 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
 {
     if (preset == nullptr) return;
     
-    DBG("ChipSynth: Loading preset '" + preset->name + "' - Algorithm: " + 
+    CS_DBG(" Loading preset '" + preset->name + "' - Algorithm: " + 
         juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
     
     // Temporarily remove all listeners to prevent any custom state triggering
@@ -561,10 +623,10 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
     
     // Set global parameters with UI notification
-    if (auto* algorithmParam = parameters.getParameter("algorithm")) {
+    if (auto* algorithmParam = parameters.getParameter(ParamID::Global::Algorithm)) {
         algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
     }
-    if (auto* feedbackParam = parameters.getParameter("feedback")) {
+    if (auto* feedbackParam = parameters.getParameter(ParamID::Global::Feedback)) {
         feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
     }
     
@@ -574,37 +636,37 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
         juce::String opId = "op" + juce::String(op + 1);
         const auto& opData = preset->operators[op];
         
-        if (auto* param = parameters.getParameter(opId + "_ar")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ar(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.attackRate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d1r")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d1r(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay1Rate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d2r")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d2r(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay2Rate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_rr")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::rr(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.releaseRate)));
         }
-        if (auto* param = parameters.getParameter(opId + "_d1l")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::d1l(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
         }
-        if (auto* param = parameters.getParameter(opId + "_tl")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::tl(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel)));
         }
-        if (auto* param = parameters.getParameter(opId + "_ks")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ks(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
         }
-        if (auto* param = parameters.getParameter(opId + "_mul")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::mul(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.multiple)));
         }
-        if (auto* param = parameters.getParameter(opId + "_dt1")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::dt1(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune1)));
         }
-        if (auto* param = parameters.getParameter(opId + "_dt2")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::dt2(op + 1))) {
             param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
         }
-        if (auto* param = parameters.getParameter(opId + "_ams_en")) {
+        if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
             param->setValueNotifyingHost(0.0f);
         }
     }
@@ -617,14 +679,14 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
     
     // Debug: print one operator's parameters for verification
-    DBG("ChipSynth: OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
+    CS_DBG(" OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
         ", AR: " + juce::String(preset->operators[0].attackRate) +
         ", MUL: " + juce::String(preset->operators[0].multiple));
     
     // Force parameter update to ymfm
     updateYmfmParameters();
     
-    DBG("ChipSynth: Preset loading complete");
+    CS_DBG(" Preset loading complete");
 }
 
 void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
@@ -633,7 +695,7 @@ void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float ne
     
     // Only switch to custom if not already in custom mode and gesture is in progress
     if (!isCustomPreset && userGestureInProgress) {
-        DBG("ChipSynth: Parameter changed by user gesture, switching to custom preset");
+        CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
         
         // Update host display on message thread
@@ -648,7 +710,7 @@ void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool g
     juce::ignoreUnused(parameterIndex);
     
     userGestureInProgress = gestureIsStarting;
-    DBG("ChipSynth: User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
+    CS_DBG(" User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
 }
 
 void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
@@ -658,30 +720,33 @@ void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhos
     
     // ValueTree changes no longer trigger custom state
     // Custom state is only triggered by user gestures via parameterValueChanged()
-    DBG("ChipSynth: ValueTree property changed: " + property.toString() + " (no custom state change)");
+    CS_DBG(" ValueTree property changed: " + property.toString() + " (no custom state change)");
 }
 
 void ChipSynthAudioProcessor::updateYmfmParameters()
 {
     // Check if ymfm is initialized
     if (!ymfmWrapper.isInitialized()) {
-        DBG("ChipSynth: updateYmfmParameters called before ymfm initialization");
+        CS_DBG(" updateYmfmParameters called before ymfm initialization");
         return;
     }
     
     // Get current parameter values
-    int algorithm = static_cast<int>(*parameters.getRawParameterValue("algorithm"));
-    int feedback = static_cast<int>(*parameters.getRawParameterValue("feedback"));
+    int algorithm = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Algorithm));
+    int feedback = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Feedback));
     
     static int updateCounter = 0;
     if (updateCounter++ % 100 == 0) {
-        DBG("ChipSynth: updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
+        CS_DBG(" updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
             ", Feedback: " + juce::String(feedback));
     }
     
     // Update parameters for all 8 channels to keep them in sync
     for (int channel = 0; channel < 8; ++channel)
     {
+        // Assert valid channel index
+        CS_ASSERT_CHANNEL(channel);
+        
         // Update global parameters for each channel
         ymfmWrapper.setAlgorithm(channel, algorithm);
         ymfmWrapper.setFeedback(channel, feedback);
@@ -689,21 +754,29 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
         // Update operator parameters
         for (int op = 0; op < 4; ++op)
         {
+            // Assert valid operator index
+            CS_ASSERT_OPERATOR(op);
+            
             juce::String opId = "op" + juce::String(op + 1);
             
-            int tl = static_cast<int>(*parameters.getRawParameterValue(opId + "_tl"));
-            int ar = static_cast<int>(*parameters.getRawParameterValue(opId + "_ar"));
-            int d1r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1r"));
-            int d2r = static_cast<int>(*parameters.getRawParameterValue(opId + "_d2r"));
-            int rr = static_cast<int>(*parameters.getRawParameterValue(opId + "_rr"));
-            int d1l = static_cast<int>(*parameters.getRawParameterValue(opId + "_d1l"));
-            int ks = static_cast<int>(*parameters.getRawParameterValue(opId + "_ks"));
-            int mul = static_cast<int>(*parameters.getRawParameterValue(opId + "_mul"));
-            int dt1 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt1"));
-            int dt2 = static_cast<int>(*parameters.getRawParameterValue(opId + "_dt2"));
+            int tl = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::tl(op + 1).c_str()));
+            int ar = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ar(op + 1).c_str()));
+            int d1r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1r(op + 1).c_str()));
+            int d2r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d2r(op + 1).c_str()));
+            int rr = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::rr(op + 1).c_str()));
+            int d1l = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1l(op + 1).c_str()));
+            int ks = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ks(op + 1).c_str()));
+            int mul = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::mul(op + 1).c_str()));
+            int dt1 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt1(op + 1).c_str()));
+            int dt2 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt2(op + 1).c_str()));
             
             ymfmWrapper.setOperatorParameters(channel, op, tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1, dt2);
         }
+        
+        // Update channel pan
+        float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
+        CS_ASSERT_PAN_RANGE(pan);
+        ymfmWrapper.setChannelPan(channel, pan);
     }
 }
 

@@ -1,5 +1,8 @@
 #include "MainComponent.h"
 #include "../PluginProcessor.h"
+#include "../utils/Debug.h"
+#include "../utils/ParameterIDs.h"
+#include <set>
 
 MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     : audioProcessor(processor)
@@ -161,10 +164,13 @@ void MainComponent::setupPresetSelector()
 void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
                                            const juce::Identifier& property)
 {
-    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
+    juce::ignoreUnused(treeWhosePropertyHasChanged);
+    
+    const auto propertyName = property.toString();
     
     // Special handling for preset index changes from DAW
-    if (property.toString() == "presetIndexChanged") {
+    if (propertyName == "presetIndexChanged") {
+        CS_DBG("MainComponent: Handling presetIndexChanged - updating combo box selection only");
         // Only update the combo box selection, not the entire list
         juce::MessageManager::callAsync([this]() {
             presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
@@ -172,7 +178,46 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
         return;
     }
     
-    // Update preset combo box when parameters change
+    // Define preset-relevant properties that should trigger UI updates
+    static const std::set<std::string> presetRelevantProperties = {
+        "presetIndex",
+        "isCustomMode",
+        // Add any other preset management related properties here
+        // Note: We deliberately exclude operator parameters, global synthesis params, and channel params
+    };
+    
+    // Filter out properties that don't affect preset display
+    if (presetRelevantProperties.find(propertyName.toStdString()) == presetRelevantProperties.end()) {
+        // Check if it's an operator parameter (op1_*, op2_*, op3_*, op4_*)
+        if (propertyName.startsWith("op") && propertyName.length() >= 3) {
+            char opChar = propertyName[2];
+            if (opChar >= '1' && opChar <= '4') {
+                CS_DBG("MainComponent: Filtered out operator parameter: " + propertyName);
+                return;
+            }
+        }
+        
+        // Check if it's a global synthesis parameter
+        if (propertyName == "algorithm" || propertyName == "feedback" || 
+            propertyName == "pitch_bend_range" || propertyName == "master_pan") {
+            CS_DBG("MainComponent: Filtered out global synthesis parameter: " + propertyName);
+            return;
+        }
+        
+        // Check if it's a channel parameter (ch*_*)
+        if (propertyName.startsWith("ch") && propertyName.contains("_")) {
+            CS_DBG("MainComponent: Filtered out channel parameter: " + propertyName);
+            return;
+        }
+        
+        // If we reach here, it's an unknown parameter - log it but don't update UI
+        CS_DBG("MainComponent: Filtered out unknown parameter: " + propertyName);
+        return;
+    }
+    
+    // This is a preset-relevant property change - update the preset combo box
+    CS_DBG("MainComponent: Preset-relevant property changed: " + propertyName + " - updating preset combo box");
+    
     // Use MessageManager to ensure UI updates happen on the main thread
     juce::MessageManager::callAsync([this]() {
         updatePresetComboBox();

@@ -1,4 +1,5 @@
 #include "VOPMParser.h"
+#include "Debug.h"
 
 namespace chipsynth {
 
@@ -6,14 +7,14 @@ std::vector<VOPMVoice> VOPMParser::parseFile(const juce::File& file)
 {
     if (!file.exists())
     {
-        DBG("VOPM file does not exist: " + file.getFullPathName());
+        CS_DBG("VOPM file does not exist: " + file.getFullPathName());
         return {};
     }
     
     juce::String content = file.loadFileAsString();
     if (content.isEmpty())
     {
-        DBG("VOPM file is empty: " + file.getFullPathName());
+        CS_DBG("VOPM file is empty: " + file.getFullPathName());
         return {};
     }
     
@@ -50,7 +51,7 @@ std::vector<VOPMVoice> VOPMParser::parseContent(const juce::String& content)
                 }
                 else
                 {
-                    DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
+                    CS_DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
                 }
             }
             
@@ -86,11 +87,11 @@ std::vector<VOPMVoice> VOPMParser::parseContent(const juce::String& content)
         }
         else
         {
-            DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
+            CS_DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
         }
     }
     
-    DBG("Parsed " + juce::String(voices.size()) + " voices from VOPM content");
+    CS_DBG("Parsed " + juce::String(voices.size()) + " voices from VOPM content");
     return voices;
 }
 

@@ -1,9 +1,27 @@
 #include "OperatorPanel.h"
 #include "../PluginProcessor.h"
 
+// Static control specifications - defines all operator controls
+const std::vector<ControlSpec> OperatorPanel::controlSpecs = {
+    // Left column (column 0)
+    {"_tl",  "TL",  0, 127, 0,   0, 0},  // Total Level
+    {"_ar",  "AR",  0, 31,  31,  0, 1},  // Attack Rate
+    {"_d1r", "D1R", 0, 31,  0,   0, 2},  // Decay 1 Rate  
+    {"_d2r", "D2R", 0, 31,  0,   0, 3},  // Decay 2 Rate
+    {"_rr",  "RR",  0, 15,  7,   0, 4},  // Release Rate
+    
+    // Right column (column 1)
+    {"_d1l", "D1L", 0, 15,  0,   1, 0},  // Sustain Level (Decay 1 Level)
+    {"_mul", "MUL", 0, 15,  1,   1, 1},  // Multiple
+    {"_dt1", "DT1", 0, 7,   3,   1, 2},  // Detune 1
+    {"_dt2", "DT2", 0, 3,   0,   1, 3},  // Detune 2
+    {"_ks",  "KS",  0, 3,   0,   1, 4}   // Key Scale
+};
+
 OperatorPanel::OperatorPanel(ChipSynthAudioProcessor& processor, int operatorNumber)
     : audioProcessor(processor), operatorNum(operatorNumber)
 {
+    CS_ASSERT_OPERATOR(operatorNumber - 1); // operatorNumber is 1-based, assert 0-3
     operatorId = "op" + juce::String(operatorNumber);
     setupControls();
 }
@@ -38,162 +56,65 @@ void OperatorPanel::resized()
     const int labelWidth = 50;
     const int spacing = 5;
     
-    // First column (left)
+    // Split into two columns
     auto leftColumn = bounds.removeFromLeft(bounds.getWidth() / 2 - spacing);
+    auto rightColumn = bounds;
     
-    // TL (Total Level)
-    auto tlArea = leftColumn.removeFromTop(rowHeight);
-    totalLevelLabel->setBounds(tlArea.removeFromLeft(labelWidth));
-    totalLevelSlider->setBounds(tlArea.reduced(2));
-    
-    // AR (Attack Rate)
-    auto arArea = leftColumn.removeFromTop(rowHeight);
-    attackRateLabel->setBounds(arArea.removeFromLeft(labelWidth));
-    attackRateSlider->setBounds(arArea.reduced(2));
-    
-    // D1R (Decay 1 Rate)
-    auto d1rArea = leftColumn.removeFromTop(rowHeight);
-    decay1RateLabel->setBounds(d1rArea.removeFromLeft(labelWidth));
-    decay1RateSlider->setBounds(d1rArea.reduced(2));
-    
-    // D2R (Decay 2 Rate)
-    auto d2rArea = leftColumn.removeFromTop(rowHeight);
-    decay2RateLabel->setBounds(d2rArea.removeFromLeft(labelWidth));
-    decay2RateSlider->setBounds(d2rArea.reduced(2));
-    
-    // RR (Release Rate)
-    auto rrArea = leftColumn.removeFromTop(rowHeight);
-    releaseRateLabel->setBounds(rrArea.removeFromLeft(labelWidth));
-    releaseRateSlider->setBounds(rrArea.reduced(2));
-    
-    // Second column (right)
-    auto rightColumn = bounds.removeFromLeft(bounds.getWidth());
-    
-    // D1L (Sustain Level)
-    auto d1lArea = rightColumn.removeFromTop(rowHeight);
-    sustainLevelLabel->setBounds(d1lArea.removeFromLeft(labelWidth));
-    sustainLevelSlider->setBounds(d1lArea.reduced(2));
-    
-    // MUL (Multiple)
-    auto mulArea = rightColumn.removeFromTop(rowHeight);
-    multipleLabel->setBounds(mulArea.removeFromLeft(labelWidth));
-    multipleSlider->setBounds(mulArea.reduced(2));
-    
-    // DT1 (Detune 1)
-    auto dt1Area = rightColumn.removeFromTop(rowHeight);
-    detune1Label->setBounds(dt1Area.removeFromLeft(labelWidth));
-    detune1Slider->setBounds(dt1Area.reduced(2));
-    
-    // DT2 (Detune 2)
-    auto dt2Area = rightColumn.removeFromTop(rowHeight);
-    detune2Label->setBounds(dt2Area.removeFromLeft(labelWidth));
-    detune2Slider->setBounds(dt2Area.reduced(2));
-    
-    // KS (Key Scale) - now available for all operators
-    auto ksArea = rightColumn.removeFromTop(rowHeight);
-    keyScaleLabel->setBounds(ksArea.removeFromLeft(labelWidth));
-    keyScaleSlider->setBounds(ksArea.reduced(2));
+    // Layout controls based on their column and row specifications
+    for (auto& control : controls) {
+        juce::Rectangle<int> columnArea = (control.spec.column == 0) ? leftColumn : rightColumn;
+        
+        // Calculate row position from the top of the column
+        auto controlArea = columnArea.withHeight(rowHeight).withY(columnArea.getY() + control.spec.row * rowHeight);
+        
+        // Layout label and slider
+        control.label->setBounds(controlArea.removeFromLeft(labelWidth));
+        control.slider->setBounds(controlArea.reduced(2));
+    }
 }
 
 void OperatorPanel::setupControls()
 {
-    // Total Level (TL) - inverted for UI (higher value = louder)
-    createSlider(operatorId + "_tl", "TL", 0, 127, operatorNum == 1 ? 80 : 127);
+    // Create controls from specifications
+    controls.reserve(controlSpecs.size());
     
-    // Attack Rate (AR)
-    createSlider(operatorId + "_ar", "AR", 0, 31, 31);
+    for (const auto& spec : controlSpecs) {
+        createControlFromSpec(spec);
+    }
     
-    // Decay 1 Rate (D1R)
-    createSlider(operatorId + "_d1r", "D1R", 0, 31, 0);
-    
-    // Decay 2 Rate (D2R)
-    createSlider(operatorId + "_d2r", "D2R", 0, 31, 0);
-    
-    // Release Rate (RR)
-    createSlider(operatorId + "_rr", "RR", 0, 15, 7);
-    
-    // Sustain Level (D1L)
-    createSlider(operatorId + "_d1l", "D1L", 0, 15, 0);
-    
-    // Multiple (MUL)
-    createSlider(operatorId + "_mul", "MUL", 0, 15, 1);
-    
-    // Detune 1 (DT1)
-    createSlider(operatorId + "_dt1", "DT1", 0, 7, 3);
-    
-    // Detune 2 (DT2)
-    createSlider(operatorId + "_dt2", "DT2", 0, 3, 0);
-    
-    // Key Scale (KS) for all operators
-    createSlider(operatorId + "_ks", "KS", 0, 3, 0);
+    CS_DBG("OperatorPanel: Created " + juce::String(controls.size()) + " controls for operator " + juce::String(operatorNum));
 }
 
-juce::Slider* OperatorPanel::createSlider(const juce::String& paramId, const juce::String& labelText,
-                                         int minVal, int maxVal, int defaultVal)
+void OperatorPanel::createControlFromSpec(const ControlSpec& spec)
 {
-    auto slider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
-    slider->setRange(minVal, maxVal, 1);
-    slider->setValue(defaultVal);
-    slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
-    addAndMakeVisible(*slider);
+    CS_ASSERT_PARAMETER_RANGE(spec.minValue, 0, 255);
+    CS_ASSERT_PARAMETER_RANGE(spec.maxValue, spec.minValue, 255);
+    CS_ASSERT_PARAMETER_RANGE(spec.defaultValue, spec.minValue, spec.maxValue);
     
-    auto label = std::make_unique<juce::Label>("", labelText);
-    label->setColour(juce::Label::textColourId, juce::Colours::white);
-    label->setJustificationType(juce::Justification::centredRight);
-    addAndMakeVisible(*label);
+    // Create the control pair
+    ControlPair controlPair;
+    controlPair.spec = spec;
+    
+    // Create slider
+    controlPair.slider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight);
+    controlPair.slider->setRange(spec.minValue, spec.maxValue, 1);
+    controlPair.slider->setValue(spec.defaultValue);
+    controlPair.slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
+    addAndMakeVisible(*controlPair.slider);
+    
+    // Create label
+    controlPair.label = std::make_unique<juce::Label>("", spec.labelText);
+    controlPair.label->setColour(juce::Label::textColourId, juce::Colours::white);
+    controlPair.label->setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(*controlPair.label);
     
     // Create parameter attachment
-    auto attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getParameters(), paramId, *slider);
-    attachments.push_back(std::move(attachment));
+    juce::String paramId = operatorId + spec.paramIdSuffix;
+    controlPair.attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getParameters(), paramId, *controlPair.slider);
     
-    // Store label and slider pointers using proper assignment
-    juce::Slider* sliderPtr = slider.get();
+    // Add to controls vector
+    controls.push_back(std::move(controlPair));
     
-    if (labelText == "TL") {
-        totalLevelLabel = std::move(label);
-        totalLevelSlider = std::move(slider);
-    }
-    else if (labelText == "AR") {
-        attackRateLabel = std::move(label);
-        attackRateSlider = std::move(slider);
-    }
-    else if (labelText == "D1R") {
-        decay1RateLabel = std::move(label);
-        decay1RateSlider = std::move(slider);
-    }
-    else if (labelText == "D2R") {
-        decay2RateLabel = std::move(label);
-        decay2RateSlider = std::move(slider);
-    }
-    else if (labelText == "RR") {
-        releaseRateLabel = std::move(label);
-        releaseRateSlider = std::move(slider);
-    }
-    else if (labelText == "D1L") {
-        sustainLevelLabel = std::move(label);
-        sustainLevelSlider = std::move(slider);
-    }
-    else if (labelText == "MUL") {
-        multipleLabel = std::move(label);
-        multipleSlider = std::move(slider);
-    }
-    else if (labelText == "DT1") {
-        detune1Label = std::move(label);
-        detune1Slider = std::move(slider);
-    }
-    else if (labelText == "DT2") {
-        detune2Label = std::move(label);
-        detune2Slider = std::move(slider);
-    }
-    else if (labelText == "KS") {
-        keyScaleLabel = std::move(label);
-        keyScaleSlider = std::move(slider);
-    }
-    else if (labelText == "FB") {
-        keyScaleLabel = std::move(label);  // Reuse KS UI for FB in operator 1
-        keyScaleSlider = std::move(slider);
-    }
-    
-    return sliderPtr;
+    CS_DBG("Created control: " + paramId + " (" + spec.labelText + ")");
 }
