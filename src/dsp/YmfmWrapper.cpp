@@ -972,7 +972,7 @@ void YmfmWrapper::testNoiseChannel()
     const uint8_t noiseChannel = 7;  // Channel 7 is the only channel where noise works
     
     // Set up channel 7 for noise output using algorithm 7 (all operators parallel)
-    // This ensures operator 4 (which becomes noise) contributes to the final output
+    // Note: Noise works with any algorithm, but algorithm 7 makes it easiest to hear
     uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
     writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, algFbLr);
     
@@ -1000,7 +1000,7 @@ void YmfmWrapper::testNoiseChannel()
     
     CS_DBG("Noise test setup complete:");
     CS_DBG("- Channel: " + juce::String((int)noiseChannel) + " (only channel where noise works)");
-    CS_DBG("- Algorithm: 7 (all operators parallel, noise from op4)");
+    CS_DBG("- Algorithm: 7 (chosen for clarity, but noise works with any algorithm)");
     CS_DBG("- Operators 1-3: Silent (TL=127)");
     CS_DBG("- Operator 4: Configured for noise output (TL=32)");
     CS_DBG("- Noise: Enabled with frequency " + juce::String((int)YM2151Regs::NOISE_FREQUENCY_DEFAULT));

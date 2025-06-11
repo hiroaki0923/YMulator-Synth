@@ -322,18 +322,27 @@ const RhythmPresetConfig rhythmPresets[] = {
 };
 ```
 
-#### 1.6.4 制約への対応
+#### 1.6.4 アルゴリズムとノイズの関係
 ```cpp
-// ノイズを使用する場合のチャンネル設定
-void setupNoiseChannel() {
+// YM2151ノイズはオペレータ4の正弦波出力をノイズに置き換える
+// アルゴリズムに関係なく、オペレータ4が最終出力に寄与する場合にノイズが聞こえる
+
+// オペレータ4が出力に寄与するアルゴリズム：
+// - アルゴリズム 0, 1, 2, 3, 4, 5, 6, 7 (全アルゴリズム)
+// オペレータ4が出力に寄与しないアルゴリズム：
+// - なし（YM2151では全アルゴリズムでオペレータ4が出力される）
+
+// ノイズを確実に聞かせるための設定例（テスト用）
+void setupNoiseChannelForTesting() {
     const uint8_t noiseChannel = 7;  // 必須：チャンネル7
     
-    // アルゴリズム7（全オペレータ並列）でオペレータ4がノイズとして出力される
+    // アルゴリズム7を使用（全オペレータ並列で最も分かりやすい）
+    // 注意：他のアルゴリズムでもノイズは動作する
     uint8_t algorithmValue = 0x07;
     writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
                   algorithmValue | YM2151Regs::PAN_CENTER);
     
-    // オペレータ1-3を無音に設定
+    // オペレータ1-3を無音に設定（ノイズを際立たせるため）
     for (int op = 0; op < 3; op++) {
         int baseAddr = op * 8 + noiseChannel;
         writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + baseAddr, 127); // 最大減衰
@@ -343,6 +352,18 @@ void setupNoiseChannel() {
     int op4BaseAddr = 3 * 8 + noiseChannel;
     writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + op4BaseAddr, 32); // 適度な音量
     // その他のオペレータ4パラメータ設定...
+}
+
+// 既存の音色にノイズを追加する場合の例
+void addNoiseToExistingVoice(uint8_t algorithm) {
+    const uint8_t noiseChannel = 7;  // 必須：チャンネル7
+    
+    // 既存のアルゴリズムをそのまま使用可能
+    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
+                  algorithm | YM2151Regs::PAN_CENTER);
+    
+    // オペレータ4の設定により、正弦波＋ノイズのミックスが可能
+    // オペレータ1-3は既存の音色設定を維持
 }
 ```
 
