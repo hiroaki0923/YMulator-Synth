@@ -66,6 +66,7 @@ void OperatorPanel::resized()
     // Position AMS enable button in title bar (right side)
     if (amsEnableButton != nullptr) {
         auto amsCheckboxArea = titleArea.removeFromRight(60).reduced(2);
+        amsCheckboxArea = amsCheckboxArea.withY(amsCheckboxArea.getY() - 4); // Move up by 4 pixels
         amsEnableButton->setBounds(amsCheckboxArea);
     }
     
@@ -211,10 +212,12 @@ void OperatorPanel::updateEnvelopeDisplay()
     if (!envelopeDisplay) return;
     
     // Find envelope-related controls and get their values
-    int ar = 31, d1r = 0, d1l = 0, d2r = 0, rr = 7; // Default values
+    int tl = 0, ar = 31, d1r = 0, d1l = 0, d2r = 0, rr = 7; // Default values
     
     for (const auto& control : controls) {
-        if (control.spec.paramIdSuffix == "_ar") {
+        if (control.spec.paramIdSuffix == "_tl") {
+            tl = static_cast<int>(control.knob->getValue());
+        } else if (control.spec.paramIdSuffix == "_ar") {
             ar = static_cast<int>(control.knob->getValue());
         } else if (control.spec.paramIdSuffix == "_d1r") {
             d1r = static_cast<int>(control.knob->getValue());
@@ -228,5 +231,5 @@ void OperatorPanel::updateEnvelopeDisplay()
     }
     
     // Update envelope display with YM2151 parameter values
-    envelopeDisplay->setYM2151Parameters(ar, d1r, d1l, d2r, rr);
+    envelopeDisplay->setYM2151Parameters(tl, ar, d1r, d1l, d2r, rr);
 }
