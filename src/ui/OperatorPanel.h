@@ -4,6 +4,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../utils/ParameterIDs.h"
 #include "../utils/Debug.h"
+#include "RotaryKnob.h"
+#include "EnvelopeDisplay.h"
 
 class ChipSynthAudioProcessor;
 
@@ -34,8 +36,8 @@ private:
     
     // Data-driven control storage
     struct ControlPair {
-        std::unique_ptr<juce::Slider> slider;
-        std::unique_ptr<juce::Label> label;
+        std::unique_ptr<RotaryKnob> knob;
+        std::unique_ptr<juce::Slider> hiddenSlider;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
         ControlSpec spec;
     };
@@ -50,11 +52,15 @@ private:
     std::unique_ptr<juce::ToggleButton> amsEnableButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> amsEnableAttachment;
     
+    // Envelope display
+    std::unique_ptr<EnvelopeDisplay> envelopeDisplay;
+    
     // Static control specifications
     static const std::vector<ControlSpec> controlSpecs;
     
     void setupControls();
     void createControlFromSpec(const ControlSpec& spec);
+    void updateEnvelopeDisplay();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OperatorPanel)
 };

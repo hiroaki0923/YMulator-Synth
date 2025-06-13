@@ -44,6 +44,9 @@ target_sources(ChipSynthAU
         dsp/EnvelopeGenerator.cpp
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
+        ui/RotaryKnob.cpp
+        ui/EnvelopeDisplay.cpp
+        ui/AlgorithmDisplay.cpp
         utils/PresetManager.cpp
         utils/VOPMParser.cpp
         # ymfm library sources

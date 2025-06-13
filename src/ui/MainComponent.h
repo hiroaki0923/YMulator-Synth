@@ -3,6 +3,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "OperatorPanel.h"
+#include "RotaryKnob.h"
+#include "AlgorithmDisplay.h"
 
 class ChipSynthAudioProcessor;
 
@@ -24,36 +26,46 @@ private:
     ChipSynthAudioProcessor& audioProcessor;
     
     // Global controls
-    std::unique_ptr<juce::Slider> algorithmSlider;
+    std::unique_ptr<juce::ComboBox> algorithmComboBox;
     std::unique_ptr<juce::Label> algorithmLabel;
-    std::unique_ptr<juce::Slider> feedbackSlider;
-    std::unique_ptr<juce::Label> feedbackLabel;
+    std::unique_ptr<RotaryKnob> feedbackKnob;
     
     // Preset selector
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
     
     // LFO controls
-    std::unique_ptr<juce::Slider> lfoRateSlider;
-    std::unique_ptr<juce::Label> lfoRateLabel;
-    std::unique_ptr<juce::Slider> lfoAmdSlider;
-    std::unique_ptr<juce::Label> lfoAmdLabel;
-    std::unique_ptr<juce::Slider> lfoPmdSlider;
-    std::unique_ptr<juce::Label> lfoPmdLabel;
+    std::unique_ptr<RotaryKnob> lfoRateKnob;
+    std::unique_ptr<RotaryKnob> lfoAmdKnob;
+    std::unique_ptr<RotaryKnob> lfoPmdKnob;
     std::unique_ptr<juce::ComboBox> lfoWaveformComboBox;
     std::unique_ptr<juce::Label> lfoWaveformLabel;
+    std::unique_ptr<juce::Label> lfoSectionLabel;
+    std::unique_ptr<juce::Label> lfoRateLabel;
+    std::unique_ptr<juce::Label> lfoAmdLabel;
+    std::unique_ptr<juce::Label> lfoPmdLabel;
     
     // Noise controls
     std::unique_ptr<juce::ToggleButton> noiseEnableButton;
     std::unique_ptr<juce::Label> noiseEnableLabel;
-    std::unique_ptr<juce::Slider> noiseFrequencySlider;
-    std::unique_ptr<juce::Label> noiseFrequencyLabel;
+    std::unique_ptr<RotaryKnob> noiseFrequencyKnob;
+    std::unique_ptr<juce::Label> noiseSectionLabel;
+    std::unique_ptr<juce::Label> noiseFreqLabel;
     
     // Operator panels
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;
     
+    // Display components
+    std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
+    
     // Parameter attachments
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> algorithmAttachment;
+    std::unique_ptr<juce::Slider> feedbackHiddenSlider;
+    std::unique_ptr<juce::Slider> lfoRateHiddenSlider;
+    std::unique_ptr<juce::Slider> lfoAmdHiddenSlider;
+    std::unique_ptr<juce::Slider> lfoPmdHiddenSlider;
+    std::unique_ptr<juce::Slider> noiseFrequencyHiddenSlider;
+    
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoRateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
@@ -66,7 +78,9 @@ private:
     void setupLfoControls();
     void setupOperatorPanels();
     void setupPresetSelector();
+    void setupDisplayComponents();
     void updatePresetComboBox();
+    void updateAlgorithmDisplay();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
