@@ -40,11 +40,17 @@ private:
     std::unique_ptr<RotaryKnob> lfoPmdKnob;
     std::unique_ptr<juce::ComboBox> lfoWaveformComboBox;
     std::unique_ptr<juce::Label> lfoWaveformLabel;
+    std::unique_ptr<juce::Label> lfoSectionLabel;
+    std::unique_ptr<juce::Label> lfoRateLabel;
+    std::unique_ptr<juce::Label> lfoAmdLabel;
+    std::unique_ptr<juce::Label> lfoPmdLabel;
     
     // Noise controls
     std::unique_ptr<juce::ToggleButton> noiseEnableButton;
     std::unique_ptr<juce::Label> noiseEnableLabel;
     std::unique_ptr<RotaryKnob> noiseFrequencyKnob;
+    std::unique_ptr<juce::Label> noiseSectionLabel;
+    std::unique_ptr<juce::Label> noiseFreqLabel;
     
     // Operator panels
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;

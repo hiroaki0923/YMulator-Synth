@@ -44,10 +44,9 @@ void MainComponent::paint(juce::Graphics& g)
     
     // Section dividers
     g.setColour(juce::Colour(0xff4a5568));
-    g.drawHorizontalLine(40, 0.0f, static_cast<float>(getWidth()));
-    g.drawHorizontalLine(100, 0.0f, static_cast<float>(getWidth()));  // Adjusted for reduced top area
-    g.drawHorizontalLine(160, 0.0f, static_cast<float>(getWidth()));  // LFO section divider (adjusted)
-    g.drawVerticalLine(getWidth() / 2, 170.0f, static_cast<float>(getHeight()));  // Vertical divider (adjusted)
+    g.drawHorizontalLine(40, 0.0f, static_cast<float>(getWidth()));   // After title
+    g.drawHorizontalLine(100, 0.0f, static_cast<float>(getWidth()));  // After global controls
+    g.drawHorizontalLine(175, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section (adjusted)
 }
 
 void MainComponent::resized()
@@ -68,11 +67,13 @@ void MainComponent::resized()
     // Right side: Preset selector
     auto presetArea = topArea.removeFromRight(350).reduced(10);
     
-    // Algorithm ComboBox (label on left, combo on right)
+    // Algorithm ComboBox (label on left, combo on right) - standardized height
     if (algorithmComboBox && algorithmLabel) {
         auto algLabelArea = algorithmArea.removeFromLeft(30);
         algorithmLabel->setBounds(algLabelArea);
-        algorithmComboBox->setBounds(algorithmArea);
+        // Center combo box vertically with standardized height
+        auto centeredComboArea = algorithmArea.withHeight(30).withCentre(algorithmArea.getCentre());
+        algorithmComboBox->setBounds(centeredComboArea);
     }
     
     // Feedback Knob
@@ -86,50 +87,81 @@ void MainComponent::resized()
     //     algorithmDisplay->setBounds(algorithmDisplayArea);
     // }
     
-    // Preset selector
+    // Preset selector - standardized height
     auto presetLabelArea = presetArea.removeFromLeft(60);
     presetLabel->setBounds(presetLabelArea);
-    presetComboBox->setBounds(presetArea);
+    // Center combo box vertically with standardized height
+    auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre());
+    presetComboBox->setBounds(centeredPresetArea);
     
     // LFO and Noise controls area
-    auto lfoArea = bounds.removeFromTop(60);
+    auto lfoArea = bounds.removeFromTop(75);
     
-    // LFO controls - 3 knobs + waveform selector
-    auto lfoRateArea = lfoArea.removeFromLeft(100);
+    // Calculate proper Y offset based on current bounds position
+    int baseY = lfoArea.getY();
+    
+    // Define control positions manually for better alignment
+    int startX = 50;  // Start after LFO label
+    int knobY = baseY + 5;    // Top position for knobs (relative to current area)
+    int labelY = baseY + 52;  // Closer to knobs to match operator spacing
+    int knobSize = 45; // Slightly smaller to match operator knobs exactly
+    int spacing = 80;  // Spacing between controls
+    
+    // LFO section label
+    if (lfoSectionLabel) {
+        lfoSectionLabel->setBounds(5, baseY + 15, 40, 50);
+    }
+    
+    // LFO Rate knob and label - positioned separately
     if (lfoRateKnob) {
-        lfoRateKnob->setBounds(lfoRateArea);
+        lfoRateKnob->setBounds(startX, knobY, knobSize, knobSize);
+    }
+    if (lfoRateLabel) {
+        lfoRateLabel->setBounds(startX, labelY, knobSize, 16);
     }
     
-    auto lfoAmdArea = lfoArea.removeFromLeft(100);
+    // LFO AMD knob and label - positioned separately
     if (lfoAmdKnob) {
-        lfoAmdKnob->setBounds(lfoAmdArea);
+        lfoAmdKnob->setBounds(startX + spacing, knobY, knobSize, knobSize);
+    }
+    if (lfoAmdLabel) {
+        lfoAmdLabel->setBounds(startX + spacing, labelY, knobSize, 16);
     }
     
-    auto lfoPmdArea = lfoArea.removeFromLeft(100);
+    // LFO PMD knob and label - positioned separately
     if (lfoPmdKnob) {
-        lfoPmdKnob->setBounds(lfoPmdArea);
+        lfoPmdKnob->setBounds(startX + spacing * 2, knobY, knobSize, knobSize);
+    }
+    if (lfoPmdLabel) {
+        lfoPmdLabel->setBounds(startX + spacing * 2, labelY, knobSize, 16);
     }
     
-    // LFO Waveform
-    auto lfoWaveformArea = lfoArea.removeFromLeft(170);
-    auto waveformLabelArea = lfoWaveformArea.removeFromLeft(45);
-    auto comboArea = lfoWaveformArea.reduced(5);
-    lfoWaveformLabel->setBounds(waveformLabelArea);
-    lfoWaveformComboBox->setBounds(comboArea);
+    // LFO Waveform dropdown and label - positioned separately
+    int waveX = startX + spacing * 3;
+    lfoWaveformComboBox->setBounds(waveX, knobY + 15, 100, 25); // Center vertically with knobs
+    lfoWaveformLabel->setBounds(waveX, labelY, 100, 16);
     
-    // Noise controls
-    auto noiseArea = lfoArea.removeFromLeft(200);
+    // Noise section - with gap
+    int noiseStartX = waveX + 150; // Gap between LFO and Noise
     
-    // Noise Enable
-    auto noiseEnableArea = noiseArea.removeFromLeft(110);
-    auto noiseEnableLabelArea = noiseEnableArea.removeFromLeft(40);
-    noiseEnableLabel->setBounds(noiseEnableLabelArea);
-    noiseEnableButton->setBounds(noiseEnableArea.reduced(2));
+    // Noise section label
+    if (noiseSectionLabel) {
+        noiseSectionLabel->setBounds(noiseStartX, baseY + 15, 50, 50);
+    }
     
-    // Noise Frequency
-    auto noiseFreqArea = noiseArea;
+    // Noise Enable checkbox and label - positioned separately
+    int noiseControlX = noiseStartX + 60;
+    noiseEnableButton->setBounds(noiseControlX + 10, knobY + 15, 30, 20); // Wider area to prevent cutoff
+    if (noiseEnableLabel) {
+        noiseEnableLabel->setBounds(noiseControlX, labelY, 50, 16);
+    }
+    
+    // Noise Frequency knob and label - positioned separately
     if (noiseFrequencyKnob) {
-        noiseFrequencyKnob->setBounds(noiseFreqArea);
+        noiseFrequencyKnob->setBounds(noiseControlX + spacing, knobY, knobSize, knobSize);
+    }
+    if (noiseFreqLabel) {
+        noiseFreqLabel->setBounds(noiseControlX + spacing, labelY, knobSize, 16);
     }
     
     // Operator panels area - use all remaining space
@@ -221,12 +253,26 @@ void MainComponent::setupGlobalControls()
 
 void MainComponent::setupLfoControls()
 {
-    // LFO Rate knob
-    lfoRateKnob = std::make_unique<RotaryKnob>("LFO Rate");
+    // LFO section label
+    lfoSectionLabel = std::make_unique<juce::Label>("", "LFO");
+    lfoSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
+    lfoSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    addAndMakeVisible(*lfoSectionLabel);
+    
+    // LFO Rate knob (without label - will be added separately)
+    lfoRateKnob = std::make_unique<RotaryKnob>("");
     lfoRateKnob->setRange(0, 255, 1);
     lfoRateKnob->setValue(0);
     lfoRateKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoRateKnob);
+    
+    // LFO Rate label (below knob)
+    lfoRateLabel = std::make_unique<juce::Label>("", "Rate");
+    lfoRateLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoRateLabel->setJustificationType(juce::Justification::centred);
+    lfoRateLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*lfoRateLabel);
     
     // Create hidden slider for LFO Rate parameter
     lfoRateHiddenSlider = std::make_unique<juce::Slider>();
@@ -264,12 +310,19 @@ void MainComponent::setupLfoControls()
     lfoRateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getParameters(), ParamID::Global::LfoRate, *lfoRateHiddenSlider);
     
-    // LFO AMD knob
-    lfoAmdKnob = std::make_unique<RotaryKnob>("LFO AMD");
+    // LFO AMD knob (without label - will be added separately)
+    lfoAmdKnob = std::make_unique<RotaryKnob>("");
     lfoAmdKnob->setRange(0, 127, 1);
     lfoAmdKnob->setValue(0);
     lfoAmdKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoAmdKnob);
+    
+    // LFO AMD label (below knob)
+    lfoAmdLabel = std::make_unique<juce::Label>("", "AMD");
+    lfoAmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoAmdLabel->setJustificationType(juce::Justification::centred);
+    lfoAmdLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*lfoAmdLabel);
     
     // Create hidden slider for LFO AMD parameter
     lfoAmdHiddenSlider = std::make_unique<juce::Slider>();
@@ -307,12 +360,19 @@ void MainComponent::setupLfoControls()
     lfoAmdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getParameters(), ParamID::Global::LfoAmd, *lfoAmdHiddenSlider);
     
-    // LFO PMD knob
-    lfoPmdKnob = std::make_unique<RotaryKnob>("LFO PMD");
+    // LFO PMD knob (without label - will be added separately)
+    lfoPmdKnob = std::make_unique<RotaryKnob>("");
     lfoPmdKnob->setRange(0, 127, 1);
     lfoPmdKnob->setValue(0);
     lfoPmdKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoPmdKnob);
+    
+    // LFO PMD label (below knob)
+    lfoPmdLabel = std::make_unique<juce::Label>("", "PMD");
+    lfoPmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    lfoPmdLabel->setJustificationType(juce::Justification::centred);
+    lfoPmdLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*lfoPmdLabel);
     
     // Create hidden slider for LFO PMD parameter
     lfoPmdHiddenSlider = std::make_unique<juce::Slider>();
@@ -359,35 +419,50 @@ void MainComponent::setupLfoControls()
     lfoWaveformComboBox->setSelectedId(1);
     addAndMakeVisible(*lfoWaveformComboBox);
     
-    lfoWaveformLabel = std::make_unique<juce::Label>("", "LFO\nWave");
+    lfoWaveformLabel = std::make_unique<juce::Label>("", "Wave");
     lfoWaveformLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    lfoWaveformLabel->setJustificationType(juce::Justification::centredRight);
+    lfoWaveformLabel->setJustificationType(juce::Justification::centred);
     lfoWaveformLabel->setFont(juce::Font(12.0f));
     addAndMakeVisible(*lfoWaveformLabel);
     
     lfoWaveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getParameters(), ParamID::Global::LfoWaveform, *lfoWaveformComboBox);
     
-    // Noise Enable toggle button
+    // Noise section label
+    noiseSectionLabel = std::make_unique<juce::Label>("", "Noise");
+    noiseSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    noiseSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
+    noiseSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    addAndMakeVisible(*noiseSectionLabel);
+    
+    // Noise Enable toggle button (without text - will be labeled separately)
     noiseEnableButton = std::make_unique<juce::ToggleButton>();
-    noiseEnableButton->setButtonText("Enable");
+    noiseEnableButton->setButtonText("");
     noiseEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
     addAndMakeVisible(*noiseEnableButton);
     
-    noiseEnableLabel = std::make_unique<juce::Label>("", "Noise");
+    // Noise Enable label (below button)
+    noiseEnableLabel = std::make_unique<juce::Label>("", "Enable");
     noiseEnableLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    noiseEnableLabel->setJustificationType(juce::Justification::centredRight);
+    noiseEnableLabel->setJustificationType(juce::Justification::centred);
     noiseEnableLabel->setFont(juce::Font(12.0f));
     addAndMakeVisible(*noiseEnableLabel);
     
     noiseEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.getParameters(), ParamID::Global::NoiseEnable, *noiseEnableButton);
     
-    // Noise Frequency knob
-    noiseFrequencyKnob = std::make_unique<RotaryKnob>("Noise Freq");
+    // Noise Frequency knob (without label - will be added separately)
+    noiseFrequencyKnob = std::make_unique<RotaryKnob>("");
     noiseFrequencyKnob->setRange(0, 31, 1);
     noiseFrequencyKnob->setValue(16);
     addAndMakeVisible(*noiseFrequencyKnob);
+    
+    // Noise Frequency label (below knob)
+    noiseFreqLabel = std::make_unique<juce::Label>("", "Freq");
+    noiseFreqLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    noiseFreqLabel->setJustificationType(juce::Justification::centred);
+    noiseFreqLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*noiseFreqLabel);
     
     // Create hidden slider for Noise Frequency parameter
     noiseFrequencyHiddenSlider = std::make_unique<juce::Slider>();
