@@ -89,14 +89,14 @@ void MainComponent::resized()
     
     // Define control positions manually for better alignment
     int startX = 50;  // Start after LFO label
-    int knobY = baseY + 5;    // Top position for knobs (relative to current area)
-    int labelY = baseY + 52;  // Closer to knobs to match operator spacing
+    int knobY = baseY + 7;    // Top position for knobs (2px lower)
+    int labelY = baseY + 54;  // Label position (2px lower)
     int knobSize = 45; // Slightly smaller to match operator knobs exactly
     int spacing = 80;  // Spacing between controls
     
     // LFO section label
     if (lfoSectionLabel) {
-        lfoSectionLabel->setBounds(5, baseY + 15, 40, 50);
+        lfoSectionLabel->setBounds(5, baseY + 15, 40, 50); // Keep original position
     }
     
     // LFO Rate knob and label - positioned separately
@@ -133,7 +133,7 @@ void MainComponent::resized()
     
     // Noise section label
     if (noiseSectionLabel) {
-        noiseSectionLabel->setBounds(noiseStartX, baseY + 15, 50, 50);
+        noiseSectionLabel->setBounds(noiseStartX, baseY + 15, 50, 50); // Keep original position
     }
     
     // Noise Enable checkbox and label - positioned separately

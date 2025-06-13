@@ -59,14 +59,14 @@ void OperatorPanel::resized()
     // Position SLOT checkbox in title bar (left side)
     if (slotEnableButton != nullptr) {
         auto checkboxArea = titleArea.removeFromLeft(25).reduced(2);
-        checkboxArea = checkboxArea.withY(checkboxArea.getY() - 2); // Move up by 2 pixels
+        checkboxArea = checkboxArea.withY(checkboxArea.getY() - 5); // Move up by 5 pixels
         slotEnableButton->setBounds(checkboxArea);
     }
     
     // Position AMS enable button in title bar (right side)
     if (amsEnableButton != nullptr) {
         auto amsCheckboxArea = titleArea.removeFromRight(60).reduced(2);
-        amsCheckboxArea = amsCheckboxArea.withY(amsCheckboxArea.getY() - 4); // Move up by 4 pixels
+        amsCheckboxArea = amsCheckboxArea.withY(amsCheckboxArea.getY() - 5); // Move up by 5 pixels (1px more)
         amsEnableButton->setBounds(amsCheckboxArea);
     }
     
