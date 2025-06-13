@@ -173,6 +173,7 @@ void MainComponent::setupGlobalControls()
     feedbackKnob = std::make_unique<RotaryKnob>("FB");
     feedbackKnob->setRange(0, 7, 1);
     feedbackKnob->setValue(0);
+    feedbackKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     feedbackKnob->onValueChange = [this](double /*value*/) {
         updateAlgorithmDisplay();
     };
@@ -224,6 +225,7 @@ void MainComponent::setupLfoControls()
     lfoRateKnob = std::make_unique<RotaryKnob>("LFO Rate");
     lfoRateKnob->setRange(0, 255, 1);
     lfoRateKnob->setValue(0);
+    lfoRateKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoRateKnob);
     
     // Create hidden slider for LFO Rate parameter
@@ -266,6 +268,7 @@ void MainComponent::setupLfoControls()
     lfoAmdKnob = std::make_unique<RotaryKnob>("LFO AMD");
     lfoAmdKnob->setRange(0, 127, 1);
     lfoAmdKnob->setValue(0);
+    lfoAmdKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoAmdKnob);
     
     // Create hidden slider for LFO AMD parameter
@@ -308,6 +311,7 @@ void MainComponent::setupLfoControls()
     lfoPmdKnob = std::make_unique<RotaryKnob>("LFO PMD");
     lfoPmdKnob->setRange(0, 127, 1);
     lfoPmdKnob->setValue(0);
+    lfoPmdKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
     addAndMakeVisible(*lfoPmdKnob);
     
     // Create hidden slider for LFO PMD parameter

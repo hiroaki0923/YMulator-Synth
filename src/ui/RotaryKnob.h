@@ -20,6 +20,7 @@ public:
     double getValue() const;
     void setRange(double minValue, double maxValue, double stepSize = 1.0);
     void setLabel(const juce::String& labelText);
+    void setAccentColour(const juce::Colour& colour);
     
     std::function<void(double)> onValueChange;
     std::function<void()> onGestureStart;
@@ -31,6 +32,7 @@ private:
     double maxValue = 1.0;
     double stepSize = 1.0;
     juce::String label;
+    juce::Colour accentColour{0xff4ade80}; // Default green
     
     juce::Point<int> lastMousePos;
     bool isDragging = false;

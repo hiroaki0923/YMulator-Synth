@@ -55,7 +55,7 @@ void RotaryKnob::paint(juce::Graphics& g)
     
     // Draw value arc
     if (normalizedVal > 0.0) {
-        g.setColour(juce::Colour(0xff4ade80)); // Green
+        g.setColour(accentColour); // Use configurable accent colour
         juce::Path arc;
         arc.addCentredArc(center.x, center.y, radius, radius, 0.0f,
                          static_cast<float>(startAngle),
@@ -215,6 +215,12 @@ void RotaryKnob::setRange(double newMinValue, double newMaxValue, double newStep
 void RotaryKnob::setLabel(const juce::String& labelText)
 {
     label = labelText;
+    repaint();
+}
+
+void RotaryKnob::setAccentColour(const juce::Colour& colour)
+{
+    accentColour = colour;
     repaint();
 }
 

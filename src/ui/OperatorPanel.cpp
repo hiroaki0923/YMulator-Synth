@@ -127,6 +127,8 @@ void OperatorPanel::setupControls()
     // Create AMS enable button
     amsEnableButton = std::make_unique<juce::ToggleButton>("AMS");
     amsEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    amsEnableButton->setColour(juce::ToggleButton::tickColourId, juce::Colour(0xff00bfff)); // Fluorescent blue when enabled
+    amsEnableButton->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colour(0xff6b7280)); // Gray when disabled
     addAndMakeVisible(*amsEnableButton);
     
     // Attach to parameter
@@ -157,6 +159,14 @@ void OperatorPanel::createControlFromSpec(const ControlSpec& spec)
     controlPair.knob = std::make_unique<RotaryKnob>(spec.labelText);
     controlPair.knob->setRange(spec.minValue, spec.maxValue, 1.0);
     controlPair.knob->setValue(spec.defaultValue);
+    
+    // Set accent colour based on parameter type
+    // ADSR parameters: green (default)
+    // Other parameters (MUL, DT1, DT2, KS): fluorescent blue
+    if (spec.paramIdSuffix == "_mul" || spec.paramIdSuffix == "_dt1" || 
+        spec.paramIdSuffix == "_dt2" || spec.paramIdSuffix == "_ks") {
+        controlPair.knob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
+    }
     
     addAndMakeVisible(*controlPair.knob);
     
