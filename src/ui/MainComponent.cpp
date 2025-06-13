@@ -19,7 +19,7 @@ MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
     // Ensure preset list is up to date when UI is opened
     updatePresetComboBox();
     
-    setSize(1000, 650);  // Increased width for larger knobs
+    setSize(1000, 610);  // Reduced height after removing header/footer
 }
 
 MainComponent::~MainComponent()
@@ -33,28 +33,15 @@ void MainComponent::paint(juce::Graphics& g)
     // Dark blue-gray background similar to VOPM
     g.fillAll(juce::Colour(0xff2d3748));
     
-    // Title area
-    juce::Rectangle<int> titleArea = getLocalBounds().removeFromTop(40);
-    g.setColour(juce::Colour(0xff1a202c));
-    g.fillRect(titleArea);
-    
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(18.0f, juce::Font::bold));
-    g.drawText("ChipSynth AU - YM2151 FM Synthesizer", titleArea, juce::Justification::centred);
-    
-    // Section dividers
+    // Section dividers (no title area)
     g.setColour(juce::Colour(0xff4a5568));
-    g.drawHorizontalLine(40, 0.0f, static_cast<float>(getWidth()));   // After title
-    g.drawHorizontalLine(100, 0.0f, static_cast<float>(getWidth()));  // After global controls
-    g.drawHorizontalLine(175, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section (adjusted)
+    g.drawHorizontalLine(60, 0.0f, static_cast<float>(getWidth()));  // After global controls
+    g.drawHorizontalLine(135, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section
 }
 
 void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
-    
-    // Title area
-    bounds.removeFromTop(40);
     
     // Top area for global controls (reduced height)
     auto topArea = bounds.removeFromTop(60);
