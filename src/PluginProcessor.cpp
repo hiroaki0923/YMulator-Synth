@@ -95,6 +95,10 @@ void ChipSynthAudioProcessor::setCurrentProgram(int index)
     
     // Reset custom state and load factory preset
     isCustomPreset = false;
+    
+    // Notify UI components of custom mode change
+    parameters.state.setProperty("isCustomMode", false, nullptr);
+    
     CS_DBG(" Reset isCustomPreset to false, calling setCurrentPreset");
     setCurrentPreset(index);
     
@@ -808,6 +812,9 @@ void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float ne
     if (!isCustomPreset && userGestureInProgress) {
         CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
+        
+        // Notify UI components of custom mode change
+        parameters.state.setProperty("isCustomMode", true, nullptr);
         
         // Update host display on message thread
         juce::MessageManager::callAsync([this]() {
