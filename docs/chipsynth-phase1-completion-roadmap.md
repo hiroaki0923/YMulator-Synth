@@ -1,4 +1,4 @@
-# ChipSynth-AU Phase 1 完了報告書
+# YMulator-Synth Phase 1 完了報告書
 
 このドキュメントは、Phase 1（基盤構築）の完了状況と実装成果を報告します。
 
@@ -49,7 +49,7 @@ Phase 1は予定を上回る成果で**100%完了**しました。さらに、�
 #### 実装内容
 ```cpp
 // 完成版実装
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     juce::AudioProcessorValueTreeState parameters;
@@ -253,4 +253,4 @@ auval -v aumu ChpS Vend > /dev/null 2>&1 && echo "auval PASSED"
 
 ### 🏆 **結論**
 
-**Phase 1は100%完了**し、さらに当初Phase 2予定の機能も大幅に前倒し実装されました。ChipSynth-AUは既に本格的なYM2151エミュレーションプラグインとして完成しており、実用レベルでの使用が可能です。
+**Phase 1は100%完了**し、さらに当初Phase 2予定の機能も大幅に前倒し実装されました。YMulator-Synthは既に本格的なYM2151エミュレーションプラグインとして完成しており、実用レベルでの使用が可能です。

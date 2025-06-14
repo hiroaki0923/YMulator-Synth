@@ -1,6 +1,6 @@
-# ChipSynth-AU 開発ステータス
+# YMulator-Synth 開発ステータス
 
-このドキュメントは、[設計仕様書の実装計画](chipsynth-design-main.md#3-実装計画)に基づく開発進捗状況を追跡します。
+このドキュメントは、[設計仕様書の実装計画](ymulatorsynth-design-main.md#3-実装計画)に基づく開発進捗状況を追跡します。
 
 ## 全体進捗
 

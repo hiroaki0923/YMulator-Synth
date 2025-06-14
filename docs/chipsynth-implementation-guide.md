@@ -1,4 +1,4 @@
-# ChipSynth AU 実装ガイド
+# YMulator Synth 実装ガイド
 
 ## 1. 実装ガイド
 
@@ -201,7 +201,7 @@ private:
 
 #### 1.2.2 JUCEプラグインへの統合
 ```cpp
-class ChipSynthAudioProcessor : public juce::AudioProcessor {
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor {
 private:
     BasicOPMSynth opmSynth;
     juce::MidiKeyboardState keyboardState;
@@ -403,7 +403,7 @@ void updateYmfmParameters() {
 
 #### 1.3.1 基本的なymfm使用方法
 
-**重要**: ymfmライブラリの実際の使用方法については、`docs/chipsynth-ymfm-integration-guide.md` を参照してください。以下は概要のみです。
+**重要**: ymfmライブラリの実際の使用方法については、`docs/ymulatorsynth-ymfm-integration-guide.md` を参照してください。以下は概要のみです。
 
 ```cpp
 // 1. レジスタ書き込み（2段階）
@@ -429,7 +429,7 @@ ymfm OPMサンプルコードの分析から得られた重要なパターン：
 4. **デチューン効果** - DT1=1-2で微細なコーラス効果
 5. **ステレオパンニング** - レジスタ0x20のbit6-7で制御
 
-詳細な実装例とプログラミングパターンは `docs/chipsynth-ymfm-integration-guide.md` を参照。
+詳細な実装例とプログラミングパターンは `docs/ymulatorsynth-ymfm-integration-guide.md` を参照。
 
 ### 1.4 トラブルシューティング
 
@@ -472,7 +472,7 @@ ymfm OPMサンプルコードの分析から得られた重要なパターン：
 
 #### 1.5.2 プロジェクト構造
 ```
-ChipSynth-AU/
+YMulator-Synth/
 ├── CMakeLists.txt          # ルートCMake設定
 ├── CLAUDE.md               # Claude Code開発ガイド
 ├── .gitignore             # Git除外設定
@@ -505,10 +505,10 @@ ChipSynth-AU/
 │   ├── CMakeLists.txt
 │   └── test_main.cpp
 ├── docs/                  # ドキュメント
-│   ├── chipsynth-adr.md
-│   ├── chipsynth-design-main.md
-│   ├── chipsynth-implementation-guide.md
-│   └── chipsynth-technical-spec.md
+│   ├── ymulatorsynth-adr.md
+│   ├── ymulatorsynth-design-main.md
+│   ├── ymulatorsynth-implementation-guide.md
+│   └── ymulatorsynth-technical-spec.md
 ├── include/               # ヘッダーファイル（予約）
 ├── resources/             # リソースファイル（予約）
 └── build/                 # ビルド出力（.gitignoreで除外）
@@ -526,7 +526,7 @@ ChipSynth-AU/
 #### 1.5.3 CMakeLists.txt
 ```cmake
 cmake_minimum_required(VERSION 3.22)
-project(ChipSynthAU VERSION 1.0.0)
+project(YMulatorSynth VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -544,7 +544,7 @@ add_library(ymfm STATIC
 target_include_directories(ymfm PUBLIC external/ymfm/src)
 
 # Audio Unitプラグイン定義
-juce_add_plugin(ChipSynthAU
+juce_add_plugin(YMulatorSynth
     COMPANY_NAME "hiroaki0923"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -553,11 +553,11 @@ juce_add_plugin(ChipSynthAU
     PLUGIN_MANUFACTURER_CODE Hiro
     PLUGIN_CODE Chip
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME "ChipSynth AU"
+    PRODUCT_NAME "YMulator Synth"
 )
 
 # ソースファイルの追加
-target_sources(ChipSynthAU PRIVATE
+target_sources(YMulatorSynth PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
     src/ymfm/YmfmWrapper.cpp
@@ -565,7 +565,7 @@ target_sources(ChipSynthAU PRIVATE
 )
 
 # 依存関係の設定
-target_link_libraries(ChipSynthAU
+target_link_libraries(YMulatorSynth
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
@@ -619,7 +619,7 @@ endif()
             "name": "Debug Standalone",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ChipSynthAU_artefacts/Debug/Standalone/ChipSynth AU.app/Contents/MacOS/ChipSynth AU",
+            "program": "${workspaceFolder}/build/YMulatorSynth_artefacts/Debug/Standalone/YMulator Synth.app/Contents/MacOS/YMulator Synth",
             "args": [],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build Standalone"
@@ -644,9 +644,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # JUCEテストランナー
-juce_add_console_app(ChipSynthTests)
+juce_add_console_app(YMulatorSynthTests)
 
-target_sources(ChipSynthTests PRIVATE
+target_sources(YMulatorSynthTests PRIVATE
     unit/YmfmWrapperTest.cpp
     unit/VoiceAllocatorTest.cpp
     unit/ParameterConversionTest.cpp
@@ -655,9 +655,9 @@ target_sources(ChipSynthTests PRIVATE
     performance/LatencyTest.cpp
 )
 
-target_link_libraries(ChipSynthTests
+target_link_libraries(YMulatorSynthTests
     PRIVATE
-        ChipSynthAU
+        YMulatorSynth
         gtest_main
 )
 ```
@@ -752,12 +752,12 @@ TEST(ParameterConversionTest, FrequencyConversion) {
 ```cpp
 class MidiProcessingTest : public ::testing::Test {
 protected:
-    std::unique_ptr<ChipSynthAudioProcessor> processor;
+    std::unique_ptr<YMulatorSynthAudioProcessor> processor;
     juce::MidiBuffer midiBuffer;
     juce::AudioBuffer<float> audioBuffer;
     
     void SetUp() override {
-        processor = std::make_unique<ChipSynthAudioProcessor>();
+        processor = std::make_unique<YMulatorSynthAudioProcessor>();
         processor->prepareToPlay(44100, 512);
         audioBuffer.setSize(2, 512);
     }
@@ -799,7 +799,7 @@ TEST_F(MidiProcessingTest, VoiceStealingBehavior) {
 **tests/performance/LatencyTest.cpp**
 ```cpp
 TEST(PerformanceTest, ProcessingLatency) {
-    ChipSynthAudioProcessor processor;
+    YMulatorSynthAudioProcessor processor;
     processor.prepareToPlay(44100, 64); // Ultra-low latency
     
     juce::AudioBuffer<float> buffer(2, 64);
@@ -839,10 +839,10 @@ cmake --build . --config Debug
 ctest --output-on-failure
 
 # 特定のテストのみ実行
-./tests/ChipSynthTests --gtest_filter="YmfmWrapperTest.*"
+./tests/YMulatorSynthTests --gtest_filter="YmfmWrapperTest.*"
 
 # パフォーマンステストは別途
-./tests/ChipSynthTests --gtest_filter="PerformanceTest.*" --gtest_repeat=10
+./tests/YMulatorSynthTests --gtest_filter="PerformanceTest.*" --gtest_repeat=10
 ```
 
 ### 1.7 Audio Unit検証ガイド（auval）
@@ -850,7 +850,7 @@ ctest --output-on-failure
 #### 1.5.1 基本的な検証コマンド
 ```bash
 # Audio Unitが正しくインストールされているか確認
-auval -l | grep ChipSynth
+auval -l | grep YMulatorSynth
 
 # 完全な検証を実行
 auval -strict -v aufx Chip Hiro
@@ -1109,7 +1109,7 @@ target_include_directories(ymfm PUBLIC
 原因: インストール場所が間違っている
 対処:
 - ~/Library/Audio/Plug-Ins/Components/ に配置
-- codesign --force --sign - ChipSynthAU.component
+- codesign --force --sign - YMulatorSynth.component
 - 再起動またはkillall -9 AudioComponentRegistrar
 ```
 
@@ -1131,7 +1131,7 @@ log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 ~/Library/Logs/DiagnosticReports/
 
 # シンボリックリンクで開発を効率化
-ln -s /path/to/build/ChipSynthAU.component ~/Library/Audio/Plug-Ins/Components/
+ln -s /path/to/build/YMulatorSynth.component ~/Library/Audio/Plug-Ins/Components/
 ```
 
 ### 1.9 基本音色サンプルデータ
@@ -1354,8 +1354,8 @@ Algorithm 7: 1＋2＋3＋4（オルガン、加算合成）
 
 1. **環境構築**
    ```bash
-   git clone https://github.com/hiroaki0923/ChipSynth-AU.git
-   cd ChipSynth-AU
+   git clone https://github.com/hiroaki0923/YMulator-Synth.git
+   cd YMulator-Synth
    git submodule update --init  # JUCE, ymfm
    ```
 
