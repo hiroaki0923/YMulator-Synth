@@ -12,13 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key documents to consult:**
 
-- **Setup/Development**: `docs/chipsynth-implementation-guide.md` section 1.4 (MANDATORY for any setup work)
-- **Architecture Decisions**: `docs/chipsynth-adr.md` (consult before making design choices)
-- **Technical Specifications**: `docs/chipsynth-technical-spec.md` (for MIDI, parameters, formats)
-- **Overall Design**: `docs/chipsynth-design-main.md` (for system architecture)
-- **JUCE Implementation Details**: `docs/chipsynth-juce-implementation-details.md` (for JUCEパラメータシステム, MIDI CC, Factory Preset実装)
-- **VOPM Format Specification**: `docs/chipsynth-vopm-format-spec.md` (for .opmファイル形式とプリセット管理)
-- **Phase 1 Completion Roadmap**: `docs/chipsynth-phase1-completion-roadmap.md` (for 基盤構築完了への具体的手順)
+- **Setup/Development**: `docs/ymulatorsynth-implementation-guide.md` section 1.4 (MANDATORY for any setup work)
+- **Architecture Decisions**: `docs/ymulatorsynth-adr.md` (consult before making design choices)
+- **Technical Specifications**: `docs/ymulatorsynth-technical-spec.md` (for MIDI, parameters, formats)
+- **Overall Design**: `docs/ymulatorsynth-design-main.md` (for system architecture)
+- **JUCE Implementation Details**: `docs/ymulatorsynth-juce-implementation-details.md` (for JUCEパラメータシステム, MIDI CC, Factory Preset実装)
+- **VOPM Format Specification**: `docs/ymulatorsynth-vopm-format-spec.md` (for .opmファイル形式とプリセット管理)
+- **Phase 1 Completion Roadmap**: `docs/ymulatorsynth-phase1-completion-roadmap.md` (for 基盤構築完了への具体的手順)
 
 **❌ DO NOT:**
 - Skip reading documentation before implementation
@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ChipSynth-AU is a modern FM synthesis Audio Unit plugin for macOS that emulates classic Yamaha sound chips (YM2151/OPM and YM2608/OPNA). It features a VOPM-like interface and is designed for use in Digital Audio Workstations.
+YMulator-Synth is a modern FM synthesis Audio Unit plugin for macOS that emulates classic Yamaha sound chips (YM2151/OPM and YM2608/OPNA). It features a VOPM-like interface and is designed for use in Digital Audio Workstations.
 
 ## Development Prerequisites
 
@@ -45,10 +45,10 @@ ChipSynth-AU is a modern FM synthesis Audio Unit plugin for macOS that emulates 
 ## Technology Stack
 
 - **Language**: C++17 with Objective-C++ for Audio Unit integration
-- **Framework**: JUCE for UI and audio processing (see [ADR-001](docs/chipsynth-adr.md#adr-001-uiフレームワークの選定))
+- **Framework**: JUCE for UI and audio processing (see [ADR-001](docs/ymulatorsynth-adr.md#adr-001-uiフレームワークの選定))
 - **Build System**: CMake (3.22+)
-- **Audio Format**: Audio Unit v3 (with v2 compatibility) (see [ADR-004](docs/chipsynth-adr.md#adr-004-audio-unitバージョンの選定))
-- **FM Emulation**: ymfm library by Aaron Giles (see [ADR-002](docs/chipsynth-adr.md#adr-002-fm音源エミュレーションライブラリの選定))
+- **Audio Format**: Audio Unit v3 (with v2 compatibility) (see [ADR-004](docs/ymulatorsynth-adr.md#adr-004-audio-unitバージョンの選定))
+- **FM Emulation**: ymfm library by Aaron Giles (see [ADR-002](docs/ymulatorsynth-adr.md#adr-002-fm音源エミュレーションライブラリの選定))
 
 ## Build Commands
 
@@ -94,7 +94,7 @@ killall -9 AudioComponentRegistrar
 log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 ```
 
-**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/chipsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
+**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/ymulatorsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
 
 ## Architecture
 
@@ -107,27 +107,27 @@ The project follows a layered architecture with lock-free communication between 
 5. **UI Components Layer** - JUCE-based parameter controls
 
 Key architectural decisions:
-- Lock-free threading model for real-time audio processing (see [ADR-009](docs/chipsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針))
+- Lock-free threading model for real-time audio processing (see [ADR-009](docs/ymulatorsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針))
 - Double-buffering for parameter synchronization
 - Factory pattern for preset management
 - Observer pattern for UI updates
-- Traditional voice allocation (see [ADR-007](docs/chipsynth-adr.md#adr-007-midiチャンネルとチップ割り当て方式の選定))
+- Traditional voice allocation (see [ADR-007](docs/ymulatorsynth-adr.md#adr-007-midiチャンネルとチップ割り当て方式の選定))
 
-For complete architectural overview, see [Design Document](docs/chipsynth-design-main.md).
+For complete architectural overview, see [Design Document](docs/ymulatorsynth-design-main.md).
 
 ## Key Implementation Notes
 
 **⚠️ BEFORE implementing any features, READ the relevant documentation sections:**
 
-- **Phase 1 Completion**: **MUST READ** [Phase 1 Roadmap](docs/chipsynth-phase1-completion-roadmap.md) for 残り30%の実装手順
-- **JUCE Implementation**: **MUST READ** [JUCE Details](docs/chipsynth-juce-implementation-details.md) for パラメータシステム、MIDI CC、Factory Preset実装
-- **VOPM Format**: **MUST READ** [VOPM Spec](docs/chipsynth-vopm-format-spec.md) for .opmファイル形式とプリセット管理
-- **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples → **MUST READ** [ADR-008](docs/chipsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計)
-- **MIDI CC Mapping**: Full VOPMex compatibility → **MUST READ** [Technical Spec Section 1.5](docs/chipsynth-technical-spec.md#15-midi実装仕様)
-- **Preset Format**: .opm files with VOPM structure → **MUST READ** [Implementation Guide Section 1.7](docs/chipsynth-implementation-guide.md#17-opmファイルフォーマット仕様)
-- **Recording**: S98 format for chiptune player compatibility → **MUST READ** [ADR-003](docs/chipsynth-adr.md#adr-003-音声記録フォーマットの選定)
+- **Phase 1 Completion**: **MUST READ** [Phase 1 Roadmap](docs/ymulatorsynth-phase1-completion-roadmap.md) for 残り30%の実装手順
+- **JUCE Implementation**: **MUST READ** [JUCE Details](docs/ymulatorsynth-juce-implementation-details.md) for パラメータシステム、MIDI CC、Factory Preset実装
+- **VOPM Format**: **MUST READ** [VOPM Spec](docs/ymulatorsynth-vopm-format-spec.md) for .opmファイル形式とプリセット管理
+- **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples → **MUST READ** [ADR-008](docs/ymulatorsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計)
+- **MIDI CC Mapping**: Full VOPMex compatibility → **MUST READ** [Technical Spec Section 1.5](docs/ymulatorsynth-technical-spec.md#15-midi実装仕様)
+- **Preset Format**: .opm files with VOPM structure → **MUST READ** [Implementation Guide Section 1.7](docs/ymulatorsynth-implementation-guide.md#17-opmファイルフォーマット仕様)
+- **Recording**: S98 format for chiptune player compatibility → **MUST READ** [ADR-003](docs/ymulatorsynth-adr.md#adr-003-音声記録フォーマットの選定)
 - **Voice Count**: YM2151 (8 channels), YM2608 (6 FM + 3 SSG channels)
-- **Threading Model**: Lock-free real-time processing → **MUST READ** [ADR-009](docs/chipsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針)
+- **Threading Model**: Lock-free real-time processing → **MUST READ** [ADR-009](docs/ymulatorsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針)
 
 ## Performance Targets
 
@@ -138,7 +138,7 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 ## Testing
 
-**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.6](docs/chipsynth-implementation-guide.md#16-テスト戦略とテストコード) for test strategy and examples.**
+**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.6](docs/ymulatorsynth-implementation-guide.md#16-テスト戦略とテストコード) for test strategy and examples.**
 
 - Unit tests: Test individual components (operators, envelopes, LFOs)
 - Integration tests: MIDI processing and parameter updates  
@@ -147,9 +147,9 @@ For complete architectural overview, see [Design Document](docs/chipsynth-design
 
 ## Development Status Tracking
 
-**⚠️ ALWAYS UPDATE [Development Status](docs/chipsynth-development-status.md) when completing features or milestones.**
+**⚠️ ALWAYS UPDATE [Development Status](docs/ymulatorsynth-development-status.md) when completing features or milestones.**
 
-- Track progress against the implementation plan in [Design Document](docs/chipsynth-design-main.md#3-実装計画)
+- Track progress against the implementation plan in [Design Document](docs/ymulatorsynth-design-main.md#3-実装計画)
 - Update completion percentages for each phase and task
 - Record commit hashes and completion dates
 - Note any changes to the original timeline or scope
