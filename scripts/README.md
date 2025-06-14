@@ -1,6 +1,6 @@
-# ChipSynth AU Build Scripts
+# YMulator Synth Build Scripts
 
-This directory contains scripts for building and packaging ChipSynth AU.
+This directory contains scripts for building and packaging YMulator Synth.
 
 ## 🛠️ Scripts Overview
 
@@ -47,13 +47,13 @@ Production builds with packaging for distribution.
 ## 📦 Output Locations
 
 ### Development Builds
-- **Component**: `build/ChipSynthAU_artefacts/Debug/AU/ChipSynth AU.component`
-- **Installed**: `~/Library/Audio/Plug-Ins/Components/ChipSynth AU.component`
+- **Component**: `build/YMulatorSynthAU_artefacts/Debug/AU/YMulator Synth.component`
+- **Installed**: `~/Library/Audio/Plug-Ins/Components/YMulator Synth.component`
 
 ### Release Builds
-- **DMG Package**: `releases/ChipSynth-AU-[version].dmg`
+- **DMG Package**: `releases/YMulator-Synth-[version].dmg`
 - **Release Notes**: `releases/release-notes-[version].md`
-- **Component**: `build/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component`
+- **Component**: `build/YMulatorSynthAU_artefacts/Release/AU/YMulator Synth.component`
 
 ## 🔧 Prerequisites
 
@@ -80,7 +80,7 @@ gh auth login
 gh auth status
 
 # Test access to your repository
-gh repo view hiroaki0923/ChipSynth-AU
+gh repo view hiroaki0923/YMulator-Synth
 ```
 
 ### Verify Installation
@@ -96,8 +96,8 @@ auval -h
 ### For Development
 ```bash
 # 1. Clone and setup
-git clone --recursive https://github.com/hiroaki0923/ChipSynth-AU.git
-cd ChipSynth-AU
+git clone --recursive https://github.com/hiroaki0923/YMulator-Synth.git
+cd YMulator-Synth
 
 # 2. Development build and test
 ./scripts/build-dev.sh --validate
@@ -117,7 +117,7 @@ git status
 ./scripts/build-release.sh v1.0.0
 
 # 3. Test the DMG
-open releases/ChipSynth-AU-v1.0.0.dmg
+open releases/YMulator-Synth-v1.0.0.dmg
 
 # 4. Create GitHub release manually
 ```
@@ -168,8 +168,8 @@ auval -v aumu ChpS Vend -w
 ```
 
 ### DAW Testing
-1. Logic Pro: Audio > Audio Units > Music Effect > ChipSynth AU
-2. Ableton Live: Instruments > Audio Units > ChipSynth AU
+1. Logic Pro: Audio > Audio Units > Music Effect > YMulator Synth
+2. Ableton Live: Instruments > Audio Units > YMulator Synth
 3. GarageBand: Smart Controls > Audio Units > Music Effect
 
 ## 🐛 Troubleshooting
@@ -202,7 +202,7 @@ auval -a | grep ChpS
 auval -v aumu ChpS Vend -w
 
 # Check Info.plist
-plutil -p "~/Library/Audio/Plug-Ins/Components/ChipSynth AU.component/Contents/Info.plist"
+plutil -p "~/Library/Audio/Plug-Ins/Components/YMulator Synth.component/Contents/Info.plist"
 ```
 
 ## 📁 Directory Structure
@@ -214,11 +214,11 @@ scripts/
 └── build-release.sh    # Release build script
 
 releases/               # Created by build-release.sh
-├── ChipSynth-AU-*.dmg  # Release packages
+├── YMulator-Synth-*.dmg  # Release packages
 └── release-notes-*.md  # Generated release notes
 
 build/                  # CMake build directory
-└── ChipSynthAU_artefacts/
+└── YMulatorSynthAU_artefacts/
     ├── Debug/AU/       # Development builds
     └── Release/AU/     # Release builds
 ```

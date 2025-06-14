@@ -5,9 +5,9 @@
 **ライセンス**: MIT License  
 
 ## 関連ドキュメント
-- [技術仕様書](TECHNICAL_SPEC.md) - 詳細設計、UI設計、テスト計画
-- [実装ガイド](IMPLEMENTATION_GUIDE.md) - 開発環境構築、コーディングガイド
-- [アーキテクチャ決定記録](ADR.md) - 技術的決定事項の記録
+- [技術仕様書](ymulatorsynth-technical-spec.md) - 詳細設計、UI設計、テスト計画
+- [実装ガイド](ymulatorsynth-implementation-guide.md) - 開発環境構築、コーディングガイド
+- [アーキテクチャ決定記録](ymulatorsynth-adr.md) - 技術的決定事項の記録
 
 ## 1. 概要
 

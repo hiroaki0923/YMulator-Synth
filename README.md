@@ -168,7 +168,7 @@ This project is actively developed with the following status:
 - **Enhanced UI**: Improved operator panel layout with SLOT controls
 - **Backward Compatibility**: All existing presets remain fully functional
 
-See [docs/ymulatorssynth-development-status.md](docs/ymulatorssynth-development-status.md) for detailed progress tracking.
+See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-status.md) for detailed progress tracking.
 
 ### Known Issues
 - **Preset Quality**: The 64 bundled OPM presets require sound design refinement for authentic instrument sounds
