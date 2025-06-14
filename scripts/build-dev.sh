@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ChipSynth AU Development Build Script
+# YMulator Synth Development Build Script
 # Usage: ./scripts/build-dev.sh [--clean] [--install] [--validate]
 
 set -e  # Exit on any error
@@ -54,7 +54,7 @@ for arg in "$@"; do
     esac
 done
 
-log_info "Starting ChipSynth AU development build..."
+log_info "Starting YMulator Synth development build..."
 
 # Clean build directory if requested
 if [ "$CLEAN" = true ]; then
@@ -90,7 +90,7 @@ cmake --build . --config Debug --parallel > /dev/null 2>&1 && log_success "Build
 }
 
 # Check if build succeeded
-COMPONENT_PATH="$BUILD_DIR/src/ChipSynthAU_artefacts/Debug/AU/ChipSynth AU.component"
+COMPONENT_PATH="$BUILD_DIR/src/YMulatorSynthAU_artefacts/Debug/AU/YMulator Synth.component"
 if [ ! -d "$COMPONENT_PATH" ]; then
     log_error "Build failed - Audio Unit component not found"
     exit 1

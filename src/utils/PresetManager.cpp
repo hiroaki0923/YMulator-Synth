@@ -3,7 +3,7 @@
 #include "VOPMParser.h"
 #include "BinaryData.h"
 
-namespace chipsynth {
+namespace ymulatorsynth {
 
 // Factory preset definitions
 static const VOPMVoice FACTORY_VOICES[] = {
@@ -362,7 +362,7 @@ bool PresetManager::saveOPMFile(const juce::File& file) const
 {
     juce::String content;
     content << ";==================================================\n";
-    content << "; ChipSynth AU Presets\n";
+    content << "; YMulator Synth Presets\n";
     content << "; Generated automatically\n";
     content << ";==================================================\n\n";
     
@@ -436,7 +436,7 @@ juce::File PresetManager::getPresetsDirectory() const
     
     // Fallback: user's Documents directory
     return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                     .getChildFile("ChipSynth AU")
+                     .getChildFile("YMulator Synth")
                      .getChildFile("presets");
 }
 
@@ -476,4 +476,4 @@ void PresetManager::validatePreset(Preset& preset) const
     }
 }
 
-} // namespace chipsynth
+} // namespace ymulatorsynth

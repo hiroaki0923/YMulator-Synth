@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ChipSynthAU VERSION 0.0.3)
+project(YMulatorSynthAU VERSION 0.0.3)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
@@ -34,7 +34,7 @@ if(BUILD_TESTS)
 endif()
 
 # CPack configuration for installer
-set(CPACK_PACKAGE_NAME "ChipSynth AU")
+set(CPACK_PACKAGE_NAME "YMulator Synth")
 set(CPACK_PACKAGE_VENDOR "Hiroaki")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "FM Synthesis Audio Unit")
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})

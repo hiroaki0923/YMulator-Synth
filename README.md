@@ -1,8 +1,8 @@
-# ChipSynth AU
+# YMulator Synth
 
 A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with a VOPM-style interface.
 
-![ChipSynth AU Screenshot](docs/images/screenshot.png)
+![YMulator Synth Screenshot](docs/images/screenshot.png)
 
 ## Features
 
@@ -44,9 +44,9 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 ## Installation
 
 ### Download Release
-1. Download the latest release from the [Releases](https://github.com/hiroaki0923/ChipSynth-AU/releases) page
+1. Download the latest release from the [Releases](https://github.com/hiroaki0923/YMulator-Synth/releases) page
 2. Open the DMG file
-3. Copy `ChipSynth AU.component` to `/Library/Audio/Plug-Ins/Components/`
+3. Copy `YMulator Synth.component` to `/Library/Audio/Plug-Ins/Components/`
 4. Restart your DAW
 
 ### Build from Source
@@ -74,8 +74,8 @@ brew install cmake
 ### Clone and Build
 ```bash
 # Clone repository with submodules
-git clone --recursive https://github.com/hiroaki0923/ChipSynth-AU.git
-cd ChipSynth-AU
+git clone --recursive https://github.com/hiroaki0923/YMulator-Synth.git
+cd YMulator-Synth
 
 # Create build directory
 mkdir build && cd build
@@ -168,7 +168,7 @@ This project is actively developed with the following status:
 - **Enhanced UI**: Improved operator panel layout with SLOT controls
 - **Backward Compatibility**: All existing presets remain fully functional
 
-See [docs/chipsynth-development-status.md](docs/chipsynth-development-status.md) for detailed progress tracking.
+See [docs/ymulatorssynth-development-status.md](docs/ymulatorssynth-development-status.md) for detailed progress tracking.
 
 ### Known Issues
 - **Preset Quality**: The 64 bundled OPM presets require sound design refinement for authentic instrument sounds
@@ -196,7 +196,7 @@ This project is licensed under the GPL v3 License - see [LICENSE](LICENSE) file 
 
 ## Support
 
-- **Documentation**: [Wiki](https://github.com/hiroaki0923/ChipSynth-AU/wiki)
-- **Bug Reports**: [Issues](https://github.com/hiroaki0923/ChipSynth-AU/issues)
-- **Discussions**: [Discussions](https://github.com/hiroaki0923/ChipSynth-AU/discussions)
+- **Documentation**: [Wiki](https://github.com/hiroaki0923/YMulator-Synth/wiki)
+- **Bug Reports**: [Issues](https://github.com/hiroaki0923/YMulator-Synth/issues)
+- **Discussions**: [Discussions](https://github.com/hiroaki0923/YMulator-Synth/discussions)
 

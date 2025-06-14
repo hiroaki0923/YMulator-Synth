@@ -4,7 +4,7 @@
 #include "../utils/ParameterIDs.h"
 #include <set>
 
-MainComponent::MainComponent(ChipSynthAudioProcessor& processor)
+MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     : audioProcessor(processor)
 {
     setupGlobalControls();

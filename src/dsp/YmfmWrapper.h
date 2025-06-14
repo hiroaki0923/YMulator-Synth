@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <memory>
 
-// Minimal ymfm wrapper for ChipSynth AU
+// Minimal ymfm wrapper for YMulator Synth
 class YmfmWrapper : public ymfm::ymfm_interface
 {
 public:
