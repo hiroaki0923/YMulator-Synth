@@ -158,7 +158,7 @@ gh auth login
 ### Manual Testing
 ```bash
 # Check if AU is registered
-auval -a | grep -i chipsynth
+auval -a | grep -i ymulator
 
 # Validate specific component
 auval -v aumu ChpS Vend
@@ -187,7 +187,7 @@ cmake -B build --dry-run
 ### Audio Unit Not Found
 ```bash
 # Check installation
-ls -la ~/Library/Audio/Plug-Ins/Components/ | grep ChipSynth
+ls -la ~/Library/Audio/Plug-Ins/Components/ | grep YMulator
 
 # Force AU cache refresh
 killall -9 AudioComponentRegistrar
