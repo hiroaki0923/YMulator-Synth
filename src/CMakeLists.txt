@@ -3,7 +3,7 @@ juce_add_plugin(YMulatorSynthAU
     # Basic information
     COMPANY_NAME "Hiroaki"
     PLUGIN_MANUFACTURER_CODE Hrki
-    PLUGIN_CODE ChpS
+    PLUGIN_CODE YMul
     PRODUCT_NAME "YMulator Synth"
     PLUGIN_DESCRIPTION "FM Synthesis Audio Unit"
     

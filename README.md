@@ -148,10 +148,10 @@ cd build
 ctest --output-on-failure
 
 # Run Audio Unit validation (quiet)
-auval -v aumu ChpS Vend > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
 
 # Run Audio Unit validation (verbose for debugging)
-auval -v aumu ChpS Vend
+auval -v aumu YMul Hrki
 ```
 
 ## Current Development Status

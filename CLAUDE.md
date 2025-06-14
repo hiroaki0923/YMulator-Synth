@@ -82,10 +82,10 @@ ctest --output-on-failure
 
 # Validate Audio Unit - minimal output
 auval -a
-auval -v aumu ChpS Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
 
 # Validate Audio Unit with full output (when debugging validation issues)
-auval -v aumu ChpS Hrki
+auval -v aumu YMul Hrki
 
 # Fix Audio Unit registration issues
 killall -9 AudioComponentRegistrar
@@ -365,7 +365,7 @@ uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
 cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful"
 
 # Audio Unit validation  
-auval -v aumu ChpS Hrki > /dev/null 2>&1 && echo "auval PASSED"
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED"
 ```
 
 **🔒 These rules are derived from proven improvements that enhanced code quality, reduced bugs, and improved maintainability. Deviation requires explicit justification and documentation.**

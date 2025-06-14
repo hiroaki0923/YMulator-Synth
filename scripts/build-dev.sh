@@ -129,11 +129,11 @@ fi
 if [ "$VALIDATE" = true ]; then
     log_info "Running Audio Unit validation..."
     
-    if auval -v aumu ChpS Hrki > /dev/null 2>&1; then
+    if auval -v aumu YMul Hrki > /dev/null 2>&1; then
         log_success "Audio Unit validation passed"
     else
         log_warning "Audio Unit validation failed"
-        echo "Try running manually: auval -v aumu ChpS Hrki"
+        echo "Try running manually: auval -v aumu YMul Hrki"
     fi
 fi
 
@@ -148,6 +148,6 @@ echo "   Build & test:    ./scripts/build-dev.sh --validate"
 echo "   Release build:   ./scripts/build-release.sh"
 echo ""
 echo "🧪 Manual Testing:"
-echo "   auval -v aumu ChpS Hrki"
+echo "   auval -v aumu YMul Hrki"
 echo "   auval -a | grep -i ymulator"
 echo ""

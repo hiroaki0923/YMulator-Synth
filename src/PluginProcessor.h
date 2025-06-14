@@ -97,6 +97,9 @@ public:
     bool isInCustomMode() const { return isCustomPreset; }
     juce::String getCustomPresetName() const { return customPresetName; }
     
+    // OPM file operations
+    int loadOpmFile(const juce::File& file);
+    
 private:
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(YMulatorSynthAudioProcessor)
