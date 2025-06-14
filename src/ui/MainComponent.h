@@ -33,6 +33,7 @@ private:
     // Preset selector
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
+    std::unique_ptr<juce::TextButton> loadOpmButton;
     
     // LFO controls
     std::unique_ptr<RotaryKnob> lfoRateKnob;
@@ -58,6 +59,9 @@ private:
     // Display components
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
     
+    // File chooser
+    std::unique_ptr<juce::FileChooser> fileChooser;
+    
     // Parameter attachments
     std::unique_ptr<juce::Slider> feedbackHiddenSlider;
     std::unique_ptr<juce::Slider> lfoRateHiddenSlider;
@@ -81,6 +85,7 @@ private:
     void setupDisplayComponents();
     void updatePresetComboBox();
     void updateAlgorithmDisplay();
+    void loadOpmFileDialog();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

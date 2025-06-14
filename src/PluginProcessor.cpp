@@ -647,6 +647,30 @@ void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
     }
 }
 
+int YMulatorSynthAudioProcessor::loadOpmFile(const juce::File& file)
+{
+    CS_DBG("YMulatorSynthAudioProcessor::loadOpmFile - Loading file: " + file.getFullPathName());
+    
+    int numLoaded = presetManager.loadOPMFile(file);
+    
+    if (numLoaded > 0)
+    {
+        CS_DBG("Successfully loaded " + juce::String(numLoaded) + " presets from OPM file");
+        
+        // Notify ValueTree listeners that preset list has been updated
+        parameters.state.setProperty("presetListUpdated", juce::Random::getSystemRandom().nextInt(), nullptr);
+        
+        // Update host display to refresh preset list in DAW
+        updateHostDisplay();
+    }
+    else
+    {
+        CS_DBG("Failed to load any presets from OPM file");
+    }
+    
+    return numLoaded;
+}
+
 void YMulatorSynthAudioProcessor::loadPreset(int index)
 {
     // Assert valid preset index range

@@ -161,10 +161,10 @@ gh auth login
 auval -a | grep -i ymulator
 
 # Validate specific component
-auval -v aumu ChpS Vend
+auval -v aumu YMul Hrki
 
 # Verbose validation output
-auval -v aumu ChpS Vend -w
+auval -v aumu YMul Hrki -w
 ```
 
 ### DAW Testing
@@ -193,13 +193,13 @@ ls -la ~/Library/Audio/Plug-Ins/Components/ | grep YMulator
 killall -9 AudioComponentRegistrar
 
 # Check AU registration
-auval -a | grep ChpS
+auval -a | grep YMul
 ```
 
 ### Validation Fails
 ```bash
 # Get detailed validation output
-auval -v aumu ChpS Vend -w
+auval -v aumu YMul Hrki -w
 
 # Check Info.plist
 plutil -p "~/Library/Audio/Plug-Ins/Components/YMulator Synth.component/Contents/Info.plist"

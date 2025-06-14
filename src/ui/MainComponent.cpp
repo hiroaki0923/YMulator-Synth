@@ -19,7 +19,7 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     // Ensure preset list is up to date when UI is opened
     updatePresetComboBox();
     
-    setSize(1000, 610);  // Reduced height after removing header/footer
+    setSize(1000, 610);  // Original height
 }
 
 MainComponent::~MainComponent()
@@ -43,16 +43,13 @@ void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
     
-    // Top area for global controls (reduced height)
+    // Top area for global controls (back to original height)
     auto topArea = bounds.removeFromTop(60);
     
     // Left side: Algorithm ComboBox and Feedback Knob
     auto controlsArea = topArea.removeFromLeft(280);
     auto algorithmArea = controlsArea.removeFromLeft(175).reduced(5);
     auto feedbackArea = controlsArea.removeFromLeft(105);
-    
-    // Right side: Preset selector
-    auto presetArea = topArea.removeFromRight(350).reduced(10);
     
     // Algorithm ComboBox (label on left, combo on right) - standardized height
     if (algorithmComboBox && algorithmLabel) {
@@ -74,11 +71,22 @@ void MainComponent::resized()
     //     algorithmDisplay->setBounds(algorithmDisplayArea);
     // }
     
-    // Preset selector - standardized height
+    // Right side: Preset selector - use remaining space (after left side is allocated)
+    auto presetArea = topArea.reduced(5);
+    
+    // Preset label
     auto presetLabelArea = presetArea.removeFromLeft(60);
     presetLabel->setBounds(presetLabelArea);
-    // Center combo box vertically with standardized height
-    auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre());
+    
+    // Load button on the right
+    auto loadButtonArea = presetArea.removeFromRight(50);
+    if (loadOpmButton) {
+        auto centeredButtonArea = loadButtonArea.withHeight(25).withCentre(loadButtonArea.getCentre());
+        loadOpmButton->setBounds(centeredButtonArea);
+    }
+    
+    // Preset combo box takes remaining space
+    auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre()).reduced(5, 0);
     presetComboBox->setBounds(centeredPresetArea);
     
     // LFO and Noise controls area
@@ -529,6 +537,14 @@ void MainComponent::setupPresetSelector()
     presetLabel->setJustificationType(juce::Justification::centredRight);
     presetLabel->setFont(juce::Font(12.0f));
     addAndMakeVisible(*presetLabel);
+    
+    loadOpmButton = std::make_unique<juce::TextButton>("Load");
+    loadOpmButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
+    loadOpmButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    loadOpmButton->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    loadOpmButton->setTooltip("Load OPM preset file");
+    loadOpmButton->onClick = [this]() { loadOpmFileDialog(); };
+    addAndMakeVisible(*loadOpmButton);
 }
 
 void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
@@ -552,6 +568,7 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
     static const std::set<std::string> presetRelevantProperties = {
         "presetIndex",
         "isCustomMode",
+        "presetListUpdated",
         // Add any other preset management related properties here
         // Note: We deliberately exclude operator parameters, global synthesis params, and channel params
     };
@@ -642,4 +659,59 @@ void MainComponent::updateAlgorithmDisplay()
     
     // algorithmDisplay->setAlgorithm(algorithm);
     // algorithmDisplay->setFeedbackLevel(feedback);
+}
+
+void MainComponent::loadOpmFileDialog()
+{
+    CS_DBG("MainComponent::loadOpmFileDialog - Opening file chooser");
+    
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Select a VOPM preset file",
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+        "*.opm"
+    );
+    
+    auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+    
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        
+        if (file.existsAsFile())
+        {
+            CS_DBG("Selected file: " + file.getFullPathName());
+            
+            // Load the OPM file through the audio processor
+            int numLoaded = audioProcessor.loadOpmFile(file);
+            
+            if (numLoaded > 0)
+            {
+                CS_DBG("OPM file loaded successfully - " + juce::String(numLoaded) + " presets");
+                
+                // Update the preset combo box to reflect the new presets
+                updatePresetComboBox();
+                
+                // Select the first loaded preset
+                if (presetComboBox->getNumItems() > 0)
+                {
+                    presetComboBox->setSelectedId(1);
+                }
+                
+                // Show success message
+                juce::AlertWindow::showMessageBoxAsync(
+                    juce::MessageBoxIconType::InfoIcon,
+                    "Load Successful",
+                    "Loaded " + juce::String(numLoaded) + " preset(s) from " + file.getFileName()
+                );
+            }
+            else
+            {
+                juce::AlertWindow::showMessageBoxAsync(
+                    juce::MessageBoxIconType::WarningIcon,
+                    "Load Error",
+                    "Failed to load any presets from: " + file.getFileName()
+                );
+            }
+        }
+    });
 }

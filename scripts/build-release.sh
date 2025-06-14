@@ -125,7 +125,7 @@ if [ "$SKIP_VALIDATION" != "--skip-validation" ]; then
     
     # Run auval
     log_info "Running Audio Unit validation..."
-    if auval -v aumu ChpS Hrki > /dev/null 2>&1; then
+    if auval -v aumu YMul Hrki > /dev/null 2>&1; then
         log_success "Audio Unit validation passed"
     else
         log_warning "Audio Unit validation failed - continuing anyway"
@@ -274,7 +274,7 @@ A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to
 - Component Version: $BUNDLE_VERSION
 - Audio Unit Type: Music Device (aumu)
 - Manufacturer: Hrki
-- Subtype: ChpS
+- Subtype: YMul
 - Built with: JUCE + ymfm library
 - License: GPL v3
 
