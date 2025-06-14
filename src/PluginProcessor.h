@@ -6,13 +6,13 @@
 #include "utils/PresetManager.h"
 #include <unordered_map>
 
-class ChipSynthAudioProcessor : public juce::AudioProcessor,
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor,
                                public juce::AudioProcessorParameter::Listener,
                                public juce::ValueTree::Listener
 {
 public:
-    ChipSynthAudioProcessor();
-    ~ChipSynthAudioProcessor() override;
+    YMulatorSynthAudioProcessor();
+    ~YMulatorSynthAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -66,7 +66,7 @@ private:
     static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     
     // Preset management
-    chipsynth::PresetManager presetManager;
+    ymulatorsynth::PresetManager presetManager;
     int currentPreset = 0;
     bool needsPresetReapply = false;
     bool isCustomPreset = false;
@@ -83,12 +83,12 @@ private:
     void handlePitchBend(int pitchBendValue);
     void updateYmfmParameters();
     void loadPreset(int index);
-    void loadPreset(const chipsynth::Preset* preset);
+    void loadPreset(const ymulatorsynth::Preset* preset);
     
 public:
     // Preset access for UI
-    const chipsynth::PresetManager& getPresetManager() const { return presetManager; }
-    chipsynth::PresetManager& getPresetManager() { return presetManager; }
+    const ymulatorsynth::PresetManager& getPresetManager() const { return presetManager; }
+    ymulatorsynth::PresetManager& getPresetManager() { return presetManager; }
     int getCurrentPresetIndex() const { return currentPreset; }
     void setCurrentPreset(int index);
     juce::StringArray getPresetNames() const { return presetManager.getPresetNames(); }
@@ -99,5 +99,5 @@ public:
     
 private:
     
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChipSynthAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(YMulatorSynthAudioProcessor)
 };

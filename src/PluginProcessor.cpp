@@ -3,10 +3,10 @@
 #include "utils/Debug.h"
 #include "utils/ParameterIDs.h"
 
-ChipSynthAudioProcessor::ChipSynthAudioProcessor()
+YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-       parameters(*this, nullptr, juce::Identifier("ChipSynth"), createParameterLayout())
+       parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout())
 {
     CS_DBG(" Constructor called");
     
@@ -30,7 +30,7 @@ ChipSynthAudioProcessor::ChipSynthAudioProcessor()
     CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
-ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
+YMulatorSynthAudioProcessor::~YMulatorSynthAudioProcessor()
 {
     // Remove ValueTree listener
     parameters.state.removeListener(this);
@@ -42,38 +42,38 @@ ChipSynthAudioProcessor::~ChipSynthAudioProcessor()
     }
 }
 
-const juce::String ChipSynthAudioProcessor::getName() const
+const juce::String YMulatorSynthAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool ChipSynthAudioProcessor::acceptsMidi() const
+bool YMulatorSynthAudioProcessor::acceptsMidi() const
 {
     return true;
 }
 
-bool ChipSynthAudioProcessor::producesMidi() const
+bool YMulatorSynthAudioProcessor::producesMidi() const
 {
     return false;
 }
 
-bool ChipSynthAudioProcessor::isMidiEffect() const
+bool YMulatorSynthAudioProcessor::isMidiEffect() const
 {
     return false;
 }
 
-double ChipSynthAudioProcessor::getTailLengthSeconds() const
+double YMulatorSynthAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int ChipSynthAudioProcessor::getNumPrograms()
+int YMulatorSynthAudioProcessor::getNumPrograms()
 {
     // Add 1 for custom preset if active
     return presetManager.getNumPresets() + (isCustomPreset ? 1 : 0);
 }
 
-int ChipSynthAudioProcessor::getCurrentProgram()
+int YMulatorSynthAudioProcessor::getCurrentProgram()
 {
     if (isCustomPreset) {
         return presetManager.getNumPresets(); // Custom preset index
@@ -81,7 +81,7 @@ int ChipSynthAudioProcessor::getCurrentProgram()
     return currentPreset;
 }
 
-void ChipSynthAudioProcessor::setCurrentProgram(int index)
+void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
 {
     CS_DBG(" setCurrentProgram called with index: " + juce::String(index) + 
         ", current isCustomPreset: " + juce::String(isCustomPreset ? "true" : "false"));
@@ -112,7 +112,7 @@ void ChipSynthAudioProcessor::setCurrentProgram(int index)
     });
 }
 
-const juce::String ChipSynthAudioProcessor::getProgramName(int index)
+const juce::String YMulatorSynthAudioProcessor::getProgramName(int index)
 {
     // Handle custom preset case
     if (index == presetManager.getNumPresets() && isCustomPreset) {
@@ -128,12 +128,12 @@ const juce::String ChipSynthAudioProcessor::getProgramName(int index)
     return {};
 }
 
-void ChipSynthAudioProcessor::changeProgramName(int index, const juce::String& newName)
+void YMulatorSynthAudioProcessor::changeProgramName(int index, const juce::String& newName)
 {
     juce::ignoreUnused(index, newName);
 }
 
-void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     // Assert valid sample rate and buffer size
     CS_ASSERT_SAMPLE_RATE(sampleRate);
@@ -162,11 +162,11 @@ void ChipSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     CS_DBG(" ymfm initialization complete");
 }
 
-void ChipSynthAudioProcessor::releaseResources()
+void YMulatorSynthAudioProcessor::releaseResources()
 {
 }
 
-bool ChipSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool YMulatorSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
@@ -175,7 +175,7 @@ bool ChipSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts)
     return true;
 }
 
-void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                           juce::MidiBuffer& midiMessages)
 {
     // Assert buffer validity
@@ -297,17 +297,17 @@ void ChipSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 }
 
-bool ChipSynthAudioProcessor::hasEditor() const
+bool YMulatorSynthAudioProcessor::hasEditor() const
 {
     return true;
 }
 
-juce::AudioProcessorEditor* ChipSynthAudioProcessor::createEditor()
+juce::AudioProcessorEditor* YMulatorSynthAudioProcessor::createEditor()
 {
-    return new ChipSynthAudioProcessorEditor(*this);
+    return new YMulatorSynthAudioProcessorEditor(*this);
 }
 
-void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void YMulatorSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     
@@ -323,7 +323,7 @@ void ChipSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
 }
 
-void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     CS_DBG(" setStateInformation called - size: " + juce::String(sizeInBytes));
     
@@ -366,7 +366,7 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
     }
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
@@ -479,7 +479,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::cre
     return { params.begin(), params.end() };
 }
 
-void ChipSynthAudioProcessor::setupCCMapping()
+void YMulatorSynthAudioProcessor::setupCCMapping()
 {
     // VOPMex compatible MIDI CC mapping
     
@@ -554,7 +554,7 @@ void ChipSynthAudioProcessor::setupCCMapping()
     // since they are AudioParameterFloat, not AudioParameterInt
 }
 
-void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
+void YMulatorSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 {
     // Assert valid CC number and value ranges
     CS_ASSERT_PARAMETER_RANGE(ccNumber, 0, 127);
@@ -590,7 +590,7 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
     }
 }
 
-void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
+void YMulatorSynthAudioProcessor::handlePitchBend(int pitchBendValue)
 {
     // Assert valid pitch bend range (14-bit value)
     CS_ASSERT_PARAMETER_RANGE(pitchBendValue, 0, 16383);
@@ -624,7 +624,7 @@ void ChipSynthAudioProcessor::handlePitchBend(int pitchBendValue)
         ", Amount: " + juce::String(pitchBendSemitones, 3) + " semitones");
 }
 
-void ChipSynthAudioProcessor::setCurrentPreset(int index)
+void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
 {
     // Assert valid preset index range
     CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
@@ -647,7 +647,7 @@ void ChipSynthAudioProcessor::setCurrentPreset(int index)
     }
 }
 
-void ChipSynthAudioProcessor::loadPreset(int index)
+void YMulatorSynthAudioProcessor::loadPreset(int index)
 {
     // Assert valid preset index range
     CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager.getNumPresets() - 1);
@@ -659,7 +659,7 @@ void ChipSynthAudioProcessor::loadPreset(int index)
     }
 }
 
-void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
+void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset)
 {
     if (preset == nullptr) return;
     
@@ -804,7 +804,7 @@ void ChipSynthAudioProcessor::loadPreset(const chipsynth::Preset* preset)
     }
 }
 
-void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
+void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
 {
     juce::ignoreUnused(parameterIndex, newValue);
     
@@ -823,7 +823,7 @@ void ChipSynthAudioProcessor::parameterValueChanged(int parameterIndex, float ne
     }
 }
 
-void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
+void YMulatorSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
 {
     juce::ignoreUnused(parameterIndex);
     
@@ -831,7 +831,7 @@ void ChipSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bool g
     CS_DBG(" User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
 }
 
-void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
+void YMulatorSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
                                                       const juce::Identifier& property)
 {
     juce::ignoreUnused(treeWhosePropertyHasChanged, property);
@@ -841,7 +841,7 @@ void ChipSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& treeWhos
     CS_DBG(" ValueTree property changed: " + property.toString() + " (no custom state change)");
 }
 
-void ChipSynthAudioProcessor::updateYmfmParameters()
+void YMulatorSynthAudioProcessor::updateYmfmParameters()
 {
     // Check if ymfm is initialized
     if (!ymfmWrapper.isInitialized()) {
@@ -940,5 +940,5 @@ void ChipSynthAudioProcessor::updateYmfmParameters()
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new ChipSynthAudioProcessor();
+    return new YMulatorSynthAudioProcessor();
 }

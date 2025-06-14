@@ -1,7 +1,7 @@
 #include "VOPMParser.h"
 #include "Debug.h"
 
-namespace chipsynth {
+namespace ymulatorsynth {
 
 std::vector<VOPMVoice> VOPMParser::parseFile(const juce::File& file)
 {
@@ -445,4 +445,4 @@ bool VOPMParser::isValidRange(int value, int min, int max)
     return value >= min && value <= max;
 }
 
-} // namespace chipsynth
+} // namespace ymulatorsynth

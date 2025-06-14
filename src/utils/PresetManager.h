@@ -6,7 +6,7 @@
 #include <vector>
 #include <memory>
 
-namespace chipsynth {
+namespace ymulatorsynth {
 
 /**
  * Preset data structure for internal use
@@ -152,4 +152,4 @@ private:
     void validatePreset(Preset& preset) const;
 };
 
-} // namespace chipsynth
+} // namespace ymulatorsynth

@@ -18,7 +18,7 @@ const std::vector<ControlSpec> OperatorPanel::controlSpecs = {
     {"_ks",  "KS",  0, 3,   0,   0, 9}   // Key Scale
 };
 
-OperatorPanel::OperatorPanel(ChipSynthAudioProcessor& processor, int operatorNumber)
+OperatorPanel::OperatorPanel(YMulatorSynthAudioProcessor& processor, int operatorNumber)
     : audioProcessor(processor), operatorNum(operatorNumber)
 {
     CS_ASSERT_OPERATOR(operatorNumber - 1); // operatorNumber is 1-based, assert 0-3

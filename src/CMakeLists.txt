@@ -1,10 +1,10 @@
 # Main plugin target
-juce_add_plugin(ChipSynthAU
+juce_add_plugin(YMulatorSynthAU
     # Basic information
     COMPANY_NAME "Hiroaki"
     PLUGIN_MANUFACTURER_CODE Hrki
     PLUGIN_CODE ChpS
-    PRODUCT_NAME "ChipSynth AU"
+    PRODUCT_NAME "YMulator Synth"
     PLUGIN_DESCRIPTION "FM Synthesis Audio Unit"
     
     # Plugin formats
@@ -21,21 +21,21 @@ juce_add_plugin(ChipSynthAU
     AU_SANDBOX_SAFE TRUE
     
     # Categories and tags for GarageBand library
-    PLUGIN_AU_EXPORT_PREFIX ChipSynthAU
+    PLUGIN_AU_EXPORT_PREFIX YMulatorSynthAU
     
     # Other settings
     COPY_PLUGIN_AFTER_BUILD TRUE
-    PLUGIN_NAME "ChipSynth AU"
+    PLUGIN_NAME "YMulator Synth"
     
     # Install only AU to user directory
     AU_COPY_PLUGIN_AFTER_BUILD TRUE
     
     # Bundle identifier
-    BUNDLE_ID "jp.hiroaki.chipsynth"
+    BUNDLE_ID "jp.hiroaki.ymulatorsynth"
 )
 
 # Source files
-target_sources(ChipSynthAU
+target_sources(YMulatorSynthAU
     PRIVATE
         PluginProcessor.cpp
         PluginEditor.cpp
@@ -58,7 +58,7 @@ target_sources(ChipSynthAU
 )
 
 # Include directories
-target_include_directories(ChipSynthAU
+target_include_directories(YMulatorSynthAU
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/include
@@ -66,7 +66,7 @@ target_include_directories(ChipSynthAU
 )
 
 # Link libraries
-target_link_libraries(ChipSynthAU
+target_link_libraries(YMulatorSynthAU
     PRIVATE
         juce::juce_audio_utils
         juce::juce_audio_processors
@@ -79,7 +79,7 @@ target_link_libraries(ChipSynthAU
 )
 
 # Compile definitions
-target_compile_definitions(ChipSynthAU
+target_compile_definitions(YMulatorSynthAU
     PUBLIC
         JUCE_DISPLAY_SPLASH_SCREEN=0
         JUCE_REPORT_APP_USAGE=0
@@ -89,20 +89,20 @@ target_compile_definitions(ChipSynthAU
 )
 
 # Add resources
-juce_add_binary_data(ChipSynthAU_Resources
+juce_add_binary_data(YMulatorSynthAU_Resources
     SOURCES
-        ${CMAKE_SOURCE_DIR}/resources/presets/chipsynth-au-preset-collection.opm
+        ${CMAKE_SOURCE_DIR}/resources/presets/ymulator-synth-preset-collection.opm
 )
 
 # Link resources to the plugin
-target_link_libraries(ChipSynthAU
+target_link_libraries(YMulatorSynthAU
     PRIVATE
-        ChipSynthAU_Resources
+        YMulatorSynthAU_Resources
 )
 
 # Configure JUCE plugin
-configure_juce_target(ChipSynthAU)
+configure_juce_target(YMulatorSynthAU)
 
 # Set compiler warnings
-set_project_warnings(ChipSynthAU)
+set_project_warnings(YMulatorSynthAU)
 

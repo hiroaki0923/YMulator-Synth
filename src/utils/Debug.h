@@ -1,6 +1,6 @@
 #pragma once
 
-// Conditional debug output macros for ChipSynth-AU
+// Conditional debug output macros for YMulator-Synth
 // These macros compile to actual logging only in debug builds
 
 #ifdef JUCE_DEBUG

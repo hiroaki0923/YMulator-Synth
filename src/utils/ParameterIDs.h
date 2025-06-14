@@ -2,7 +2,7 @@
 
 #include <string>
 
-// Parameter ID definitions for ChipSynth-AU
+// Parameter ID definitions for YMulator-Synth
 // This header provides type-safe parameter ID management to prevent
 // string literal errors and improve maintainability.
 
@@ -184,7 +184,7 @@ namespace MIDI_CC {
     constexpr int NoiseEnable = 80;   // Noise enable (0/127)
     constexpr int NoiseFrequency = 81; // Noise frequency (0-31)
     
-    // Channel Pan (CC 32-39) - ChipSynth extension
+    // Channel Pan (CC 32-39) - YMulator Synth extension
     constexpr int Ch0_Pan = 32;
     constexpr int Ch1_Pan = 33;
     constexpr int Ch2_Pan = 34;
@@ -212,7 +212,7 @@ namespace MIDI_CC {
     constexpr int Op3_DT1 = 26;
     constexpr int Op4_DT1 = 27;
     
-    // Operator Detune2 (CC 28-31) - ChipSynth extension
+    // Operator Detune2 (CC 28-31) - YMulator Synth extension
     constexpr int Op1_DT2 = 28;
     constexpr int Op2_DT2 = 29;
     constexpr int Op3_DT2 = 30;

@@ -4,7 +4,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 #include <vector>
 
-namespace chipsynth {
+namespace ymulatorsynth {
 
 /**
  * VOPM Voice data structure representing a complete YM2151 voice configuration
@@ -122,4 +122,4 @@ private:
     static bool isValidRange(int value, int min, int max);
 };
 
-} // namespace chipsynth
+} // namespace ymulatorsynth

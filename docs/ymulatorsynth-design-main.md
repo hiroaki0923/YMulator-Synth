@@ -1,18 +1,18 @@
-# ChipSynth AU 設計書
+# YMulator Synth 設計書
 
-**プロジェクト名**: ChipSynth AU  
-**リポジトリ**: https://github.com/hiroaki0923/ChipSynth-AU  
+**プロジェクト名**: YMulator Synth  
+**リポジトリ**: https://github.com/hiroaki0923/YMulator-Synth  
 **ライセンス**: MIT License  
 
 ## 関連ドキュメント
-- [技術仕様書](TECHNICAL_SPEC.md) - 詳細設計、UI設計、テスト計画
-- [実装ガイド](IMPLEMENTATION_GUIDE.md) - 開発環境構築、コーディングガイド
-- [アーキテクチャ決定記録](ADR.md) - 技術的決定事項の記録
+- [技術仕様書](ymulatorsynth-technical-spec.md) - 詳細設計、UI設計、テスト計画
+- [実装ガイド](ymulatorsynth-implementation-guide.md) - 開発環境構築、コーディングガイド
+- [アーキテクチャ決定記録](ymulatorsynth-adr.md) - 技術的決定事項の記録
 
 ## 1. 概要
 
 ### 1.1 プロジェクト概要
-ChipSynth AUは、ymfmライブラリを使用してヤマハFM音源（OPM/OPNA）およびSSGをエミュレートするAudio Unitプラグインを開発する。チップチューン制作者向けに、直感的なUIと豊富なプリセット音色、S98形式での録音機能を提供する。
+YMulator Synthは、ymfmライブラリを使用してヤマハFM音源（OPM/OPNA）およびSSGをエミュレートするAudio Unitプラグインを開発する。チップチューン制作者向けに、直感的なUIと豊富なプリセット音色、S98形式での録音機能を提供する。
 
 ### 1.2 主要機能
 - FM音源（YM2151/OPM、YM2608/OPNA）のエミュレーション

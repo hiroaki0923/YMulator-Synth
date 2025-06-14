@@ -1,4 +1,4 @@
-# ChipSynth-AU Code Style Configuration for clang-format
+# YMulator-Synth Code Style Configuration for clang-format
 # Based on LLVM style with customizations for JUCE project conventions
 
 BasedOnStyle: LLVM

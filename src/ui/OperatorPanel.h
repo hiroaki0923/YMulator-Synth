@@ -7,7 +7,7 @@
 #include "RotaryKnob.h"
 #include "EnvelopeDisplay.h"
 
-class ChipSynthAudioProcessor;
+class YMulatorSynthAudioProcessor;
 
 // Control specification for data-driven UI generation
 struct ControlSpec {
@@ -23,14 +23,14 @@ struct ControlSpec {
 class OperatorPanel : public juce::Component
 {
 public:
-    OperatorPanel(ChipSynthAudioProcessor& processor, int operatorNumber);
+    OperatorPanel(YMulatorSynthAudioProcessor& processor, int operatorNumber);
     ~OperatorPanel() override = default;
     
     void paint(juce::Graphics& g) override;
     void resized() override;
 
 private:
-    ChipSynthAudioProcessor& audioProcessor;
+    YMulatorSynthAudioProcessor& audioProcessor;
     int operatorNum;
     juce::String operatorId;
     

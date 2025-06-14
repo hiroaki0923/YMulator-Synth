@@ -1,6 +1,6 @@
-# ChipSynth-AU JUCE実装詳細
+# YMulator-Synth JUCE実装詳細
 
-このドキュメントは、JUCEフレームワークを使用したChipSynth-AU実装の具体的な技術詳細を提供します。
+このドキュメントは、JUCEフレームワークを使用したYMulator-Synth実装の具体的な技術詳細を提供します。
 
 ## 1. JUCEパラメータシステム実装
 
@@ -8,20 +8,20 @@
 
 ```cpp
 // PluginProcessor.h
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     AudioProcessorValueTreeState parameters;
     
 public:
-    ChipSynthAudioProcessor();
+    YMulatorSynthAudioProcessor();
     
 private:
     AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 };
 
 // PluginProcessor.cpp
-AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::createParameterLayout()
+AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<RangedAudioParameter>> params;
     
@@ -94,7 +94,7 @@ AudioProcessorValueTreeState::ParameterLayout ChipSynthAudioProcessor::createPar
 
 ```cpp
 // PluginProcessor.h
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     std::unordered_map<int, AudioParameterInt*> ccToParameterMap;
@@ -104,7 +104,7 @@ private:
 };
 
 // PluginProcessor.cpp
-void ChipSynthAudioProcessor::setupCCMapping()
+void YMulatorSynthAudioProcessor::setupCCMapping()
 {
     // VOPMex互換MIDI CCマッピング
     
@@ -156,7 +156,7 @@ void ChipSynthAudioProcessor::setupCCMapping()
     }
 }
 
-void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
+void YMulatorSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 {
     auto it = ccToParameterMap.find(ccNumber);
     if (it != ccToParameterMap.end() && it->second != nullptr)
@@ -173,7 +173,7 @@ void ChipSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 ### 1.3 processBlock内でのMIDI処理
 
 ```cpp
-void ChipSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
+void YMulatorSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     ScopedNoDenormals noDenormals;
     
@@ -214,7 +214,7 @@ void ChipSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffe
 
 ```cpp
 // PluginProcessor.h
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     int currentPreset = 0;
@@ -229,7 +229,7 @@ public:
 };
 
 // PluginProcessor.cpp
-void ChipSynthAudioProcessor::setCurrentProgram(int index)
+void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
 {
     if (index >= 0 && index < NUM_FACTORY_PRESETS)
     {
@@ -238,7 +238,7 @@ void ChipSynthAudioProcessor::setCurrentProgram(int index)
     }
 }
 
-const String ChipSynthAudioProcessor::getProgramName(int index)
+const String YMulatorSynthAudioProcessor::getProgramName(int index)
 {
     const String presetNames[NUM_FACTORY_PRESETS] = {
         "Electric Piano",
@@ -279,7 +279,7 @@ struct FMPreset
 };
 
 // PluginProcessor.cpp
-void ChipSynthAudioProcessor::loadFactoryPreset(int index)
+void YMulatorSynthAudioProcessor::loadFactoryPreset(int index)
 {
     FMPreset preset = getFactoryPreset(index);
     
@@ -314,7 +314,7 @@ void ChipSynthAudioProcessor::loadFactoryPreset(int index)
 ### 3.1 getStateInformation/setStateInformation実装
 
 ```cpp
-void ChipSynthAudioProcessor::getStateInformation(MemoryBlock& destData)
+void YMulatorSynthAudioProcessor::getStateInformation(MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     
@@ -325,7 +325,7 @@ void ChipSynthAudioProcessor::getStateInformation(MemoryBlock& destData)
     copyXmlToBinary(*xml, destData);
 }
 
-void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     
@@ -348,7 +348,7 @@ void ChipSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
 ### 4.1 パラメータ更新レート制限
 
 ```cpp
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     std::atomic<int> parameterUpdateCounter{0};
@@ -357,7 +357,7 @@ private:
     void updateYmfmParameters();
 };
 
-void ChipSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
+void YMulatorSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     // パラメータ更新レート制限
     bool shouldUpdateParams = (++parameterUpdateCounter % PARAMETER_UPDATE_RATE_DIVIDER) == 0;
@@ -374,7 +374,7 @@ void ChipSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffe
 ### 4.2 メモリアロケーション回避
 
 ```cpp
-class ChipSynthAudioProcessor : public juce::AudioProcessor
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor
 {
 private:
     // 事前に確保済みのスクラッチバッファ

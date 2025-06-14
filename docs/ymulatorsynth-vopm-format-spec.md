@@ -1,14 +1,14 @@
-# ChipSynth-AU VOPM形式仕様
+# YMulator-Synth VOPM形式仕様
 
-このドキュメントは、ChipSynth-AUでサポートするVOPM (.opm)ファイル形式の詳細仕様を定義します。
+このドキュメントは、YMulator-SynthでサポートするVOPM (.opm)ファイル形式の詳細仕様を定義します。
 
 ## 1. VOPM形式概要
 
-VOPMファイルはYM2151 (OPM)用のボイス情報を含むプレーンテキスト形式です。ChipSynth-AUは**VOPMex標準フォーマット**との完全互換性を実現しており、VOPMexで作成されたプリセットファイルをそのまま使用できます。
+VOPMファイルはYM2151 (OPM)用のボイス情報を含むプレーンテキスト形式です。YMulator-Synthは**VOPMex標準フォーマット**との完全互換性を実現しており、VOPMexで作成されたプリセットファイルをそのまま使用できます。
 
 ### 1.1 VOPMex互換性
 
-ChipSynth-AUはVOPMex Ver2002.04.22フォーマットに完全対応しています：
+YMulator-SynthはVOPMex Ver2002.04.22フォーマットに完全対応しています：
 - **ファイル形式**: MiOPMdrv sound bank Parameter形式
 - **拡張子**: .opm
 - **エンコーディング**: UTF-8またはShift_JIS対応
@@ -44,7 +44,7 @@ CH: PAN FL CON AMS PMS SLOT NE
 
 #### チャンネルパラメータ
 
-⚠️ **重要**: ChipSynth-AUはVOPMex拡張フォーマットを使用します。標準VOPM仕様と異なる値範囲があります。
+⚠️ **重要**: YMulator-SynthはVOPMex拡張フォーマットを使用します。標準VOPM仕様と異なる値範囲があります。
 
 - `PAN` - パンポット 
   - **ファイル形式**: 0, 64, 128, 192 (VOPMex拡張形式)
@@ -89,7 +89,7 @@ CH: PAN FL CON AMS PMS SLOT NE
 
 ```cpp
 // VOPMParser.h
-namespace chipsynth {
+namespace ymulatorsynth {
 
 struct VOPMVoice
 {
@@ -135,7 +135,7 @@ struct VOPMVoice
     } operators[4];
 };
 
-} // namespace chipsynth
+} // namespace ymulatorsynth
 ```
 
 ### 3.2 パーサー実装
@@ -337,7 +337,7 @@ private:
 
 ```cpp
 // FactoryPresets.cpp
-namespace chipsynth {
+namespace ymulatorsynth {
 
 const VOPMVoice FACTORY_PRESETS[] = {
     // Electric Piano
@@ -445,7 +445,7 @@ const VOPMVoice FACTORY_PRESETS[] = {
     }
 };
 
-} // namespace chipsynth
+} // namespace ymulatorsynth
 ```
 
 ## 5. エラーハンドリング
@@ -515,7 +515,7 @@ public:
 #### 6.1.1 PAN値の拡張
 - **標準VOPM**: 0-3 (2ビット値)
 - **VOPMex**: 0, 64, 128, 192 (6ビット左シフト値)
-- **ChipSynth-AU**: VOPMex形式をファイルで使用、内部で標準形式に変換
+- **YMulator-Synth**: VOPMex形式をファイルで使用、内部で標準形式に変換
 
 #### 6.1.2 OpMsk（オペレータマスク）の変換
 - **標準VOPM**: 0-15 (4ビット値)
@@ -525,7 +525,7 @@ public:
   - `24` (00011000): M1,C1のみ (3 << 3)
   - `0` (00000000): 全オペレータ無効 (0 << 3)
 - **ハードウェア**: YM2151 Key Onレジスタに直接マッピング
-- **ChipSynth-AU**: ファイルではOpMsk形式、内部では4ビット値として処理
+- **YMulator-Synth**: ファイルではOpMsk形式、内部では4ビット値として処理
 
 #### 6.1.3 変換処理のタイミング
 ```cpp
@@ -540,14 +540,14 @@ int filePan = 64;           // VOPMexファイル値
 
 ### 6.2 互換性テスト
 
-ChipSynth-AUプリセットファイルの互換性は以下の方法で確認済み：
+YMulator-Synthプリセットファイルの互換性は以下の方法で確認済み：
 
 1. **VOPMexからのエクスポート**
    - bell.opm, gm.opm, piano.opmでフォーマット確認
    - PAN=64, SLOT=120の標準的な使用を確認
 
 2. **相互変換テスト**
-   - ChipSynth-AU → VOPMex → ChipSynth-AU の往復変換
+   - YMulator-Synth → VOPMex → YMulator-Synth の往復変換
    - パラメータ値の整合性確認
    - 音色の一致確認
 

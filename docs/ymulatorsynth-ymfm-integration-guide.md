@@ -1,6 +1,6 @@
-# ChipSynth ymfm Integration Guide
+# YMulator Synth ymfm Integration Guide
 
-このドキュメントは、ChipSynth-AUプロジェクトにおけるymfmライブラリの統合方法と、YM2151 (OPM) およびYM2608 (OPNA) のプログラミングパターンについて説明します。
+このドキュメントは、YMulator-Synthプロジェクトにおけるymfmライブラリの統合方法と、YM2151 (OPM) およびYM2608 (OPNA) のプログラミングパターンについて説明します。
 
 ## 目次
 
@@ -13,7 +13,7 @@
 
 ## 概要
 
-ymfmは、Aaron Gilesによって開発された高精度なヤマハFM音源エミュレーションライブラリです。ChipSynth-AUでは、このライブラリを使用してYM2151 (OPM) とYM2608 (OPNA) のエミュレーションを実現しています。
+ymfmは、Aaron Gilesによって開発された高精度なヤマハFM音源エミュレーションライブラリです。YMulator Synthでは、このライブラリを使用してYM2151 (OPM) とYM2608 (OPNA) のエミュレーションを実現しています。
 
 ### 主な特徴
 

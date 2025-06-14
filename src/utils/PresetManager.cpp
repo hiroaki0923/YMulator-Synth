@@ -3,7 +3,7 @@
 #include "VOPMParser.h"
 #include "BinaryData.h"
 
-namespace chipsynth {
+namespace ymulatorsynth {
 
 // Factory preset definitions
 static const VOPMVoice FACTORY_VOICES[] = {
@@ -253,10 +253,10 @@ int PresetManager::loadBundledPresets()
     int totalLoaded = 0;
     
     // First try to load from bundled binary resources
-    if (BinaryData::chipsynthaupresetcollection_opmSize > 0)
+    if (BinaryData::ymulatorsynthpresetcollection_opmSize > 0)
     {
-        juce::String content(static_cast<const char*>(BinaryData::chipsynthaupresetcollection_opm), 
-                           BinaryData::chipsynthaupresetcollection_opmSize);
+        juce::String content(static_cast<const char*>(BinaryData::ymulatorsynthpresetcollection_opm), 
+                           BinaryData::ymulatorsynthpresetcollection_opmSize);
         
         auto voices = VOPMParser::parseContent(content);
         for (const auto& voice : voices)
@@ -282,7 +282,7 @@ int PresetManager::loadBundledPresets()
     }
     
     // Look for the main preset collection file
-    auto collectionFile = presetsDir.getChildFile("chipsynth-au-preset-collection.opm");
+    auto collectionFile = presetsDir.getChildFile("ymulator-synth-preset-collection.opm");
     if (collectionFile.exists())
     {
         totalLoaded += loadOPMFile(collectionFile);
@@ -362,7 +362,7 @@ bool PresetManager::saveOPMFile(const juce::File& file) const
 {
     juce::String content;
     content << ";==================================================\n";
-    content << "; ChipSynth AU Presets\n";
+    content << "; YMulator Synth Presets\n";
     content << "; Generated automatically\n";
     content << ";==================================================\n\n";
     
@@ -436,7 +436,7 @@ juce::File PresetManager::getPresetsDirectory() const
     
     // Fallback: user's Documents directory
     return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                     .getChildFile("ChipSynth AU")
+                     .getChildFile("YMulator Synth")
                      .getChildFile("presets");
 }
 
@@ -476,4 +476,4 @@ void PresetManager::validatePreset(Preset& preset) const
     }
 }
 
-} // namespace chipsynth
+} // namespace ymulatorsynth

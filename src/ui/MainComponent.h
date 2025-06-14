@@ -6,13 +6,13 @@
 #include "RotaryKnob.h"
 #include "AlgorithmDisplay.h"
 
-class ChipSynthAudioProcessor;
+class YMulatorSynthAudioProcessor;
 
 class MainComponent : public juce::Component,
                       public juce::ValueTree::Listener
 {
 public:
-    explicit MainComponent(ChipSynthAudioProcessor& processor);
+    explicit MainComponent(YMulatorSynthAudioProcessor& processor);
     ~MainComponent() override;
     
     void paint(juce::Graphics& g) override;
@@ -23,7 +23,7 @@ public:
                                  const juce::Identifier& property) override;
 
 private:
-    ChipSynthAudioProcessor& audioProcessor;
+    YMulatorSynthAudioProcessor& audioProcessor;
     
     // Global controls
     std::unique_ptr<juce::ComboBox> algorithmComboBox;

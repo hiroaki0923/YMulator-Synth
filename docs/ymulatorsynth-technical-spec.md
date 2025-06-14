@@ -1,4 +1,4 @@
-# ChipSynth AU 技術仕様書
+# YMulator Synth 技術仕様書
 
 ## 1. 詳細設計
 
@@ -212,7 +212,7 @@ public:
 
 #### 1.5.3 MIDI処理実装
 ```cpp
-class ChipSynthAudioProcessor : public juce::AudioProcessor {
+class YMulatorSynthAudioProcessor : public juce::AudioProcessor {
 public:
     void handleMidiCC(int channel, int ccNumber, int value) {
         // オペレータパラメータの処理
@@ -549,9 +549,9 @@ private:
 
 #### 2.1.1 基本構成
 ```cpp
-class ChipSynthPluginEditor : public juce::AudioProcessorEditor {
+class YMulatorSynthPluginEditor : public juce::AudioProcessorEditor {
 public:
-    ChipSynthPluginEditor(ChipSynthAudioProcessor& processor);
+    YMulatorSynthPluginEditor(YMulatorSynthAudioProcessor& processor);
     
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -689,7 +689,7 @@ namespace VopmCC {
 
 #### 2.4.1 レイアウト構成
 ```cpp
-void ChipSynthPluginEditor::resized() {
+void YMulatorSynthPluginEditor::resized() {
     auto bounds = getLocalBounds();
     
     // 左側パネル（プリセット・ADPCM）
@@ -724,7 +724,7 @@ private:
 
 ### 2.5 キーボードショートカット実装
 ```cpp
-class ChipSynthPluginEditor : public juce::KeyListener {
+class YMulatorSynthPluginEditor : public juce::KeyListener {
     bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override {
         if (key.isKeyCode(juce::KeyPress::spaceKey)) {
             // プレビュー音の再生/停止

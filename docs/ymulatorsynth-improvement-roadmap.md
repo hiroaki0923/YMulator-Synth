@@ -1,4 +1,4 @@
-# ChipSynth-AU 改善ロードマップ
+# YMulator-Synth 改善ロードマップ
 
 このドキュメントは、improvement.md レポートの分析に基づいて作成された改善実施計画です。
 
@@ -16,7 +16,7 @@
 - [x] CMakeLists.txt からFMCore関連の記述を削除
 
 #### A.1.2 冗長コードの削除
-- [x] `src/dsp/YmfmWrapper.h` の冗長な `ChipSynthInterface` クラス定義（11-23行目）を削除
+- [x] `src/dsp/YmfmWrapper.h` の冗長な `YMulatorSynthInterface` クラス定義（11-23行目）を削除
   - YmfmWrapper自体が ymfm_interface を継承しているため不要
 
 ### A.2 デバッグ出力の最適化 🔴 **高優先度**
@@ -176,7 +176,7 @@ const std::vector<ControlSpec> operatorControls = {
 1. **コードクリーンアップ** ✅
    - 未使用のFMCore.h/cppファイルを削除
    - CMakeLists.txtから参照を削除
-   - YmfmWrapper.hから冗長なChipSynthInterfaceクラスを削除
+   - YmfmWrapper.hから冗長なYMulatorSynthInterfaceクラスを削除
 
 2. **デバッグ出力の最適化** ✅
    - src/utils/Debug.h を作成（条件付きコンパイルマクロ）

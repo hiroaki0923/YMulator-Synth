@@ -1,4 +1,4 @@
-# ChipSynth AU アーキテクチャ決定記録
+# YMulator Synth アーキテクチャ決定記録
 
 ## 目次
 - [ADR-001: UIフレームワークの選定](#adr-001-uiフレームワークの選定)
@@ -90,7 +90,7 @@ Audio Unitプラグインのユーザーインターフェース実装におい�
 
 2. **UIコンポーネント設計**
    ```cpp
-   class ChipSynthPluginEditor : public juce::AudioProcessorEditor {
+   class YMulatorSynthPluginEditor : public juce::AudioProcessorEditor {
        // JUCEコンポーネントを活用した実装
        juce::Slider operatorSliders[4][10];  // 各オペレータのパラメータ
        juce::ComboBox algorithmSelector;      // アルゴリズム選択

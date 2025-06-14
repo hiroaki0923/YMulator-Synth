@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ChipSynth AU Release Build Script
+# YMulator Synth Release Build Script
 # Usage: ./scripts/build-release.sh [version] [--skip-validation]
 
 set -e  # Exit on any error
@@ -65,7 +65,7 @@ for arg in "$@"; do
     esac
 done
 
-log_info "Starting ChipSynth AU release build..."
+log_info "Starting YMulator Synth release build..."
 log_info "Version: $VERSION"
 log_info "Project Directory: $PROJECT_DIR"
 
@@ -107,7 +107,7 @@ log_info "Building Audio Unit..."
 cmake --build . --config Release --parallel
 
 # Check if build succeeded
-COMPONENT_PATH="$BUILD_DIR/src/ChipSynthAU_artefacts/Release/AU/ChipSynth AU.component"
+COMPONENT_PATH="$BUILD_DIR/src/YMulatorSynthAU_artefacts/Release/AU/YMulator Synth.component"
 if [ ! -d "$COMPONENT_PATH" ]; then
     log_error "Build failed - Audio Unit component not found"
     exit 1
@@ -143,8 +143,8 @@ echo "   Bundle ID: $BUNDLE_ID"
 echo "   Version: $BUNDLE_VERSION"
 
 # Create release package
-PACKAGE_DIR="$BUILD_DIR/ChipSynth-AU-$VERSION"
-DMG_NAME="ChipSynth-AU-$VERSION.dmg"
+PACKAGE_DIR="$BUILD_DIR/YMulator-Synth-$VERSION"
+DMG_NAME="YMulator-Synth-$VERSION.dmg"
 
 log_info "Creating release package..."
 
@@ -158,16 +158,16 @@ cp -R "$COMPONENT_PATH" "$PACKAGE_DIR/Components/"
 
 # Create installation instructions
 cat > "$PACKAGE_DIR/README.txt" << 'EOF'
-ChipSynth AU - YM2151 FM Synthesis Audio Unit
+YMulator Synth - YM2151 FM Synthesis Audio Unit
 
 Installation Instructions:
-1. Copy "ChipSynth AU.component" from the Components folder to:
+1. Copy "YMulator Synth.component" from the Components folder to:
    ~/Library/Audio/Plug-Ins/Components/
    (or /Library/Audio/Plug-Ins/Components/ for all users)
 
 2. Restart your DAW
 
-3. Look for "ChipSynth AU" in the Music Device category
+3. Look for "YMulator Synth" in the Music Device category
 
 Requirements:
 - macOS 10.13 or later
@@ -181,7 +181,7 @@ Features:
 - Real-time parameter control with < 3ms latency
 
 For more information, documentation, and source code:
-https://github.com/hiroaki0923/ChipSynth-AU
+https://github.com/hiroaki0923/YMulator-Synth
 
 License: GPL v3
 EOF
@@ -200,7 +200,7 @@ log_info "Creating DMG package..."
 cd "$BUILD_DIR"
 
 if command -v hdiutil &> /dev/null; then
-    hdiutil create -volname "ChipSynth AU $VERSION" \
+    hdiutil create -volname "YMulator Synth $VERSION" \
                    -srcfolder "$PACKAGE_DIR" \
                    -ov \
                    -format UDZO \
@@ -213,15 +213,15 @@ if command -v hdiutil &> /dev/null; then
 else
     log_warning "hdiutil not found - creating ZIP instead"
     cd "$BUILD_DIR"
-    zip -r "ChipSynth-AU-$VERSION.zip" "$(basename "$PACKAGE_DIR")"
-    mv "ChipSynth-AU-$VERSION.zip" "$RELEASE_DIR/"
-    log_success "ZIP created: $RELEASE_DIR/ChipSynth-AU-$VERSION.zip"
+    zip -r "YMulator-Synth-$VERSION.zip" "$(basename "$PACKAGE_DIR")"
+    mv "YMulator-Synth-$VERSION.zip" "$RELEASE_DIR/"
+    log_success "ZIP created: $RELEASE_DIR/YMulator-Synth-$VERSION.zip"
 fi
 
 # Generate release notes
 RELEASE_NOTES="$RELEASE_DIR/release-notes-$VERSION.md"
 cat > "$RELEASE_NOTES" << EOF
-# ChipSynth AU $VERSION
+# YMulator Synth $VERSION
 
 A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to your DAW.
 
@@ -235,9 +235,9 @@ A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to
 
 ## 📦 Installation
 1. Download and open the DMG file
-2. Copy "ChipSynth AU.component" to ~/Library/Audio/Plug-Ins/Components/
+2. Copy "YMulator Synth.component" to ~/Library/Audio/Plug-Ins/Components/
 3. Restart your DAW
-4. Find "ChipSynth AU" in the Music Effect category
+4. Find "YMulator Synth" in the Music Effect category
 
 ## 🎚️ MIDI CC Mapping
 - CC 14: Algorithm (0-7)
@@ -283,7 +283,7 @@ A modern FM synthesis Audio Unit plugin bringing authentic YM2151 (OPM) sound to
 - Git Commit: $(cd "$PROJECT_DIR" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 - Built On: $(uname -a)
 
-For more information, visit: https://github.com/hiroaki0923/ChipSynth-AU
+For more information, visit: https://github.com/hiroaki0923/YMulator-Synth
 EOF
 
 log_success "Release notes created: $RELEASE_NOTES"
@@ -312,9 +312,9 @@ if [ "$CREATE_GITHUB_RELEASE" = true ]; then
             fi
             
             # Create the release
-            RELEASE_TITLE="ChipSynth AU $VERSION"
+            RELEASE_TITLE="YMulator Synth $VERSION"
             DMG_PATH="$RELEASE_DIR/$DMG_NAME"
-            ZIP_PATH="$RELEASE_DIR/ChipSynth-AU-$VERSION.zip"
+            ZIP_PATH="$RELEASE_DIR/YMulator-Synth-$VERSION.zip"
             
             # Determine which file to upload
             UPLOAD_FILE=""

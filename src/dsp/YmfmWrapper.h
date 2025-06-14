@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <memory>
 
-// Minimal ymfm wrapper for ChipSynth AU
+// Minimal ymfm wrapper for YMulator Synth
 class YmfmWrapper : public ymfm::ymfm_interface
 {
 public:
@@ -118,7 +118,7 @@ private:
     bool initialized = false;
     
     // ymfm interface - no longer needed since we inherit from ymfm_interface
-    // ChipSynthInterface interface;
+    // YMulatorSynthInterface interface;
     
     // ymfm chip instances
     std::unique_ptr<ymfm::ym2151> opmChip;

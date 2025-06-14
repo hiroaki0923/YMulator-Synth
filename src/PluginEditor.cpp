@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-ChipSynthAudioProcessorEditor::ChipSynthAudioProcessorEditor(ChipSynthAudioProcessor& p)
+YMulatorSynthAudioProcessorEditor::YMulatorSynthAudioProcessorEditor(YMulatorSynthAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
     mainComponent = std::make_unique<MainComponent>(audioProcessor);
@@ -9,16 +9,16 @@ ChipSynthAudioProcessorEditor::ChipSynthAudioProcessorEditor(ChipSynthAudioProce
     setSize(800, 600);
 }
 
-ChipSynthAudioProcessorEditor::~ChipSynthAudioProcessorEditor()
+YMulatorSynthAudioProcessorEditor::~YMulatorSynthAudioProcessorEditor()
 {
 }
 
-void ChipSynthAudioProcessorEditor::paint(juce::Graphics& g)
+void YMulatorSynthAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // MainComponent handles all painting
 }
 
-void ChipSynthAudioProcessorEditor::resized()
+void YMulatorSynthAudioProcessorEditor::resized()
 {
     mainComponent->setBounds(getLocalBounds());
 }
