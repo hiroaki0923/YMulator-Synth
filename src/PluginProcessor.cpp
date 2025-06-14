@@ -3,7 +3,7 @@
 #include "utils/Debug.h"
 #include "utils/ParameterIDs.h"
 
-YMulatorSynthAudioProcessor::ChipSynthAudioProcessor()
+YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout())
@@ -30,7 +30,7 @@ YMulatorSynthAudioProcessor::ChipSynthAudioProcessor()
     CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
 }
 
-YMulatorSynthAudioProcessor::~ChipSynthAudioProcessor()
+YMulatorSynthAudioProcessor::~YMulatorSynthAudioProcessor()
 {
     // Remove ValueTree listener
     parameters.state.removeListener(this);

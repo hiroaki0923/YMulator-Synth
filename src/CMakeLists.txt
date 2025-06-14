@@ -91,7 +91,7 @@ target_compile_definitions(YMulatorSynthAU
 # Add resources
 juce_add_binary_data(YMulatorSynthAU_Resources
     SOURCES
-        ${CMAKE_SOURCE_DIR}/resources/presets/chipsynth-au-preset-collection.opm
+        ${CMAKE_SOURCE_DIR}/resources/presets/ymulator-synth-preset-collection.opm
 )
 
 # Link resources to the plugin

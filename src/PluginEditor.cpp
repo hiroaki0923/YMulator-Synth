@@ -9,7 +9,7 @@ YMulatorSynthAudioProcessorEditor::YMulatorSynthAudioProcessorEditor(YMulatorSyn
     setSize(800, 600);
 }
 
-YMulatorSynthAudioProcessorEditor::~ChipSynthAudioProcessorEditor()
+YMulatorSynthAudioProcessorEditor::~YMulatorSynthAudioProcessorEditor()
 {
 }
 

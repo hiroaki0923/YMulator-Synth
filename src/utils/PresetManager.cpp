@@ -253,10 +253,10 @@ int PresetManager::loadBundledPresets()
     int totalLoaded = 0;
     
     // First try to load from bundled binary resources
-    if (BinaryData::chipsynthaupresetcollection_opmSize > 0)
+    if (BinaryData::ymulatorsynthpresetcollection_opmSize > 0)
     {
-        juce::String content(static_cast<const char*>(BinaryData::chipsynthaupresetcollection_opm), 
-                           BinaryData::chipsynthaupresetcollection_opmSize);
+        juce::String content(static_cast<const char*>(BinaryData::ymulatorsynthpresetcollection_opm), 
+                           BinaryData::ymulatorsynthpresetcollection_opmSize);
         
         auto voices = VOPMParser::parseContent(content);
         for (const auto& voice : voices)
@@ -282,7 +282,7 @@ int PresetManager::loadBundledPresets()
     }
     
     // Look for the main preset collection file
-    auto collectionFile = presetsDir.getChildFile("chipsynth-au-preset-collection.opm");
+    auto collectionFile = presetsDir.getChildFile("ymulator-synth-preset-collection.opm");
     if (collectionFile.exists())
     {
         totalLoaded += loadOPMFile(collectionFile);
