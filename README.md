@@ -22,6 +22,9 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 ### 🎵 Professional Features
 - **8 Factory Presets**: Electric Piano, Bass, Brass, Strings, Lead, Organ, Bells, Init
 - **64 OPM Presets**: Bundled collection of classic FM sounds (⚠️ *currently under sound design refinement*)
+- **Complete Preset Management**: Bank/Preset dual ComboBox system with OPM file import
+- **VOPM File Support**: Load .opm preset files from VOPM and other compatible applications
+- **DAW Project Persistence**: Bank and preset selections survive DAW project save/load
 - **Full MIDI CC Support**: VOPMex-compatible CC mapping (14-62)
 - **Polyphonic voice allocation** with automatic voice stealing
 - **Enhanced presets** utilizing DT2, Key Scale, and Feedback for rich timbres
@@ -159,8 +162,15 @@ auval -v aumu YMul Hrki
 This project is actively developed with the following status:
 - **Phase 1 (Foundation)**: ✅ 100% Complete
 - **Phase 2 (Core Audio)**: ✅ 100% Complete (OPM focused)
-- **Phase 3 (UI Enhancement)**: 🔄 30% Complete (SLOT control implemented)
-- **Overall Progress**: ~95% Complete
+- **Phase 3 (UI Enhancement)**: ✅ 90% Complete (Preset management system complete)
+- **Overall Progress**: 99% Complete
+
+### Version 0.0.4 Features (Latest)
+- **Complete Preset Management System**: Bank/Preset dual ComboBox with hierarchical organization
+- **OPM File Import**: Load .opm preset files from VOPM and compatible applications
+- **DAW Project Persistence**: Bank and preset selections survive DAW save/load cycles
+- **UI Layout Optimization**: Streamlined interface with File menu removal
+- **Debug Output Optimization**: Reduced excessive logging while preserving error reporting
 
 ### Version 0.0.3 Features
 - **SLOT Control**: Individual operator enable/disable controls via title bar checkboxes
@@ -175,8 +185,65 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **Bell Instruments**: Marimba, Vibraphone, and similar percussive sounds need parameter optimization
 
 ### Roadmap
-- **Phase 2 Completion**: Enhanced UI features, preset quality improvements
-- **Phase 3 (Future)**: YM2608 (OPNA) support, .opm file I/O, S98 export
+- **Phase 3 Completion**: Enhanced UI features, additional preset management features
+- **Phase 4 (Future)**: YM2608 (OPNA) support, S98 export, advanced editing features
+
+## Changelog
+
+### Version 0.0.4 (2025-06-15)
+**Major Release: Complete Preset Management System**
+
+**🎵 New Features:**
+- **Bank/Preset Dual ComboBox System**: Hierarchical preset organization with Factory and imported banks
+- **OPM File Import**: Full support for .opm preset files from VOPM and compatible applications
+- **DAW Project Persistence**: Bank and preset selections automatically restored after DAW restart
+- **Enhanced User Experience**: Streamlined UI with File menu removal and optimized layout
+
+**🔧 Technical Improvements:**
+- **OPM Parser Robustness**: Fixed whitespace normalization for reliable SLOT mask and noise enable parsing
+- **Performance Optimization**: Reduced debug output while maintaining comprehensive error reporting
+- **State Management**: ValueTreeState integration for seamless DAW project save/load
+- **Memory Management**: Duplicate bank prevention and efficient user data persistence
+
+**🐛 Bug Fixes:**
+- Fixed OPM parser handling of multiple spaces/tabs causing incorrect parameter parsing
+- Resolved UI layout spacing issues after File menu removal
+- Fixed DAW project restore order to load user data before applying presets
+
+### Version 0.0.3 (2025-06-12)
+**UI Enhancement Release**
+
+**🎵 New Features:**
+- **SLOT Control System**: Individual operator enable/disable via title bar checkboxes
+- **VOPM Compatibility**: Full SLOT mask compatibility with existing VOPM presets
+- **Visual Feedback**: Clear indication of enabled/disabled operators
+
+**🔧 Technical Improvements:**
+- **Backward Compatibility**: All existing presets remain fully functional
+- **UI Integration**: Seamless SLOT control integration with parameter system
+
+### Version 0.0.2 (2025-06-11)
+**Core Audio Enhancement Release**
+
+**🎵 New Features:**
+- **YM2151 Noise Generator**: Hardware-accurate noise synthesis on channel 7
+- **LFO Complete Implementation**: 4 waveforms with AMS/PMS modulation
+- **Enhanced Envelope System**: Velocity sensitivity and batch optimization
+
+**🔧 Technical Improvements:**
+- **Hardware Constraints**: Full YM2151 hardware limitation compliance
+- **Performance Optimization**: Efficient envelope processing
+- **MIDI CC Expansion**: Additional controllers for noise and LFO parameters
+
+### Version 0.0.1 (2025-06-08)
+**Initial Release**
+
+**🎵 Core Features:**
+- **YM2151 (OPM) Emulation**: 8-voice polyphonic FM synthesis
+- **VOPM-Style Interface**: Familiar 4-operator layout with all parameters
+- **8 Factory Presets**: Professional-quality starting sounds
+- **MIDI Integration**: Full Note On/Off, CC, and pitch bend support
+- **Audio Unit Compatibility**: Native macOS plugin integration
 
 ## License
 
