@@ -142,7 +142,6 @@ void OperatorPanel::setupControls()
     // Update envelope display with current parameter values
     updateEnvelopeDisplay();
     
-    CS_DBG("OperatorPanel: Created " + juce::String(controls.size()) + " controls for operator " + juce::String(operatorNum));
 }
 
 void OperatorPanel::createControlFromSpec(const ControlSpec& spec)
@@ -214,7 +213,6 @@ void OperatorPanel::createControlFromSpec(const ControlSpec& spec)
     // Add to controls vector
     controls.push_back(std::move(controlPair));
     
-    CS_DBG("Created control: " + paramId + " (" + spec.labelText + ")");
 }
 
 void OperatorPanel::updateEnvelopeDisplay()

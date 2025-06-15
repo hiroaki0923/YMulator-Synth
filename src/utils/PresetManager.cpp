@@ -155,7 +155,6 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
         // Extract SLOT enable from channel slotMask
         preset.operators[i].slotEnable = (voice.channel.slotMask & (1 << i)) != 0;
     }
-    
     return preset;
 }
 
@@ -219,8 +218,10 @@ void PresetManager::initialize()
     clear();
     loadFactoryPresets();
     loadBundledPresets();
+    initializeBanks();
+    loadUserData();  // Load persistent user data
     
-    CS_DBG("PresetManager initialized with " + juce::String(presets.size()) + " presets");
+    CS_DBG("PresetManager initialized with " + juce::String(presets.size()) + " presets in " + juce::String(banks.size()) + " banks");
 }
 
 int PresetManager::loadOPMFile(const juce::File& file)
@@ -232,19 +233,65 @@ int PresetManager::loadOPMFile(const juce::File& file)
     }
     
     auto voices = VOPMParser::parseFile(file);
+    CS_DBG("VOPMParser returned " + juce::String(voices.size()) + " voices");
+    
+    if (voices.empty()) {
+        CS_DBG("No voices found in file: " + file.getFullPathName());
+        return 0;
+    }
+    
+    // Create a new bank for this OPM file
+    std::string bankName = file.getFileNameWithoutExtension().toStdString();
+    
+    // Check if this bank already exists (prevent duplicates)
+    for (const auto& existingBank : banks) {
+        if (existingBank.fileName == file.getFileName().toStdString()) {
+            CS_DBG("Bank already exists: " + bankName + " (skipping)");
+            return 0; // Already loaded
+        }
+    }
+    
     int loaded = 0;
+    int startIndex = static_cast<int>(presets.size());
+    std::vector<int> bankPresetIndices;
     
     for (const auto& voice : voices)
     {
         auto preset = Preset::fromVOPM(voice);
+        CS_DBG("Converting voice " + juce::String(voice.number) + " '" + voice.name + "' to preset");
+        
         // Offset OPM preset IDs to avoid conflict with factory presets
-        preset.id += NUM_FACTORY_PRESETS;
+        preset.id = startIndex + loaded;  // Use simple sequential ID
         validatePreset(preset);
+        
+        CS_DBG("Adding preset id=" + juce::String(preset.id) + " name='" + preset.name + "' at index " + juce::String(startIndex + loaded));
         addPreset(preset);
+        
+        // Add to bank indices list
+        bankPresetIndices.push_back(startIndex + loaded);
         loaded++;
     }
     
-    CS_DBG("Loaded " + juce::String(loaded) + " presets from " + file.getFileName());
+    // Create and add the bank with the collected indices
+    Bank newBank(bankName, file.getFileName().toStdString());
+    newBank.presetIndices = bankPresetIndices;
+    banks.push_back(newBank);
+    
+    CS_DBG("Loaded " + juce::String(loaded) + " presets from " + file.getFileName() + " as bank '" + bankName + "'");
+    CS_DBG("Bank '" + juce::String(bankName) + "' now has " + juce::String(banks.back().presetIndices.size()) + " preset indices");
+    
+    // Copy the OPM file to persistent storage for future loading
+    auto banksDir = getUserDataDirectory().getChildFile("banks");
+    banksDir.createDirectory();
+    auto targetFile = banksDir.getChildFile(file.getFileName());
+    if (!targetFile.exists()) {
+        file.copyFileTo(targetFile);
+        CS_DBG("Copied OPM file to persistent storage: " + targetFile.getFullPathName());
+    }
+    
+    // Save imported banks list
+    saveImportedBanks();
+    
     return loaded;
 }
 
@@ -375,9 +422,25 @@ bool PresetManager::saveOPMFile(const juce::File& file) const
     return file.replaceWithText(content);
 }
 
+bool PresetManager::savePresetAsOPM(const juce::File& file, const Preset& preset) const
+{
+    juce::String content;
+    content << ";==================================================\n";
+    content << "; YMulator Synth Preset\n";
+    content << "; " << preset.name << "\n";
+    content << "; Generated automatically\n";
+    content << ";==================================================\n\n";
+    
+    auto voice = preset.toVOPM();
+    content << VOPMParser::voiceToString(voice) << "\n";
+    
+    return file.replaceWithText(content);
+}
+
 void PresetManager::clear()
 {
     presets.clear();
+    banks.clear();
 }
 
 std::vector<Preset> PresetManager::getFactoryPresets()
@@ -474,6 +537,324 @@ void PresetManager::validatePreset(Preset& preset) const
         op.releaseRate = juce::jlimit(0.0f, 15.0f, op.releaseRate);
         op.sustainLevel = juce::jlimit(0.0f, 15.0f, op.sustainLevel);
     }
+}
+
+void PresetManager::initializeBanks()
+{
+    // Create Factory bank
+    Bank factoryBank("Factory");
+    for (int i = 0; i < NUM_FACTORY_PRESETS && i < static_cast<int>(presets.size()); ++i) {
+        factoryBank.presetIndices.push_back(i);
+    }
+    banks.insert(banks.begin(), factoryBank);
+}
+
+juce::StringArray PresetManager::getPresetsForBank(int bankIndex) const
+{
+    juce::StringArray names;
+    
+    CS_DBG("getPresetsForBank called with bankIndex=" + juce::String(bankIndex));
+    CS_DBG("Total banks: " + juce::String(banks.size()));
+    
+    if (bankIndex < 0 || bankIndex >= static_cast<int>(banks.size())) {
+        CS_DBG("Bank index out of range!");
+        return names;
+    }
+    
+    const auto& bank = banks[bankIndex];
+    CS_DBG("Bank '" + juce::String(bank.name) + "' has " + juce::String(bank.presetIndices.size()) + " preset indices");
+    
+    for (int presetIndex : bank.presetIndices) {
+        CS_DBG("  Checking preset index " + juce::String(presetIndex) + " (total presets: " + juce::String(presets.size()) + ")");
+        if (presetIndex >= 0 && presetIndex < static_cast<int>(presets.size())) {
+            names.add(presets[presetIndex].name);
+            CS_DBG("    Added preset: " + presets[presetIndex].name);
+        } else {
+            CS_DBG("    Index out of range!");
+        }
+    }
+    
+    CS_DBG("Returning " + juce::String(names.size()) + " preset names");
+    return names;
+}
+
+const Preset* PresetManager::getPresetInBank(int bankIndex, int presetIndex) const
+{
+    if (bankIndex < 0 || bankIndex >= static_cast<int>(banks.size())) {
+        return nullptr;
+    }
+    
+    const auto& bank = banks[bankIndex];
+    if (presetIndex < 0 || presetIndex >= static_cast<int>(bank.presetIndices.size())) {
+        return nullptr;
+    }
+    
+    int globalIndex = bank.presetIndices[presetIndex];
+    if (globalIndex >= 0 && globalIndex < static_cast<int>(presets.size())) {
+        return &presets[globalIndex];
+    }
+    
+    return nullptr;
+}
+
+int PresetManager::getGlobalPresetIndex(int bankIndex, int presetIndex) const
+{
+    if (bankIndex < 0 || bankIndex >= static_cast<int>(banks.size())) {
+        return -1;
+    }
+    
+    const auto& bank = banks[bankIndex];
+    if (presetIndex < 0 || presetIndex >= static_cast<int>(bank.presetIndices.size())) {
+        return -1;
+    }
+    
+    return bank.presetIndices[presetIndex];
+}
+
+juce::File PresetManager::getUserDataDirectory() const
+{
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                     .getChildFile("YMulator-Synth");
+}
+
+void PresetManager::ensureUserBank()
+{
+    // Check if User bank already exists
+    for (int i = 0; i < static_cast<int>(banks.size()); ++i) {
+        if (banks[i].name == "User") {
+            userBankIndex = i;
+            return;
+        }
+    }
+    
+    // Create User bank
+    Bank userBank("User", "");
+    banks.insert(banks.begin() + 1, userBank); // Insert after Factory bank
+    userBankIndex = 1;
+    
+    CS_DBG("Created User bank at index " + juce::String(userBankIndex));
+}
+
+bool PresetManager::addUserPreset(const Preset& preset)
+{
+    ensureUserBank();
+    
+    // Add preset to main collection
+    int presetIndex = static_cast<int>(presets.size());
+    Preset userPreset = preset;
+    userPreset.id = presetIndex;
+    presets.push_back(userPreset);
+    
+    // Add to User bank
+    banks[userBankIndex].presetIndices.push_back(presetIndex);
+    
+    CS_DBG("Added user preset '" + preset.name + "' to User bank");
+    
+    // Save to persistent storage
+    return saveUserData();
+}
+
+bool PresetManager::saveUserData()
+{
+    auto userDir = getUserDataDirectory();
+    if (!userDir.createDirectory()) {
+        CS_DBG("Failed to create user data directory: " + userDir.getFullPathName());
+        return false;
+    }
+    
+    return saveUserPresets() && saveImportedBanks();
+}
+
+bool PresetManager::saveUserPresets()
+{
+    if (userBankIndex < 0 || userBankIndex >= static_cast<int>(banks.size())) {
+        return true; // No user presets to save
+    }
+    
+    auto userPresetsFile = getUserDataDirectory().getChildFile("user-presets.xml");
+    
+    juce::XmlElement root("UserPresets");
+    
+    const auto& userBank = banks[userBankIndex];
+    for (int presetIndex : userBank.presetIndices) {
+        if (presetIndex >= 0 && presetIndex < static_cast<int>(presets.size())) {
+            const auto& preset = presets[presetIndex];
+            
+            auto presetElement = root.createNewChildElement("Preset");
+            presetElement->setAttribute("name", preset.name);
+            presetElement->setAttribute("algorithm", preset.algorithm);
+            presetElement->setAttribute("feedback", preset.feedback);
+            
+            // LFO settings
+            auto lfoElement = presetElement->createNewChildElement("LFO");
+            lfoElement->setAttribute("rate", preset.lfo.rate);
+            lfoElement->setAttribute("amd", preset.lfo.amd);
+            lfoElement->setAttribute("pmd", preset.lfo.pmd);
+            lfoElement->setAttribute("waveform", preset.lfo.waveform);
+            lfoElement->setAttribute("noiseFreq", preset.lfo.noiseFreq);
+            
+            // Operators
+            for (int op = 0; op < 4; ++op) {
+                auto opElement = presetElement->createNewChildElement("Operator");
+                opElement->setAttribute("index", op);
+                opElement->setAttribute("totalLevel", preset.operators[op].totalLevel);
+                opElement->setAttribute("multiple", preset.operators[op].multiple);
+                opElement->setAttribute("detune1", preset.operators[op].detune1);
+                opElement->setAttribute("detune2", preset.operators[op].detune2);
+                opElement->setAttribute("keyScale", preset.operators[op].keyScale);
+                opElement->setAttribute("attackRate", preset.operators[op].attackRate);
+                opElement->setAttribute("decay1Rate", preset.operators[op].decay1Rate);
+                opElement->setAttribute("decay2Rate", preset.operators[op].decay2Rate);
+                opElement->setAttribute("releaseRate", preset.operators[op].releaseRate);
+                opElement->setAttribute("sustainLevel", preset.operators[op].sustainLevel);
+                opElement->setAttribute("amsEnable", preset.operators[op].amsEnable);
+                opElement->setAttribute("slotEnable", preset.operators[op].slotEnable);
+            }
+            
+            // Channel settings (first channel as template)
+            auto channelElement = presetElement->createNewChildElement("Channel");
+            channelElement->setAttribute("ams", preset.channels[0].ams);
+            channelElement->setAttribute("pms", preset.channels[0].pms);
+            channelElement->setAttribute("noiseEnable", preset.channels[0].noiseEnable);
+        }
+    }
+    
+    return root.writeTo(userPresetsFile);
+}
+
+bool PresetManager::saveImportedBanks()
+{
+    auto banksDir = getUserDataDirectory().getChildFile("banks");
+    if (!banksDir.createDirectory()) {
+        CS_DBG("Failed to create banks directory");
+        return false;
+    }
+    
+    // Create a list of imported banks (exclude Factory and User)
+    juce::XmlElement root("ImportedBanks");
+    
+    for (const auto& bank : banks) {
+        if (bank.name != "Factory" && bank.name != "User" && !bank.fileName.empty()) {
+            auto bankElement = root.createNewChildElement("Bank");
+            bankElement->setAttribute("name", bank.name);
+            bankElement->setAttribute("fileName", bank.fileName);
+        }
+    }
+    
+    auto banksFile = getUserDataDirectory().getChildFile("imported-banks.xml");
+    return root.writeTo(banksFile);
+}
+
+int PresetManager::loadUserData()
+{
+    int loaded = 0;
+    loaded += loadUserPresets();
+    loaded += loadImportedBanks();
+    return loaded;
+}
+
+bool PresetManager::loadUserPresets()
+{
+    auto userPresetsFile = getUserDataDirectory().getChildFile("user-presets.xml");
+    if (!userPresetsFile.exists()) {
+        return true; // No user presets to load
+    }
+    
+    auto xml = juce::XmlDocument::parse(userPresetsFile);
+    if (!xml) {
+        CS_DBG("Failed to parse user presets XML");
+        return false;
+    }
+    
+    ensureUserBank();
+    
+    int loaded = 0;
+    for (auto* presetElement : xml->getChildWithTagNameIterator("Preset")) {
+        Preset preset;
+        preset.name = presetElement->getStringAttribute("name", "User Preset");
+        preset.algorithm = presetElement->getIntAttribute("algorithm", 0);
+        preset.feedback = presetElement->getIntAttribute("feedback", 0);
+        
+        // Load LFO settings
+        if (auto* lfoElement = presetElement->getChildByName("LFO")) {
+            preset.lfo.rate = lfoElement->getIntAttribute("rate", 0);
+            preset.lfo.amd = lfoElement->getIntAttribute("amd", 0);
+            preset.lfo.pmd = lfoElement->getIntAttribute("pmd", 0);
+            preset.lfo.waveform = lfoElement->getIntAttribute("waveform", 0);
+            preset.lfo.noiseFreq = lfoElement->getIntAttribute("noiseFreq", 0);
+        }
+        
+        // Load operators
+        for (auto* opElement : presetElement->getChildWithTagNameIterator("Operator")) {
+            int opIndex = opElement->getIntAttribute("index", 0);
+            if (opIndex >= 0 && opIndex < 4) {
+                preset.operators[opIndex].totalLevel = opElement->getDoubleAttribute("totalLevel", 0.0);
+                preset.operators[opIndex].multiple = opElement->getDoubleAttribute("multiple", 1.0);
+                preset.operators[opIndex].detune1 = opElement->getDoubleAttribute("detune1", 3.0);
+                preset.operators[opIndex].detune2 = opElement->getDoubleAttribute("detune2", 0.0);
+                preset.operators[opIndex].keyScale = opElement->getDoubleAttribute("keyScale", 0.0);
+                preset.operators[opIndex].attackRate = opElement->getDoubleAttribute("attackRate", 31.0);
+                preset.operators[opIndex].decay1Rate = opElement->getDoubleAttribute("decay1Rate", 0.0);
+                preset.operators[opIndex].decay2Rate = opElement->getDoubleAttribute("decay2Rate", 0.0);
+                preset.operators[opIndex].releaseRate = opElement->getDoubleAttribute("releaseRate", 7.0);
+                preset.operators[opIndex].sustainLevel = opElement->getDoubleAttribute("sustainLevel", 0.0);
+                preset.operators[opIndex].amsEnable = opElement->getBoolAttribute("amsEnable", false);
+                preset.operators[opIndex].slotEnable = opElement->getBoolAttribute("slotEnable", true);
+            }
+        }
+        
+        // Load channel settings
+        if (auto* channelElement = presetElement->getChildByName("Channel")) {
+            for (int ch = 0; ch < 8; ++ch) {
+                preset.channels[ch].ams = channelElement->getIntAttribute("ams", 0);
+                preset.channels[ch].pms = channelElement->getIntAttribute("pms", 0);
+                preset.channels[ch].noiseEnable = channelElement->getIntAttribute("noiseEnable", 0);
+            }
+        }
+        
+        // Add to presets and User bank
+        int presetIndex = static_cast<int>(presets.size());
+        preset.id = presetIndex;
+        presets.push_back(preset);
+        banks[userBankIndex].presetIndices.push_back(presetIndex);
+        loaded++;
+    }
+    
+    CS_DBG("Loaded " + juce::String(loaded) + " user presets");
+    return true;
+}
+
+bool PresetManager::loadImportedBanks()
+{
+    auto banksFile = getUserDataDirectory().getChildFile("imported-banks.xml");
+    if (!banksFile.exists()) {
+        return true; // No imported banks to load
+    }
+    
+    auto xml = juce::XmlDocument::parse(banksFile);
+    if (!xml) {
+        CS_DBG("Failed to parse imported banks XML");
+        return false;
+    }
+    
+    auto banksDir = getUserDataDirectory().getChildFile("banks");
+    int loaded = 0;
+    
+    for (auto* bankElement : xml->getChildWithTagNameIterator("Bank")) {
+        juce::String fileName = bankElement->getStringAttribute("fileName");
+        if (fileName.isNotEmpty()) {
+            auto bankFile = banksDir.getChildFile(fileName);
+            if (bankFile.exists()) {
+                int bankLoaded = loadOPMFile(bankFile);
+                if (bankLoaded > 0) {
+                    loaded += bankLoaded;
+                }
+            }
+        }
+    }
+    
+    CS_DBG("Loaded " + juce::String(loaded) + " presets from imported banks");
+    return loaded > 0;
 }
 
 } // namespace ymulatorsynth

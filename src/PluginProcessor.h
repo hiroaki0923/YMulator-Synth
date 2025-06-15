@@ -93,12 +93,21 @@ public:
     void setCurrentPreset(int index);
     juce::StringArray getPresetNames() const { return presetManager.getPresetNames(); }
     
+    // Bank access for UI
+    juce::StringArray getBankNames() const;
+    juce::StringArray getPresetsForBank(int bankIndex) const { return presetManager.getPresetsForBank(bankIndex); }
+    void setCurrentPresetInBank(int bankIndex, int presetIndex);
+    
     // Custom preset management
     bool isInCustomMode() const { return isCustomPreset; }
     juce::String getCustomPresetName() const { return customPresetName; }
     
     // OPM file operations
     int loadOpmFile(const juce::File& file);
+    bool saveCurrentPresetAsOpm(const juce::File& file, const juce::String& presetName);
+    
+    // User preset management
+    bool saveCurrentPresetToUserBank(const juce::String& presetName);
     
 private:
     

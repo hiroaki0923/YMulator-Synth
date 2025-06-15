@@ -105,6 +105,23 @@ void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
     // Notify host about program change
     updateHostDisplay();
     
+    // Find which bank/preset this global index corresponds to and update state
+    bool foundBankPreset = false;
+    for (int bankIdx = 0; bankIdx < static_cast<int>(presetManager.getBanks().size()); ++bankIdx) {
+        const auto& bank = presetManager.getBanks()[bankIdx];
+        for (int presetIdx = 0; presetIdx < static_cast<int>(bank.presetIndices.size()); ++presetIdx) {
+            if (bank.presetIndices[presetIdx] == index) {
+                // Found the bank/preset combination - update state
+                parameters.state.setProperty(ParamID::Global::CurrentBankIndex, bankIdx, nullptr);
+                parameters.state.setProperty(ParamID::Global::CurrentPresetInBank, presetIdx, nullptr);
+                
+                foundBankPreset = true;
+                break;
+            }
+        }
+        if (foundBankPreset) break;
+    }
+    
     // Notify the UI to update the preset combo box
     // Send a special property change to trigger UI update without affecting custom state
     juce::MessageManager::callAsync([this]() {
@@ -345,7 +362,11 @@ void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int size
             CS_DBG(" State loaded - preset: " + juce::String(currentPreset) + 
                 ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
             
-            // If not in custom mode and ymfm is initialized, apply the preset
+            // Restore user data (imported OMP files and user presets) FIRST
+            int restoredItems = presetManager.loadUserData();
+            CS_DBG(" User data restored: " + juce::String(restoredItems) + " items, notifying UI of bank list changes");
+            
+            // THEN apply the preset (after banks are loaded)
             if (!isCustomPreset && ymfmWrapper.isInitialized()) {
                 CS_DBG(" Applying preset after state restore");
                 setCurrentPreset(currentPreset);
@@ -355,6 +376,11 @@ void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int size
             } else {
                 CS_DBG(" Staying in custom mode after state restore");
             }
+            
+            // Notify UI that banks/presets may have changed
+            juce::MessageManager::callAsync([this]() {
+                parameters.state.sendPropertyChangeMessage("bankListUpdated");
+            });
             
             // Update host display
             updateHostDisplay();
@@ -395,6 +421,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor:
         ParamID::Global::NoiseEnable, "Noise Enable", false)); // Default OFF
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::NoiseFrequency, "Noise Frequency", 0, 31, 16)); // Default medium frequency
+    
+    // Bank/Preset state parameters for DAW persistence
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::CurrentBankIndex, "Current Bank Index", 0, 99, 0)); // 0 = Factory bank by default
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::CurrentPresetInBank, "Current Preset In Bank", 0, 127, 7)); // Default to Init preset
     
     // Channel pan parameters (channels 0-7)
     for (int ch = 0; ch < 8; ++ch)
@@ -669,6 +701,232 @@ int YMulatorSynthAudioProcessor::loadOpmFile(const juce::File& file)
     }
     
     return numLoaded;
+}
+
+bool YMulatorSynthAudioProcessor::saveCurrentPresetAsOpm(const juce::File& file, const juce::String& presetName)
+{
+    CS_DBG("YMulatorSynthAudioProcessor::saveCurrentPresetAsOpm - Saving to: " + file.getFullPathName());
+    
+    // Create a preset from current parameters
+    ymulatorsynth::Preset currentPreset;
+    
+    // Set preset name
+    currentPreset.name = presetName.toStdString();
+    
+    // Get global parameters
+    if (auto* param = parameters.getParameter("algorithm")) {
+        currentPreset.algorithm = static_cast<uint8_t>(param->getValue() * 7.0f);
+    }
+    if (auto* param = parameters.getParameter("feedback")) {
+        currentPreset.feedback = static_cast<uint8_t>(param->getValue() * 7.0f);
+    }
+    
+    // Get LFO parameters
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoRate)) {
+        currentPreset.lfo.rate = static_cast<int>(param->getValue() * 255.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoAmd)) {
+        currentPreset.lfo.amd = static_cast<int>(param->getValue() * 127.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoPmd)) {
+        currentPreset.lfo.pmd = static_cast<int>(param->getValue() * 127.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoWaveform)) {
+        currentPreset.lfo.waveform = static_cast<int>(param->getValue() * 3.0f);
+    }
+    
+    // Get Noise parameters
+    if (auto* param = parameters.getParameter(ParamID::Global::NoiseFrequency)) {
+        currentPreset.lfo.noiseFreq = static_cast<int>(param->getValue() * 31.0f);
+    }
+    
+    // Get operator parameters
+    for (int op = 0; op < 4; ++op)
+    {
+        auto& opData = currentPreset.operators[op];
+        
+        if (auto* param = parameters.getParameter(ParamID::Op::ar(op + 1))) {
+            opData.attackRate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d1r(op + 1))) {
+            opData.decay1Rate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d2r(op + 1))) {
+            opData.decay2Rate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::rr(op + 1))) {
+            opData.releaseRate = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d1l(op + 1))) {
+            opData.sustainLevel = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::tl(op + 1))) {
+            opData.totalLevel = param->getValue() * 127.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::ks(op + 1))) {
+            opData.keyScale = param->getValue() * 3.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::mul(op + 1))) {
+            opData.multiple = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::dt1(op + 1))) {
+            opData.detune1 = param->getValue() * 7.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::dt2(op + 1))) {
+            opData.detune2 = param->getValue() * 3.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
+            opData.amsEnable = param->getValue() > 0.5f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::slot_en(op + 1))) {
+            opData.slotEnable = param->getValue() > 0.5f;
+        }
+    }
+    
+    // Get channel parameters (first channel as template)
+    if (auto* param = parameters.getParameter(ParamID::Channel::ams(0))) {
+        currentPreset.channels[0].ams = static_cast<int>(param->getValue() * 3.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Channel::pms(0))) {
+        currentPreset.channels[0].pms = static_cast<int>(param->getValue() * 7.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::NoiseEnable)) {
+        currentPreset.channels[0].noiseEnable = param->getValue() > 0.5f ? 1 : 0;
+    }
+    
+    // Copy channel 0 settings to all channels
+    for (int ch = 1; ch < 8; ++ch) {
+        currentPreset.channels[ch] = currentPreset.channels[0];
+    }
+    
+    // Save using PresetManager
+    bool success = presetManager.savePresetAsOPM(file, currentPreset);
+    
+    if (success)
+    {
+        CS_DBG("Successfully saved preset as OPM file");
+    }
+    else
+    {
+        CS_DBG("Failed to save preset as OPM file");
+    }
+    
+    return success;
+}
+
+bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String& presetName)
+{
+    CS_DBG("YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank - Saving: " + presetName);
+    
+    // Create a preset from current parameters (reuse the logic from saveCurrentPresetAsOpm)
+    ymulatorsynth::Preset currentPreset;
+    
+    // Set preset name
+    currentPreset.name = presetName.toStdString();
+    
+    // Get global parameters
+    if (auto* param = parameters.getParameter("algorithm")) {
+        currentPreset.algorithm = static_cast<uint8_t>(param->getValue() * 7.0f);
+    }
+    if (auto* param = parameters.getParameter("feedback")) {
+        currentPreset.feedback = static_cast<uint8_t>(param->getValue() * 7.0f);
+    }
+    
+    // Get LFO parameters
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoRate)) {
+        currentPreset.lfo.rate = static_cast<int>(param->getValue() * 255.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoAmd)) {
+        currentPreset.lfo.amd = static_cast<int>(param->getValue() * 127.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoPmd)) {
+        currentPreset.lfo.pmd = static_cast<int>(param->getValue() * 127.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::LfoWaveform)) {
+        currentPreset.lfo.waveform = static_cast<int>(param->getValue() * 3.0f);
+    }
+    
+    // Get Noise parameters
+    if (auto* param = parameters.getParameter(ParamID::Global::NoiseFrequency)) {
+        currentPreset.lfo.noiseFreq = static_cast<int>(param->getValue() * 31.0f);
+    }
+    
+    // Get operator parameters
+    for (int op = 0; op < 4; ++op)
+    {
+        auto& opData = currentPreset.operators[op];
+        
+        if (auto* param = parameters.getParameter(ParamID::Op::ar(op + 1))) {
+            opData.attackRate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d1r(op + 1))) {
+            opData.decay1Rate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d2r(op + 1))) {
+            opData.decay2Rate = param->getValue() * 31.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::rr(op + 1))) {
+            opData.releaseRate = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::d1l(op + 1))) {
+            opData.sustainLevel = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::tl(op + 1))) {
+            opData.totalLevel = param->getValue() * 127.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::ks(op + 1))) {
+            opData.keyScale = param->getValue() * 3.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::mul(op + 1))) {
+            opData.multiple = param->getValue() * 15.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::dt1(op + 1))) {
+            opData.detune1 = param->getValue() * 7.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::dt2(op + 1))) {
+            opData.detune2 = param->getValue() * 3.0f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
+            opData.amsEnable = param->getValue() > 0.5f;
+        }
+        if (auto* param = parameters.getParameter(ParamID::Op::slot_en(op + 1))) {
+            opData.slotEnable = param->getValue() > 0.5f;
+        }
+    }
+    
+    // Get channel parameters (first channel as template)
+    if (auto* param = parameters.getParameter(ParamID::Channel::ams(0))) {
+        currentPreset.channels[0].ams = static_cast<int>(param->getValue() * 3.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Channel::pms(0))) {
+        currentPreset.channels[0].pms = static_cast<int>(param->getValue() * 7.0f);
+    }
+    if (auto* param = parameters.getParameter(ParamID::Global::NoiseEnable)) {
+        currentPreset.channels[0].noiseEnable = param->getValue() > 0.5f ? 1 : 0;
+    }
+    
+    // Copy channel 0 settings to all channels
+    for (int ch = 1; ch < 8; ++ch) {
+        currentPreset.channels[ch] = currentPreset.channels[0];
+    }
+    
+    // Add to User bank
+    bool success = presetManager.addUserPreset(currentPreset);
+    
+    if (success) {
+        CS_DBG("Successfully saved preset '" + presetName + "' to User bank");
+        
+        // Switch out of custom mode and to the newly saved preset
+        isCustomPreset = false;
+        
+        // Notify that preset list has been updated
+        parameters.state.setProperty("presetListUpdated", juce::Random::getSystemRandom().nextInt(), nullptr);
+        updateHostDisplay();
+    } else {
+        CS_DBG("Failed to save preset to User bank");
+    }
+    
+    return success;
 }
 
 void YMulatorSynthAudioProcessor::loadPreset(int index)
@@ -960,6 +1218,35 @@ void YMulatorSynthAudioProcessor::updateYmfmParameters()
     CS_ASSERT_PARAMETER_RANGE(noiseFrequency, 0, 31);
     
     ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFrequency));
+}
+
+juce::StringArray YMulatorSynthAudioProcessor::getBankNames() const
+{
+    juce::StringArray names;
+    const auto& banks = presetManager.getBanks();
+    
+    for (const auto& bank : banks) {
+        names.add(bank.name);
+    }
+    
+    return names;
+}
+
+void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int presetIndex)
+{
+    int globalIndex = presetManager.getGlobalPresetIndex(bankIndex, presetIndex);
+    if (globalIndex >= 0) {
+        // Save bank/preset state to ValueTreeState for DAW persistence
+        auto bankParam = parameters.getParameter(ParamID::Global::CurrentBankIndex);
+        auto presetParam = parameters.getParameter(ParamID::Global::CurrentPresetInBank);
+        
+        if (bankParam && presetParam) {
+            bankParam->setValueNotifyingHost(bankParam->convertTo0to1(static_cast<float>(bankIndex)));
+            presetParam->setValueNotifyingHost(presetParam->convertTo0to1(static_cast<float>(presetIndex)));
+        }
+        
+        setCurrentProgram(globalIndex);
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

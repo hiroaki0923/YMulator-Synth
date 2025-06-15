@@ -16,10 +16,14 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     // Listen for parameter state changes
     audioProcessor.getParameters().state.addListener(this);
     
-    // Ensure preset list is up to date when UI is opened
-    updatePresetComboBox();
+    // Ensure preset selectors are up to date when UI is opened
+    // Note: setupPresetSelector() already calls these, so defer to avoid double initialization
+    juce::MessageManager::callAsync([this]() {
+        updateBankComboBox();
+        updatePresetComboBox();
+    });
     
-    setSize(1000, 610);  // Original height
+    setSize(1000, 635);  // Original height + menu bar
 }
 
 MainComponent::~MainComponent()
@@ -33,17 +37,16 @@ void MainComponent::paint(juce::Graphics& g)
     // Dark blue-gray background similar to VOPM
     g.fillAll(juce::Colour(0xff2d3748));
     
-    // Section dividers (no title area)
+    // Section dividers
     g.setColour(juce::Colour(0xff4a5568));
-    g.drawHorizontalLine(60, 0.0f, static_cast<float>(getWidth()));  // After global controls
+    g.drawHorizontalLine(60, 0.0f, static_cast<float>(getWidth()));  // After global controls  
     g.drawHorizontalLine(135, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section
 }
 
 void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
-    
-    // Top area for global controls (back to original height)
+    // Top area for global controls (compact layout without menu space)
     auto topArea = bounds.removeFromTop(60);
     
     // Left side: Algorithm ComboBox and Feedback Knob
@@ -71,23 +74,39 @@ void MainComponent::resized()
     //     algorithmDisplay->setBounds(algorithmDisplayArea);
     // }
     
-    // Right side: Preset selector - use remaining space (after left side is allocated)
+    // Right side: Bank/Preset selectors - use remaining space (after left side is allocated)
     auto presetArea = topArea.reduced(5);
     
-    // Preset label
-    auto presetLabelArea = presetArea.removeFromLeft(60);
-    presetLabel->setBounds(presetLabelArea);
-    
-    // Load button on the right
-    auto loadButtonArea = presetArea.removeFromRight(50);
-    if (loadOpmButton) {
-        auto centeredButtonArea = loadButtonArea.withHeight(25).withCentre(loadButtonArea.getCentre());
-        loadOpmButton->setBounds(centeredButtonArea);
+    // Save button on the right first
+    auto saveButtonArea = presetArea.removeFromRight(50);
+    if (savePresetButton) {
+        auto centeredButtonArea = saveButtonArea.withHeight(25).withCentre(saveButtonArea.getCentre());
+        savePresetButton->setBounds(centeredButtonArea);
     }
     
-    // Preset combo box takes remaining space
-    auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre()).reduced(5, 0);
-    presetComboBox->setBounds(centeredPresetArea);
+    // Bank label and ComboBox
+    auto bankLabelArea = presetArea.removeFromLeft(40);
+    if (bankLabel) {
+        bankLabel->setBounds(bankLabelArea);
+    }
+    
+    auto bankComboArea = presetArea.removeFromLeft(100);
+    if (bankComboBox) {
+        auto centeredBankArea = bankComboArea.withHeight(30).withCentre(bankComboArea.getCentre());
+        bankComboBox->setBounds(centeredBankArea);
+    }
+    
+    // Preset label and ComboBox
+    auto presetLabelArea = presetArea.removeFromLeft(50);
+    if (presetLabel) {
+        presetLabel->setBounds(presetLabelArea);
+    }
+    
+    // Preset ComboBox takes remaining space
+    if (presetComboBox) {
+        auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre()).reduced(5, 0);
+        presetComboBox->setBounds(centeredPresetArea);
+    }
     
     // LFO and Noise controls area
     auto lfoArea = bounds.removeFromTop(75);
@@ -172,6 +191,7 @@ void MainComponent::resized()
                                     panelHeight);
     }
 }
+
 
 void MainComponent::setupGlobalControls()
 {
@@ -508,28 +528,22 @@ void MainComponent::setupOperatorPanels()
 
 void MainComponent::setupPresetSelector()
 {
+    // Bank selector
+    bankComboBox = std::make_unique<juce::ComboBox>();
+    bankComboBox->addItem("Factory", 1);
+    // Don't set initial selection here - let updateBankComboBox handle it
+    bankComboBox->onChange = [this]() { onBankChanged(); };
+    addAndMakeVisible(*bankComboBox);
+    
+    bankLabel = std::make_unique<juce::Label>("", "Bank");
+    bankLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    bankLabel->setJustificationType(juce::Justification::centredRight);
+    bankLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*bankLabel);
+    
+    // Preset selector
     presetComboBox = std::make_unique<juce::ComboBox>();
-    
-    // Populate combo box with preset names from PresetManager
-    auto presetNames = audioProcessor.getPresetNames();
-    for (int i = 0; i < presetNames.size(); ++i)
-    {
-        presetComboBox->addItem(presetNames[i], i + 1);
-    }
-    
-    // Set initial selection based on processor's current program
-    presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
-    
-    presetComboBox->onChange = [this]()
-    {
-        int selectedIndex = presetComboBox->getSelectedId() - 1;
-        if (selectedIndex >= 0 && selectedIndex < audioProcessor.getNumPrograms())
-        {
-            audioProcessor.setCurrentProgram(selectedIndex);
-            // Update host display to sync with DAW
-            audioProcessor.updateHostDisplay();
-        }
-    };
+    presetComboBox->onChange = [this]() { onPresetChanged(); };
     addAndMakeVisible(*presetComboBox);
     
     presetLabel = std::make_unique<juce::Label>("", "Preset");
@@ -538,13 +552,17 @@ void MainComponent::setupPresetSelector()
     presetLabel->setFont(juce::Font(12.0f));
     addAndMakeVisible(*presetLabel);
     
-    loadOpmButton = std::make_unique<juce::TextButton>("Load");
-    loadOpmButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
-    loadOpmButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    loadOpmButton->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    loadOpmButton->setTooltip("Load OPM preset file");
-    loadOpmButton->onClick = [this]() { loadOpmFileDialog(); };
-    addAndMakeVisible(*loadOpmButton);
+    savePresetButton = std::make_unique<juce::TextButton>("Save");
+    savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
+    savePresetButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    savePresetButton->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    savePresetButton->setTooltip("Save current settings as new preset");
+    savePresetButton->onClick = [this]() { savePresetDialog(); };
+    // Initially disabled - will be enabled when in custom mode
+    savePresetButton->setEnabled(false);
+    addAndMakeVisible(*savePresetButton);
+    
+    // Initialize will be done later to avoid blocking UI
 }
 
 void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
@@ -556,10 +574,22 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
     
     // Special handling for preset index changes from DAW
     if (propertyName == "presetIndexChanged") {
-        CS_DBG("MainComponent: Handling presetIndexChanged - updating combo box selection only");
-        // Only update the combo box selection, not the entire list
+        // Add debug output to see if this is being called
+        // Only update the preset selectors, not the entire list
         juce::MessageManager::callAsync([this]() {
-            presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+            updateBankComboBox();
+            updatePresetComboBox();
+        });
+        return;
+    }
+    
+    
+    // Special handling for bank list changes (after DAW project load)
+    if (propertyName == "bankListUpdated") {
+        CS_DBG("Received bankListUpdated notification, refreshing UI");
+        juce::MessageManager::callAsync([this]() {
+            updateBankComboBox();
+            updatePresetComboBox();
         });
         return;
     }
@@ -568,7 +598,10 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
     static const std::set<std::string> presetRelevantProperties = {
         "presetIndex",
         "isCustomMode",
+        "currentBankIndex",
+        "currentPresetInBank",
         "presetListUpdated",
+        "bankListUpdated",
         // Add any other preset management related properties here
         // Note: We deliberately exclude operator parameters, global synthesis params, and channel params
     };
@@ -579,7 +612,6 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
         if (propertyName.startsWith("op") && propertyName.length() >= 3) {
             char opChar = propertyName[2];
             if (opChar >= '1' && opChar <= '4') {
-                CS_DBG("MainComponent: Filtered out operator parameter: " + propertyName);
                 return;
             }
         }
@@ -587,48 +619,282 @@ void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyH
         // Check if it's a global synthesis parameter
         if (propertyName == "algorithm" || propertyName == "feedback" || 
             propertyName == "pitch_bend_range" || propertyName == "master_pan") {
-            CS_DBG("MainComponent: Filtered out global synthesis parameter: " + propertyName);
             return;
         }
         
         // Check if it's a channel parameter (ch*_*)
         if (propertyName.startsWith("ch") && propertyName.contains("_")) {
-            CS_DBG("MainComponent: Filtered out channel parameter: " + propertyName);
             return;
         }
         
         // If we reach here, it's an unknown parameter - log it but don't update UI
-        CS_DBG("MainComponent: Filtered out unknown parameter: " + propertyName);
         return;
     }
     
-    // This is a preset-relevant property change - update the preset combo box
-    CS_DBG("MainComponent: Preset-relevant property changed: " + propertyName + " - updating preset combo box");
+    // This is a preset-relevant property change - update the preset button
     
     // Use MessageManager to ensure UI updates happen on the main thread
     juce::MessageManager::callAsync([this]() {
+        updateBankComboBox();
         updatePresetComboBox();
     });
 }
 
+void MainComponent::updateBankComboBox()
+{
+    if (!bankComboBox) return;
+    
+    // Get current bank names
+    auto bankNames = audioProcessor.getBankNames();
+    
+    // Check if we need to update (including the Import item)
+    int expectedItems = bankNames.size() + 1; // +1 for "Import OPM File..."
+    bool needsUpdate = (bankComboBox->getNumItems() != expectedItems);
+    if (!needsUpdate) {
+        for (int i = 0; i < bankNames.size(); ++i) {
+            if (bankComboBox->getItemText(i) != bankNames[i]) {
+                needsUpdate = true;
+                break;
+            }
+        }
+        // Check if last item is still the import option
+        if (bankComboBox->getItemText(bankComboBox->getNumItems() - 1) != "Import OPM File...") {
+            needsUpdate = true;
+        }
+    }
+    
+    if (!needsUpdate) {
+        return; // Already up to date
+    }
+    
+    bankComboBox->clear();
+    
+    // Add all banks
+    for (int i = 0; i < bankNames.size(); ++i) {
+        bankComboBox->addItem(bankNames[i], i + 1);
+    }
+    
+    // Add separator and import option
+    bankComboBox->addSeparator();
+    bankComboBox->addItem("Import OPM File...", 9999); // Use high ID to distinguish
+    
+    // Select bank from ValueTreeState (for DAW persistence)
+    int savedBankIndex = 0; // Default to Factory bank
+    
+    // Try state property first
+    auto& state = audioProcessor.getParameters().state;
+    if (state.hasProperty(ParamID::Global::CurrentBankIndex)) {
+        savedBankIndex = state.getProperty(ParamID::Global::CurrentBankIndex, 0);
+        CS_FILE_DBG("Restored bank index from state property: " + juce::String(savedBankIndex));
+    } else {
+        // Fallback to parameter approach
+        auto bankParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentBankIndex);
+        if (bankParam) {
+            savedBankIndex = static_cast<int>(bankParam->getValue() * (bankParam->getNumSteps() - 1));
+            CS_DBG("Restored bank index from parameter: " + juce::String(savedBankIndex) + 
+                   " (raw value: " + juce::String(bankParam->getValue()) + ")");
+        } else {
+            CS_DBG("Bank parameter not found in ValueTreeState");
+        }
+    }
+    
+    // Debug: Show all available banks
+    CS_DBG("Available banks (" + juce::String(bankNames.size()) + "):");
+    for (int i = 0; i < bankNames.size(); ++i) {
+        CS_DBG("  [" + juce::String(i) + "] " + bankNames[i]);
+    }
+    
+    // Ensure the bank index is valid
+    isUpdatingFromState = true;
+    if (savedBankIndex >= 0 && savedBankIndex < bankNames.size()) {
+        CS_DBG("Setting bank combo to ID: " + juce::String(savedBankIndex + 1) + " (bank: " + bankNames[savedBankIndex] + ")");
+        CS_FILE_DBG("Setting bank combo to ID: " + juce::String(savedBankIndex + 1) + " (bank: " + bankNames[savedBankIndex] + ")");
+        bankComboBox->setSelectedId(savedBankIndex + 1, juce::dontSendNotification);
+    } else {
+        CS_DBG("Bank index invalid (" + juce::String(savedBankIndex) + "), defaulting to Factory (ID: 1)");
+        CS_FILE_DBG("Bank index invalid (" + juce::String(savedBankIndex) + "), defaulting to Factory (ID: 1)");
+        bankComboBox->setSelectedId(1, juce::dontSendNotification); // Default to Factory
+    }
+    isUpdatingFromState = false;
+}
+
 void MainComponent::updatePresetComboBox()
 {
-    // Refresh preset list in case new presets were loaded
+    if (!presetComboBox) return;
+    
+    // Get presets for currently selected bank
+    int selectedBankId = bankComboBox ? bankComboBox->getSelectedId() : 1;
+    int bankIndex = selectedBankId - 1; // Convert to 0-based index
+    
+    // Get preset names for the selected bank
+    auto presetNames = audioProcessor.getPresetsForBank(bankIndex);
+    
+    // Check if we need to update
+    bool needsUpdate = (presetComboBox->getNumItems() != presetNames.size());
+    if (!needsUpdate) {
+        for (int i = 0; i < presetNames.size(); ++i) {
+            if (presetComboBox->getItemText(i) != presetNames[i]) {
+                needsUpdate = true;
+                break;
+            }
+        }
+    }
+    
+    if (!needsUpdate && !audioProcessor.isInCustomMode()) {
+        return; // Already up to date
+    }
+    
+    // Rebuild preset list
     presetComboBox->clear();
-    auto presetNames = audioProcessor.getPresetNames();
+    
     for (int i = 0; i < presetNames.size(); ++i)
     {
         presetComboBox->addItem(presetNames[i], i + 1);
     }
     
-    // Add custom preset if active
-    if (audioProcessor.isInCustomMode()) {
-        presetComboBox->addItem(audioProcessor.getCustomPresetName(), presetNames.size() + 1);
+    // Set current selection (if not in custom mode)
+    if (!audioProcessor.isInCustomMode())
+    {
+        // Get saved preset index from ValueTreeState (for DAW persistence)
+        int savedPresetIndex = 7; // Default to Init preset
+        
+        // Try state property first
+        auto& state = audioProcessor.getParameters().state;
+        if (state.hasProperty(ParamID::Global::CurrentPresetInBank)) {
+            savedPresetIndex = state.getProperty(ParamID::Global::CurrentPresetInBank, 7);
+            CS_FILE_DBG("Restored preset index from state property: " + juce::String(savedPresetIndex));
+        } else {
+            // Fallback to parameter approach
+            auto presetParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentPresetInBank);
+            if (presetParam) {
+                savedPresetIndex = static_cast<int>(presetParam->getValue() * (presetParam->getNumSteps() - 1));
+                CS_DBG("Restored preset index from parameter: " + juce::String(savedPresetIndex) + 
+                       " (raw value: " + juce::String(presetParam->getValue()) + ")");
+            } else {
+                CS_DBG("Preset parameter not found in ValueTreeState");
+            }
+        }
+        
+        // Ensure the preset index is valid for this bank
+        isUpdatingFromState = true;
+        if (savedPresetIndex >= 0 && savedPresetIndex < presetNames.size()) {
+            CS_DBG("Setting preset combo to ID: " + juce::String(savedPresetIndex + 1));
+            CS_FILE_DBG("Setting preset combo to ID: " + juce::String(savedPresetIndex + 1));
+            presetComboBox->setSelectedId(savedPresetIndex + 1, juce::dontSendNotification);
+        } else {
+            CS_DBG("Preset index invalid, using fallback search");
+            CS_DBG("savedPresetIndex: " + juce::String(savedPresetIndex) + ", presetNames.size(): " + juce::String(presetNames.size()));
+            // Fallback: Find which preset in the current bank matches the global current preset
+            int currentGlobalIndex = audioProcessor.getCurrentProgram();
+            
+            // Find the preset index within the current bank
+            for (int i = 0; i < presetNames.size(); ++i) {
+                int globalIndex = audioProcessor.getPresetManager().getGlobalPresetIndex(bankIndex, i);
+                if (globalIndex == currentGlobalIndex) {
+                    presetComboBox->setSelectedId(i + 1, juce::dontSendNotification);
+                    break;
+                }
+            }
+        }
+        isUpdatingFromState = false;
     }
     
-    // Update combo box selection to match current program
-    // Use dontSendNotification to avoid triggering onChange callback
-    presetComboBox->setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+    // Enable/disable Save button based on custom mode
+    if (savePresetButton) {
+        bool hasChanges = audioProcessor.isInCustomMode();
+        savePresetButton->setEnabled(hasChanges);
+        
+        // Update visual appearance based on state
+        if (hasChanges) {
+            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
+            savePresetButton->setTooltip("Save modified settings as new preset");
+        } else {
+            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d3748));
+            savePresetButton->setTooltip("Save as new preset (modify parameters to enable)");
+        }
+    }
+}
+
+void MainComponent::onBankChanged()
+{
+    CS_FILE_DBG("onBankChanged called, isUpdatingFromState=" + juce::String(isUpdatingFromState ? "true" : "false"));
+    if (!bankComboBox || isUpdatingFromState) return;
+    
+    int selectedId = bankComboBox->getSelectedId();
+    CS_FILE_DBG("onBankChanged: selectedId = " + juce::String(selectedId));
+    
+    // Check if "Import OPM File..." was selected
+    if (selectedId == 9999) {
+        
+        // Reset to previous bank selection (Factory by default)
+        bankComboBox->setSelectedId(1, juce::dontSendNotification);
+        
+        // Open import dialog
+        loadOpmFileDialog();
+        return;
+    }
+    
+    // Save bank selection to ValueTreeState for DAW persistence
+    int bankIndex = selectedId - 1; // Convert to 0-based index
+    
+    // Save to state property (more reliable for persistence)
+    auto& state = audioProcessor.getParameters().state;
+    state.setProperty(ParamID::Global::CurrentBankIndex, bankIndex, nullptr);
+    CS_DBG("Saved bank index to state property: " + juce::String(bankIndex));
+    
+    // Also save to parameter for host automation
+    auto bankParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentBankIndex);
+    if (bankParam) {
+        float normalizedValue = bankParam->convertTo0to1(static_cast<float>(bankIndex));
+        bankParam->setValueNotifyingHost(normalizedValue);
+        CS_DBG("Saved bank index to parameter: " + juce::String(bankIndex) + 
+               " (normalized: " + juce::String(normalizedValue) + ")");
+    } else {
+        CS_DBG("Failed to find bank parameter for saving");
+    }
+    
+    // Normal bank selection - defer update to avoid blocking the dropdown
+    juce::MessageManager::callAsync([this]() {
+        updatePresetComboBox();
+    });
+}
+
+void MainComponent::onPresetChanged()
+{
+    CS_FILE_DBG("onPresetChanged called, isUpdatingFromState=" + juce::String(isUpdatingFromState ? "true" : "false"));
+    if (!presetComboBox || !bankComboBox || isUpdatingFromState) return;
+    
+    int selectedPresetId = presetComboBox->getSelectedId();
+    int selectedBankId = bankComboBox->getSelectedId();
+    CS_FILE_DBG("onPresetChanged: bankId=" + juce::String(selectedBankId) + ", presetId=" + juce::String(selectedPresetId));
+    
+    if (selectedPresetId > 0 && selectedBankId > 0)
+    {
+        // Convert to 0-based indices
+        int bankIndex = selectedBankId - 1;
+        int presetIndex = selectedPresetId - 1;
+        
+        // Save preset selection to ValueTreeState for DAW persistence
+        auto& state = audioProcessor.getParameters().state;
+        state.setProperty(ParamID::Global::CurrentPresetInBank, presetIndex, nullptr);
+        CS_DBG("Saved preset index to state property: " + juce::String(presetIndex));
+        
+        // Also save to parameter for host automation
+        auto presetParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentPresetInBank);
+        if (presetParam) {
+            float normalizedValue = presetParam->convertTo0to1(static_cast<float>(presetIndex));
+            presetParam->setValueNotifyingHost(normalizedValue);
+            CS_DBG("Saved preset index to parameter: " + juce::String(presetIndex) + 
+                   " (normalized: " + juce::String(normalizedValue) + ")");
+        } else {
+            CS_DBG("Failed to find preset parameter for saving");
+        }
+        
+        // Defer the actual change to avoid blocking the dropdown
+        juce::MessageManager::callAsync([this, bankIndex, presetIndex]() {
+            audioProcessor.setCurrentPresetInBank(bankIndex, presetIndex);
+        });
+    }
 }
 
 void MainComponent::setupDisplayComponents()
@@ -663,9 +929,8 @@ void MainComponent::updateAlgorithmDisplay()
 
 void MainComponent::loadOpmFileDialog()
 {
-    CS_DBG("MainComponent::loadOpmFileDialog - Opening file chooser");
     
-    fileChooser = std::make_unique<juce::FileChooser>(
+    auto fileChooser = std::make_unique<juce::FileChooser>(
         "Select a VOPM preset file",
         juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
         "*.opm"
@@ -679,23 +944,28 @@ void MainComponent::loadOpmFileDialog()
         
         if (file.existsAsFile())
         {
-            CS_DBG("Selected file: " + file.getFullPathName());
             
             // Load the OPM file through the audio processor
             int numLoaded = audioProcessor.loadOpmFile(file);
             
             if (numLoaded > 0)
             {
-                CS_DBG("OPM file loaded successfully - " + juce::String(numLoaded) + " presets");
                 
-                // Update the preset combo box to reflect the new presets
+                // Update the bank list to include the new bank
+                updateBankComboBox();
+                
+                // Select the newly created bank (it will be the last bank before the Import option)
+                auto bankNames = audioProcessor.getBankNames();
+                int newBankIndex = bankNames.size(); // Last bank
+                if (newBankIndex > 0) {
+                    bankComboBox->setSelectedId(newBankIndex, juce::dontSendNotification);
+                }
+                
+                // Update presets for the newly selected bank
                 updatePresetComboBox();
                 
-                // Select the first loaded preset
-                if (presetComboBox->getNumItems() > 0)
-                {
-                    presetComboBox->setSelectedId(1);
-                }
+                // Notify that preset list has been updated
+                audioProcessor.getParameters().state.setProperty("presetListUpdated", juce::var(juce::Random::getSystemRandom().nextInt()), nullptr);
                 
                 // Show success message
                 juce::AlertWindow::showMessageBoxAsync(
@@ -714,4 +984,93 @@ void MainComponent::loadOpmFileDialog()
             }
         }
     });
+}
+
+
+void MainComponent::savePresetDialog()
+{
+    
+    // Get default preset name
+    juce::String defaultName = "My Preset";
+    if (audioProcessor.isInCustomMode()) {
+        defaultName = audioProcessor.getCustomPresetName();
+    }
+    
+    // Create dialog
+    auto* dialog = new juce::AlertWindow("Save Preset", 
+                                        "Enter a name for the new preset:", 
+                                        juce::MessageBoxIconType::QuestionIcon);
+    
+    dialog->addTextEditor("presetName", defaultName, "Preset Name:");
+    dialog->addButton("Save", 1);
+    dialog->addButton("Cancel", 0);
+    
+    // Use a lambda that captures the dialog pointer
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create([this, dialog](int result)
+    {
+        if (result == 1)
+        {
+            // Get the preset name from the text editor
+            auto* textEditor = dialog->getTextEditor("presetName");
+            if (textEditor)
+            {
+                juce::String presetName = textEditor->getText().trim();
+                
+                if (presetName.isNotEmpty())
+                {
+                    
+                    // Save directly to User bank (dummy file parameter - not used anymore)
+                    savePresetToFile(juce::File{}, presetName);
+                }
+                else
+                {
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Invalid Name",
+                        "Please enter a valid preset name."
+                    );
+                }
+            }
+        }
+        
+        delete dialog;
+    }));
+}
+
+void MainComponent::savePresetToFile(const juce::File& file, const juce::String& presetName)
+{
+    
+    // Save the preset to the User bank instead of a file
+    if (audioProcessor.saveCurrentPresetToUserBank(presetName))
+    {
+        
+        // Update UI to show the new preset
+        updateBankComboBox();
+        updatePresetComboBox();
+        
+        // Select User bank
+        auto bankNames = audioProcessor.getBankNames();
+        for (int i = 0; i < bankNames.size(); ++i) {
+            if (bankNames[i] == "User") {
+                bankComboBox->setSelectedId(i + 1, juce::dontSendNotification);
+                updatePresetComboBox();
+                break;
+            }
+        }
+        
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::InfoIcon,
+            "Save Successful",
+            "Preset '" + presetName + "' has been saved to the User bank.\n\n" +
+            "Your preset will persist across application restarts."
+        );
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Save Error",
+            "Failed to save preset '" + presetName + "' to User bank."
+        );
+    }
 }

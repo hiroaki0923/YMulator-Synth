@@ -25,15 +25,20 @@ public:
 private:
     YMulatorSynthAudioProcessor& audioProcessor;
     
+    // Menu bar
+    std::unique_ptr<juce::PopupMenu> fileMenu;
+    
     // Global controls
     std::unique_ptr<juce::ComboBox> algorithmComboBox;
     std::unique_ptr<juce::Label> algorithmLabel;
     std::unique_ptr<RotaryKnob> feedbackKnob;
     
-    // Preset selector
+    // Bank and Preset selectors
+    std::unique_ptr<juce::ComboBox> bankComboBox;
+    std::unique_ptr<juce::Label> bankLabel;
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
-    std::unique_ptr<juce::TextButton> loadOpmButton;
+    std::unique_ptr<juce::TextButton> savePresetButton;
     
     // LFO controls
     std::unique_ptr<RotaryKnob> lfoRateKnob;
@@ -60,7 +65,9 @@ private:
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
     
     // File chooser
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    
+    // UI update flags
+    bool isUpdatingFromState = false;
     
     // Parameter attachments
     std::unique_ptr<juce::Slider> feedbackHiddenSlider;
@@ -83,9 +90,14 @@ private:
     void setupOperatorPanels();
     void setupPresetSelector();
     void setupDisplayComponents();
+    void updateBankComboBox();
     void updatePresetComboBox();
+    void onBankChanged();
+    void onPresetChanged();
     void updateAlgorithmDisplay();
     void loadOpmFileDialog();
+    void savePresetDialog();
+    void savePresetToFile(const juce::File& file, const juce::String& presetName);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
