@@ -825,6 +825,7 @@ void MainComponent::onBankChanged()
     
     // Check if "Import OPM File..." was selected
     if (selectedId == 9999) {
+        CS_DBG("Import OPM File option selected, opening file dialog");
         
         // Reset to previous bank selection (Factory by default)
         bankComboBox->setSelectedId(1, juce::dontSendNotification);
@@ -929,8 +930,9 @@ void MainComponent::updateAlgorithmDisplay()
 
 void MainComponent::loadOpmFileDialog()
 {
+    CS_DBG("loadOpmFileDialog() called - opening file chooser");
     
-    auto fileChooser = std::make_unique<juce::FileChooser>(
+    auto fileChooser = std::make_shared<juce::FileChooser>(
         "Select a VOPM preset file",
         juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
         "*.opm"
@@ -938,7 +940,7 @@ void MainComponent::loadOpmFileDialog()
     
     auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
     
-    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    fileChooser->launchAsync(chooserFlags, [this, fileChooser](const juce::FileChooser& fc)
     {
         auto file = fc.getResult();
         
