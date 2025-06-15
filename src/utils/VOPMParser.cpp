@@ -7,14 +7,12 @@ std::vector<VOPMVoice> VOPMParser::parseFile(const juce::File& file)
 {
     if (!file.exists())
     {
-        CS_DBG("VOPM file does not exist: " + file.getFullPathName());
         return {};
     }
     
     juce::String content = file.loadFileAsString();
     if (content.isEmpty())
     {
-        CS_DBG("VOPM file is empty: " + file.getFullPathName());
         return {};
     }
     
@@ -48,10 +46,6 @@ std::vector<VOPMVoice> VOPMParser::parseContent(const juce::String& content)
                 if (validation.isValid)
                 {
                     voices.push_back(currentVoice);
-                }
-                else
-                {
-                    CS_DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
                 }
             }
             
@@ -87,11 +81,12 @@ std::vector<VOPMVoice> VOPMParser::parseContent(const juce::String& content)
         }
         else
         {
-            CS_DBG("Invalid voice " + juce::String(currentVoice.number) + ": " + validation.errors.joinIntoString(", "));
         }
     }
+    else if (inVoice)
+    {
+    }
     
-    CS_DBG("Parsed " + juce::String(voices.size()) + " voices from VOPM content");
     return voices;
 }
 
@@ -132,23 +127,20 @@ ValidationResult VOPMParser::validate(const VOPMVoice& voice)
         result.warnings.add("LFO noise frequency out of range (0-31): " + juce::String(voice.lfo.noiseFreq));
     }
     
-    // Channel parameter checks
+    // Channel parameter checks (warnings only for more tolerance)
     if (!isValidRange(voice.channel.pan, 0, 3))
     {
-        result.isValid = false;
-        result.errors.add("Channel pan out of range (0-3): " + juce::String(voice.channel.pan));
+        result.warnings.add("Channel pan out of range (0-3): " + juce::String(voice.channel.pan));
     }
     
     if (!isValidRange(voice.channel.feedback, 0, 7))
     {
-        result.isValid = false;
-        result.errors.add("Channel feedback out of range (0-7): " + juce::String(voice.channel.feedback));
+        result.warnings.add("Channel feedback out of range (0-7): " + juce::String(voice.channel.feedback));
     }
     
     if (!isValidRange(voice.channel.algorithm, 0, 7))
     {
-        result.isValid = false;
-        result.errors.add("Channel algorithm out of range (0-7): " + juce::String(voice.channel.algorithm));
+        result.warnings.add("Channel algorithm out of range (0-7): " + juce::String(voice.channel.algorithm));
     }
     
     if (!isValidRange(voice.channel.ams, 0, 3))
@@ -179,62 +171,52 @@ ValidationResult VOPMParser::validate(const VOPMVoice& voice)
         
         if (!isValidRange(op.attackRate, 0, 31))
         {
-            result.isValid = false;
-            result.errors.add(opName + " AR out of range (0-31): " + juce::String(op.attackRate));
+            result.warnings.add(opName + " AR out of range (0-31): " + juce::String(op.attackRate));
         }
         
         if (!isValidRange(op.decay1Rate, 0, 31))
         {
-            result.isValid = false;
-            result.errors.add(opName + " D1R out of range (0-31): " + juce::String(op.decay1Rate));
+            result.warnings.add(opName + " D1R out of range (0-31): " + juce::String(op.decay1Rate));
         }
         
         if (!isValidRange(op.decay2Rate, 0, 31))
         {
-            result.isValid = false;
-            result.errors.add(opName + " D2R out of range (0-31): " + juce::String(op.decay2Rate));
+            result.warnings.add(opName + " D2R out of range (0-31): " + juce::String(op.decay2Rate));
         }
         
         if (!isValidRange(op.releaseRate, 0, 15))
         {
-            result.isValid = false;
-            result.errors.add(opName + " RR out of range (0-15): " + juce::String(op.releaseRate));
+            result.warnings.add(opName + " RR out of range (0-15): " + juce::String(op.releaseRate));
         }
         
         if (!isValidRange(op.decay1Level, 0, 15))
         {
-            result.isValid = false;
-            result.errors.add(opName + " D1L out of range (0-15): " + juce::String(op.decay1Level));
+            result.warnings.add(opName + " D1L out of range (0-15): " + juce::String(op.decay1Level));
         }
         
         if (!isValidRange(op.totalLevel, 0, 127))
         {
-            result.isValid = false;
-            result.errors.add(opName + " TL out of range (0-127): " + juce::String(op.totalLevel));
+            result.warnings.add(opName + " TL out of range (0-127): " + juce::String(op.totalLevel));
         }
         
         if (!isValidRange(op.keyScale, 0, 3))
         {
-            result.isValid = false;
-            result.errors.add(opName + " KS out of range (0-3): " + juce::String(op.keyScale));
+            result.warnings.add(opName + " KS out of range (0-3): " + juce::String(op.keyScale));
         }
         
         if (!isValidRange(op.multiple, 0, 15))
         {
-            result.isValid = false;
-            result.errors.add(opName + " MUL out of range (0-15): " + juce::String(op.multiple));
+            result.warnings.add(opName + " MUL out of range (0-15): " + juce::String(op.multiple));
         }
         
         if (!isValidRange(op.detune1, 0, 7))
         {
-            result.isValid = false;
-            result.errors.add(opName + " DT1 out of range (0-7): " + juce::String(op.detune1));
+            result.warnings.add(opName + " DT1 out of range (0-7): " + juce::String(op.detune1));
         }
         
         if (!isValidRange(op.detune2, 0, 3))
         {
-            result.isValid = false;
-            result.errors.add(opName + " DT2 out of range (0-3): " + juce::String(op.detune2));
+            result.warnings.add(opName + " DT2 out of range (0-3): " + juce::String(op.detune2));
         }
         
         if (!isValidRange(op.amsEnable, 0, 1))
@@ -336,9 +318,28 @@ int VOPMParser::convertInternalAmeToOpm(int internalAme)
 
 int VOPMParser::convertOpmSlotToInternal(int opmSlot)
 {
-    // VOPMex OpMsk format: 3-bit left shift from internal value
-    // Convert back to internal 0-15 range
-    return (opmSlot >> 3) & 0x0F;
+    // VOPMex OpMsk format investigation
+    // 120 = 01111000 should represent slot pattern
+    // Let's try different interpretations
+    
+    // Debug current conversion
+    int original = (opmSlot >> 3) & 0x0F;
+    
+    // Try bit reversal approach - VOPM might use upper bits
+    int reversed = 0;
+    if (opmSlot & 0x08) reversed |= 0x01;  // bit 3 -> bit 0
+    if (opmSlot & 0x10) reversed |= 0x02;  // bit 4 -> bit 1  
+    if (opmSlot & 0x20) reversed |= 0x04;  // bit 5 -> bit 2
+    if (opmSlot & 0x40) reversed |= 0x08;  // bit 6 -> bit 3
+    
+    // VOPMex standard: 120 means all slots enabled  
+    // Convert to our internal format (15 = all slots enabled)
+    if (opmSlot == 120) {
+        return 15;  // All slots on
+    }
+    
+    // For other values, use original conversion
+    return original;
 }
 
 int VOPMParser::convertInternalSlotToOpm(int internalSlot)
@@ -385,18 +386,19 @@ void VOPMParser::parseChannel(const juce::String& line, VOPMVoice::Channel& chan
 {
     auto tokens = tokenizeLine(line);
     
-    if (tokens.size() >= 7)
-    {
-        // Convert OPM PAN format (0, 64, 128, 192) to internal (0-3)
-        channel.pan = convertOpmPanToInternal(tokens[0].getIntValue());
-        channel.feedback = tokens[1].getIntValue();
-        channel.algorithm = tokens[2].getIntValue();
-        channel.ams = tokens[3].getIntValue();
-        channel.pms = tokens[4].getIntValue();
-        // Convert VOPMex OpMsk format to internal (3-bit right shift)
-        channel.slotMask = convertOpmSlotToInternal(tokens[5].getIntValue());
-        channel.noiseEnable = tokens[6].getIntValue();
+    if (tokens.size() < 7) {
+        return;
     }
+    
+    // Convert OPM PAN format (0, 64, 128, 192) to internal (0-3)
+    channel.pan = convertOpmPanToInternal(tokens[0].getIntValue());
+    channel.feedback = tokens[1].getIntValue();
+    channel.algorithm = tokens[2].getIntValue();
+    channel.ams = tokens[3].getIntValue();
+    channel.pms = tokens[4].getIntValue();
+    // Convert VOPMex OpMsk format to internal (3-bit right shift)
+    channel.slotMask = convertOpmSlotToInternal(tokens[5].getIntValue());
+    channel.noiseEnable = tokens[6].getIntValue();
 }
 
 void VOPMParser::parseOperator(const juce::String& line, VOPMVoice::Operator& op)
@@ -425,9 +427,19 @@ juce::StringArray VOPMParser::tokenizeLine(const juce::String& line)
     // Get content after the colon
     auto content = line.fromFirstOccurrenceOf(":", false, false).trim();
     
-    // Split by whitespace, removing empty tokens
+    // Normalize whitespace by replacing multiple spaces/tabs with single spaces
+    juce::String normalized = content;
+    normalized = normalized.replace("\t", " ");  // Replace tabs with spaces
+    
+    // Replace multiple consecutive spaces with single space
+    while (normalized.contains("  ")) {
+        normalized = normalized.replace("  ", " ");
+    }
+    normalized = normalized.trim();
+    
+    // Split by single space
     juce::StringArray tokens;
-    tokens.addTokens(content, " \t", "");
+    tokens.addTokens(normalized, " ", "");
     
     return tokens;
 }

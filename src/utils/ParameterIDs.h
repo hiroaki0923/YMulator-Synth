@@ -21,6 +21,8 @@ namespace Global {
     constexpr const char* PresetIndex = "presetIndex";
     constexpr const char* PresetIndexChanged = "presetIndexChanged";
     constexpr const char* IsCustomMode = "isCustomMode";
+    constexpr const char* CurrentBankIndex = "currentBankIndex";
+    constexpr const char* CurrentPresetInBank = "currentPresetInBank";
     
     // Global settings
     constexpr const char* PitchBendRange = "pitch_bend_range";
@@ -294,6 +296,8 @@ namespace Validation {
             paramID == Global::PresetIndex ||
             paramID == Global::PresetIndexChanged ||
             paramID == Global::IsCustomMode ||
+            paramID == Global::CurrentBankIndex ||
+            paramID == Global::CurrentPresetInBank ||
             paramID == Global::PitchBendRange ||
             paramID == Global::MasterPan) {
             return true;

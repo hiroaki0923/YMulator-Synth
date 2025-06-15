@@ -64,6 +64,19 @@ struct Preset
 };
 
 /**
+ * Bank information for organizing presets
+ */
+struct Bank
+{
+    std::string name;
+    std::string fileName; // Original file name for imported banks
+    std::vector<int> presetIndices; // Indices into the main presets vector
+    
+    Bank(const std::string& bankName, const std::string& file = "") 
+        : name(bankName), fileName(file) {}
+};
+
+/**
  * Manages preset loading, saving, and organization
  */
 class PresetManager
@@ -116,6 +129,34 @@ public:
     int getNumPresets() const { return static_cast<int>(presets.size()); }
     
     /**
+     * Get all banks
+     */
+    const std::vector<Bank>& getBanks() const { return banks; }
+    
+    /**
+     * Get presets for a specific bank
+     * @param bankIndex Index of the bank
+     * @return Array of preset names in the bank
+     */
+    juce::StringArray getPresetsForBank(int bankIndex) const;
+    
+    /**
+     * Get preset by bank and preset index
+     * @param bankIndex Index of the bank
+     * @param presetIndex Index within the bank
+     * @return Preset pointer or nullptr if not found
+     */
+    const Preset* getPresetInBank(int bankIndex, int presetIndex) const;
+    
+    /**
+     * Get global preset index from bank/preset indices
+     * @param bankIndex Index of the bank
+     * @param presetIndex Index within the bank
+     * @return Global preset index or -1 if not found
+     */
+    int getGlobalPresetIndex(int bankIndex, int presetIndex) const;
+    
+    /**
      * Add a new preset
      * @param preset The preset to add
      */
@@ -135,6 +176,14 @@ public:
     bool saveOPMFile(const juce::File& file) const;
     
     /**
+     * Save a single preset as OPM file
+     * @param file Target file
+     * @param preset Preset to save
+     * @return True if successful
+     */
+    bool savePresetAsOPM(const juce::File& file, const Preset& preset) const;
+    
+    /**
      * Clear all presets
      */
     void clear();
@@ -143,13 +192,46 @@ public:
      * Get factory presets (built-in)
      */
     static std::vector<Preset> getFactoryPresets();
+    
+    /**
+     * Add a preset to the User bank
+     * @param preset The preset to add
+     * @return True if successful
+     */
+    bool addUserPreset(const Preset& preset);
+    
+    /**
+     * Save all user data (user presets and imported banks) to persistent storage
+     * @return True if successful
+     */
+    bool saveUserData();
+    
+    /**
+     * Load user data from persistent storage
+     * @return Number of user presets/banks loaded
+     */
+    int loadUserData();
+    
+    /**
+     * Get the user data directory
+     * @return User data directory path
+     */
+    juce::File getUserDataDirectory() const;
 
 private:
     std::vector<Preset> presets;
+    std::vector<Bank> banks;
+    int userBankIndex = -1;  // Index of the User bank
     
     void loadFactoryPresets();
+    void initializeBanks();
     juce::File getPresetsDirectory() const;
     void validatePreset(Preset& preset) const;
+    void ensureUserBank();
+    bool saveUserPresets();
+    bool loadUserPresets();
+    bool saveImportedBanks();
+    bool loadImportedBanks();
 };
 
 } // namespace ymulatorsynth
