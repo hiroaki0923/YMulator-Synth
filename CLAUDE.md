@@ -52,46 +52,81 @@ YMulator-Synth is a modern FM synthesis Audio Unit plugin for macOS that emulate
 
 ## Build Commands
 
+⚠️ **CRITICAL PATH REQUIREMENTS:**
+- **ALWAYS run build commands from project root directory** (not from src/ or other subdirectories)
+- **Build directory is:** `/Users/hiroaki.kimura/projects/ChipSynth-AU/build/`
+- **If build fails with "No rule to make target 'Makefile'"**, you're in the wrong directory
+
 ```bash
-# Initial setup
+# ===== PATH VERIFICATION FIRST =====
+# MUST be in project root (not src/, build/, etc.)
+pwd  # Should show: /Users/hiroaki.kimura/projects/ChipSynth-AU
+ls   # Should show: build/ src/ CMakeLists.txt CLAUDE.md etc.
+
+# If not in project root, navigate there:
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU
+
+# ===== INITIAL SETUP =====
 git submodule update --init --recursive
 
-# Build (Release) - minimal output
-mkdir build && cd build
+# ===== BUILD PROCESS =====
+# Step 1: Create/enter build directory  
+mkdir -p build && cd build
+
+# Step 2: Configure (only needed once or after changes)
 cmake .. -DCMAKE_BUILD_TYPE=Release
+
+# Step 3: Build with minimal output
 cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
 
-# Build (Debug) - minimal output
+# ===== ALTERNATIVE: Quick rebuild from any location =====
+# This handles path navigation automatically
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
+
+# ===== DEBUG BUILD =====
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
 
-# Build with full output (when debugging build issues)
+# ===== BUILD WITH FULL OUTPUT (for debugging) =====
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
 cmake --build . --parallel
 
-# Clean and rebuild - minimal output
+# ===== CLEAN AND REBUILD =====
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
 cmake --build . --clean-first --parallel > /dev/null 2>&1 && echo "Clean build successful" || echo "Clean build failed"
 
-# Install
+# ===== INSTALL =====
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
 cmake --install .
 
-# Run tests - quiet output, only show result
-ctest --output-on-failure --quiet
+# ===== TESTING =====
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
+ctest --output-on-failure --quiet    # Quiet output
+ctest --output-on-failure            # Full output for debugging
 
-# Run tests with full output (when debugging test issues)  
-ctest --output-on-failure
+# ===== AUDIO UNIT VALIDATION =====
+# Can be run from any directory
+auval -a  # List all Audio Units
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"  # Minimal output
+auval -v aumu YMul Hrki  # Full output for debugging
 
-# Validate Audio Unit - minimal output
-auval -a
-auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
-
-# Validate Audio Unit with full output (when debugging validation issues)
-auval -v aumu YMul Hrki
-
+# ===== TROUBLESHOOTING =====
 # Fix Audio Unit registration issues
 killall -9 AudioComponentRegistrar
 
-# View Audio Unit logs
+# View Audio Unit logs  
 log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
+
+# ===== COMMON PATH ERRORS =====
+# ERROR: "No rule to make target 'Makefile'" 
+# SOLUTION: You're in wrong directory. Run: cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
+
+# ERROR: "cmake: command not found"
+# SOLUTION: Install CMake via: brew install cmake
+
+# ERROR: "No such file or directory: CMakeLists.txt"
+# SOLUTION: You're not in project root. Run: cd /Users/hiroaki.kimura/projects/ChipSynth-AU
 ```
 
 **⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/ymulatorsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
@@ -361,11 +396,13 @@ uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
 
 **✅ MANDATORY for every commit:**
 ```bash
-# Build verification
-cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful"
+# Build verification (MUST run from correct path)
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
 
-# Audio Unit validation  
-auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED"
+# Audio Unit validation (can run from any directory)
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
 ```
+
+**⚠️ PATH CRITICAL:** Always ensure you're in `/Users/hiroaki.kimura/projects/ChipSynth-AU/build/` for build commands. If you get "No rule to make target 'Makefile'" error, you're in the wrong directory.
 
 **🔒 These rules are derived from proven improvements that enhanced code quality, reduced bugs, and improved maintainability. Deviation requires explicit justification and documentation.**
