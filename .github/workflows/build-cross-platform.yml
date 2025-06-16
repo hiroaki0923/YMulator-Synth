@@ -159,6 +159,8 @@ jobs:
   create-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
     
     steps:
     - name: Checkout code
@@ -214,8 +216,8 @@ jobs:
           # Auto-generate release notes
           VERSION=${{ steps.get_version.outputs.VERSION }}
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
-          cat << 'RELEASE_NOTES' >> $GITHUB_OUTPUT
-        ## YMulator Synth $VERSION
+          cat << RELEASE_NOTES >> $GITHUB_OUTPUT
+        ## YMulator Synth ${VERSION}
         
         ### 🎵 Cross-Platform Release
         
