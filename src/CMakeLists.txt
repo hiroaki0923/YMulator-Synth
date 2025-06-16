@@ -8,7 +8,7 @@ juce_add_plugin(YMulatorSynthAU
     PLUGIN_DESCRIPTION "FM Synthesis Audio Unit"
     
     # Plugin formats
-    FORMATS AU AUv3
+    FORMATS AU AUv3 VST3 Standalone
     
     # Plugin characteristics
     IS_SYNTH TRUE

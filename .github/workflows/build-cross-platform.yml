@@ -1,0 +1,146 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.3
+      
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.22'
+    
+    - name: Configure CMake (Windows)
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build Windows VST3
+      run: |
+        cd build
+        cmake --build . --config Release --parallel
+    
+    - name: Package Windows VST3
+      run: |
+        cd build
+        7z a YMulator-Synth-Windows-VST3.zip "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
+    
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: YMulator-Synth-Windows
+        path: build/YMulator-Synth-Windows-VST3.zip
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.22'
+    
+    - name: Configure CMake (macOS)
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build macOS plugins
+      run: |
+        cd build
+        cmake --build . --parallel
+    
+    - name: Package macOS plugins
+      run: |
+        cd build
+        zip -r YMulator-Synth-macOS-AU.zip "src/YMulatorSynthAU_artefacts/Release/AU/YMulator Synth.component"
+        zip -r YMulator-Synth-macOS-VST3.zip "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
+        zip -r YMulator-Synth-macOS-Standalone.zip "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth.app"
+    
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: YMulator-Synth-macOS
+        path: |
+          build/YMulator-Synth-macOS-AU.zip
+          build/YMulator-Synth-macOS-VST3.zip
+          build/YMulator-Synth-macOS-Standalone.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          build-essential \
+          libasound2-dev \
+          libjack-jackd2-dev \
+          ladspa-sdk \
+          libcurl4-openssl-dev \
+          libfreetype6-dev \
+          libx11-dev \
+          libxcomposite-dev \
+          libxcursor-dev \
+          libxcursor-dev \
+          libxext-dev \
+          libxinerama-dev \
+          libxrandr-dev \
+          libxrender-dev \
+          libwebkit2gtk-4.0-dev \
+          libglu1-mesa-dev \
+          mesa-common-dev
+    
+    - name: Configure CMake (Linux)
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build Linux plugins
+      run: |
+        cd build
+        cmake --build . --parallel
+    
+    - name: Package Linux plugins
+      run: |
+        cd build
+        tar -czf YMulator-Synth-Linux-VST3.tar.gz "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
+        tar -czf YMulator-Synth-Linux-Standalone.tar.gz "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth"
+    
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: YMulator-Synth-Linux
+        path: |
+          build/YMulator-Synth-Linux-VST3.tar.gz
+          build/YMulator-Synth-Linux-Standalone.tar.gz
