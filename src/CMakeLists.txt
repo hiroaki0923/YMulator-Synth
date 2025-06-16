@@ -1,10 +1,10 @@
 # Main plugin target
-juce_add_plugin(YMulatorSynthAU
+juce_add_plugin(YMulator-Synth
     # Basic information
     COMPANY_NAME "Hiroaki"
     PLUGIN_MANUFACTURER_CODE Hrki
     PLUGIN_CODE YMul
-    PRODUCT_NAME "YMulator Synth"
+    PRODUCT_NAME "YMulator-Synth"
     PLUGIN_DESCRIPTION "FM Synthesis Audio Unit"
     
     # Plugin formats
@@ -21,11 +21,11 @@ juce_add_plugin(YMulatorSynthAU
     AU_SANDBOX_SAFE TRUE
     
     # Categories and tags for GarageBand library
-    PLUGIN_AU_EXPORT_PREFIX YMulatorSynthAU
+    PLUGIN_AU_EXPORT_PREFIX YMulatorSynth
     
     # Other settings
     COPY_PLUGIN_AFTER_BUILD TRUE
-    PLUGIN_NAME "YMulator Synth"
+    PLUGIN_NAME "YMulator-Synth"
     
     # Install only AU to user directory
     AU_COPY_PLUGIN_AFTER_BUILD TRUE
@@ -35,7 +35,7 @@ juce_add_plugin(YMulatorSynthAU
 )
 
 # Source files
-target_sources(YMulatorSynthAU
+target_sources(YMulator-Synth
     PRIVATE
         PluginProcessor.cpp
         PluginEditor.cpp
@@ -58,7 +58,7 @@ target_sources(YMulatorSynthAU
 )
 
 # Include directories
-target_include_directories(YMulatorSynthAU
+target_include_directories(YMulator-Synth
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/include
@@ -66,7 +66,7 @@ target_include_directories(YMulatorSynthAU
 )
 
 # Link libraries
-target_link_libraries(YMulatorSynthAU
+target_link_libraries(YMulator-Synth
     PRIVATE
         juce::juce_audio_utils
         juce::juce_audio_processors
@@ -79,7 +79,7 @@ target_link_libraries(YMulatorSynthAU
 )
 
 # Compile definitions
-target_compile_definitions(YMulatorSynthAU
+target_compile_definitions(YMulator-Synth
     PUBLIC
         JUCE_DISPLAY_SPLASH_SCREEN=0
         JUCE_REPORT_APP_USAGE=0
@@ -89,20 +89,20 @@ target_compile_definitions(YMulatorSynthAU
 )
 
 # Add resources
-juce_add_binary_data(YMulatorSynthAU_Resources
+juce_add_binary_data(YMulator-Synth_Resources
     SOURCES
         ${CMAKE_SOURCE_DIR}/resources/presets/ymulator-synth-preset-collection.opm
 )
 
 # Link resources to the plugin
-target_link_libraries(YMulatorSynthAU
+target_link_libraries(YMulator-Synth
     PRIVATE
-        YMulatorSynthAU_Resources
+        YMulator-Synth_Resources
 )
 
 # Configure JUCE plugin
-configure_juce_target(YMulatorSynthAU)
+configure_juce_target(YMulator-Synth)
 
 # Set compiler warnings
-set_project_warnings(YMulatorSynthAU)
+set_project_warnings(YMulator-Synth)
 

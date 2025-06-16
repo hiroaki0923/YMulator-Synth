@@ -50,7 +50,7 @@ jobs:
     - name: Package Windows VST3
       run: |
         cd build
-        7z a YMulator-Synth-Windows-VST3.zip "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
+        7z a YMulator-Synth-Windows-VST3.zip "src/YMulator-Synth_artefacts/Release/VST3/YMulator-Synth.vst3"
     
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
@@ -86,9 +86,9 @@ jobs:
     - name: Package macOS plugins
       run: |
         cd build
-        zip -r YMulator-Synth-macOS-AU.zip "src/YMulatorSynthAU_artefacts/Release/AU/YMulator Synth.component"
-        zip -r YMulator-Synth-macOS-VST3.zip "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
-        zip -r YMulator-Synth-macOS-Standalone.zip "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth.app"
+        zip -r YMulator-Synth-macOS-AU.zip "src/YMulator-Synth_artefacts/Release/AU/YMulator-Synth.component"
+        zip -r YMulator-Synth-macOS-VST3.zip "src/YMulator-Synth_artefacts/Release/VST3/YMulator-Synth.vst3"
+        zip -r YMulator-Synth-macOS-Standalone.zip "src/YMulator-Synth_artefacts/Release/Standalone/YMulator-Synth.app"
     
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
@@ -145,8 +145,8 @@ jobs:
     - name: Package Linux plugins
       run: |
         cd build
-        tar -czf YMulator-Synth-Linux-VST3.tar.gz "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
-        tar -czf YMulator-Synth-Linux-Standalone.tar.gz "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth"
+        tar -czf YMulator-Synth-Linux-VST3.tar.gz "src/YMulator-Synth_artefacts/Release/VST3/YMulator-Synth.vst3"
+        tar -czf YMulator-Synth-Linux-Standalone.tar.gz "src/YMulator-Synth_artefacts/Release/Standalone/YMulator-Synth"
     
     - name: Upload Linux artifacts
       uses: actions/upload-artifact@v4
@@ -159,6 +159,8 @@ jobs:
   create-release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
     
     steps:
     - name: Checkout code
@@ -214,8 +216,8 @@ jobs:
           # Auto-generate release notes
           VERSION=${{ steps.get_version.outputs.VERSION }}
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
-          cat << 'RELEASE_NOTES' >> $GITHUB_OUTPUT
-        ## YMulator Synth $VERSION
+          cat << RELEASE_NOTES >> $GITHUB_OUTPUT
+        ## YMulator Synth ${VERSION}
         
         ### 🎵 Cross-Platform Release
         
