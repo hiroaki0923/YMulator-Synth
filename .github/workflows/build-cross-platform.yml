@@ -216,42 +216,39 @@ jobs:
           # Auto-generate release notes
           VERSION=${{ steps.get_version.outputs.VERSION }}
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
-          cat << RELEASE_NOTES >> $GITHUB_OUTPUT
-        ## YMulator Synth ${VERSION}
-        
-        ### 🎵 Cross-Platform Release
-        
-        This release includes binaries for all supported platforms:
-        
-        #### 🪟 Windows
-        - VST3 plugin
-        - Standalone application
-        
-        #### 🍎 macOS
-        - Audio Unit (AU)
-        - Audio Unit v3 (AUv3)
-        - VST3 plugin
-        - Standalone application
-        
-        #### 🐧 Linux
-        - VST3 plugin
-        - Standalone application
-        
-        ### 📦 Installation
-        
-        1. Download the appropriate package for your platform
-        2. Extract the archive
-        3. Copy plugins to your plugin directory:
-           - **Windows VST3**: `C:\Program Files\Common Files\VST3\`
-           - **macOS AU**: `/Library/Audio/Plug-Ins/Components/`
-           - **macOS VST3**: `/Library/Audio/Plug-Ins/VST3/`
-           - **Linux VST3**: `~/.vst3/`
-        
-        ### 🙏 Acknowledgments
-        
-        Built with JUCE framework and ymfm emulation library.
-        
-        RELEASE_NOTES
+          echo "## YMulator-Synth ${VERSION}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 🎵 Cross-Platform Release" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "This release includes binaries for all supported platforms:" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "#### 🪟 Windows" >> $GITHUB_OUTPUT
+          echo "- VST3 plugin" >> $GITHUB_OUTPUT
+          echo "- Standalone application" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "#### 🍎 macOS" >> $GITHUB_OUTPUT
+          echo "- Audio Unit (AU)" >> $GITHUB_OUTPUT
+          echo "- Audio Unit v3 (AUv3)" >> $GITHUB_OUTPUT
+          echo "- VST3 plugin" >> $GITHUB_OUTPUT
+          echo "- Standalone application" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "#### 🐧 Linux" >> $GITHUB_OUTPUT
+          echo "- VST3 plugin" >> $GITHUB_OUTPUT
+          echo "- Standalone application" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 📦 Installation" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "1. Download the appropriate package for your platform" >> $GITHUB_OUTPUT
+          echo "2. Extract the archive" >> $GITHUB_OUTPUT
+          echo "3. Copy plugins to your plugin directory:" >> $GITHUB_OUTPUT
+          echo "   - **Windows VST3**: \`C:\\Program Files\\Common Files\\VST3\\\`" >> $GITHUB_OUTPUT
+          echo "   - **macOS AU**: \`/Library/Audio/Plug-Ins/Components/\`" >> $GITHUB_OUTPUT
+          echo "   - **macOS VST3**: \`/Library/Audio/Plug-Ins/VST3/\`" >> $GITHUB_OUTPUT
+          echo "   - **Linux VST3**: \`~/.vst3/\`" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 🙏 Acknowledgments" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "Built with JUCE framework and ymfm emulation library." >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         fi
     
