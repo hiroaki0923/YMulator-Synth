@@ -1,11 +1,22 @@
-name: Cross-Platform Build
+name: Cross-Platform Build and Release
 
 on:
+  # Automatic trigger when a tag is pushed
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # Manual trigger
+    tags:
+      - 'v*'  # Matches tags like v0.0.4, v1.0.0, etc.
+  
+  # Manual trigger with options
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (e.g., v0.0.5)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (optional, uses auto-generated if empty)'
+        required: false
+        type: string
 
 jobs:
   build-windows:
@@ -42,7 +53,7 @@ jobs:
         7z a YMulator-Synth-Windows-VST3.zip "src/YMulatorSynthAU_artefacts/Release/VST3/YMulator Synth.vst3"
     
     - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: YMulator-Synth-Windows
         path: build/YMulator-Synth-Windows-VST3.zip
@@ -80,7 +91,7 @@ jobs:
         zip -r YMulator-Synth-macOS-Standalone.zip "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth.app"
     
     - name: Upload macOS artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: YMulator-Synth-macOS
         path: |
@@ -138,9 +149,119 @@ jobs:
         tar -czf YMulator-Synth-Linux-Standalone.tar.gz "src/YMulatorSynthAU_artefacts/Release/Standalone/YMulator Synth"
     
     - name: Upload Linux artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: YMulator-Synth-Linux
         path: |
           build/YMulator-Synth-Linux-VST3.tar.gz
           build/YMulator-Synth-Linux-Standalone.tar.gz
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Windows assets
+        cp artifacts/YMulator-Synth-Windows/*.zip release-assets/
+        
+        # macOS assets
+        cp artifacts/YMulator-Synth-macOS/*.zip release-assets/
+        
+        # Linux assets
+        cp artifacts/YMulator-Synth-Linux/*.tar.gz release-assets/
+        
+        # Create a combined package
+        cd release-assets
+        zip -r YMulator-Synth-All-Platforms.zip *
+        cd ..
+        
+        ls -la release-assets/
+    
+    - name: Determine version tag
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          # Tag push - use the tag name
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          # Manual trigger - use input
+          VERSION=${{ github.event.inputs.version_tag }}
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version tag: $VERSION"
+    
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        if [ -n "${{ github.event.inputs.release_notes }}" ]; then
+          # Use provided release notes
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "${{ github.event.inputs.release_notes }}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          # Auto-generate release notes
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          cat << 'RELEASE_NOTES' >> $GITHUB_OUTPUT
+        ## YMulator Synth $VERSION
+        
+        ### 🎵 Cross-Platform Release
+        
+        This release includes binaries for all supported platforms:
+        
+        #### 🪟 Windows
+        - VST3 plugin
+        - Standalone application
+        
+        #### 🍎 macOS
+        - Audio Unit (AU)
+        - Audio Unit v3 (AUv3)
+        - VST3 plugin
+        - Standalone application
+        
+        #### 🐧 Linux
+        - VST3 plugin
+        - Standalone application
+        
+        ### 📦 Installation
+        
+        1. Download the appropriate package for your platform
+        2. Extract the archive
+        3. Copy plugins to your plugin directory:
+           - **Windows VST3**: `C:\Program Files\Common Files\VST3\`
+           - **macOS AU**: `/Library/Audio/Plug-Ins/Components/`
+           - **macOS VST3**: `/Library/Audio/Plug-Ins/VST3/`
+           - **Linux VST3**: `~/.vst3/`
+        
+        ### 🙏 Acknowledgments
+        
+        Built with JUCE framework and ymfm emulation library.
+        
+        RELEASE_NOTES
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ steps.get_version.outputs.VERSION }}
+        name: YMulator Synth ${{ steps.get_version.outputs.VERSION }}
+        body: ${{ steps.release_notes.outputs.NOTES }}
+        artifacts: "release-assets/*"
+        artifactContentType: application/octet-stream
+        draft: false
+        prerelease: false
+        allowUpdates: true
+        token: ${{ secrets.GITHUB_TOKEN }}
