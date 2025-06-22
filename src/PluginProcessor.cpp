@@ -24,12 +24,6 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
         CS_DBG("Deleted temp log file");
     }
     
-    // CS_FILE_DBG("=== YMulator-Synth Debug Log Started ===");
-    // CS_FILE_DBG("Constructor called");
-    // CS_FILE_DBG("Desktop exists: " + juce::String(logFile1.getParentDirectory().exists() ? "YES" : "NO"));
-    // CS_FILE_DBG("Desktop writable: " + juce::String(logFile1.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
-    // CS_FILE_DBG("Temp exists: " + juce::String(logFile2.getParentDirectory().exists() ? "YES" : "NO"));
-    // CS_FILE_DBG("Temp writable: " + juce::String(logFile2.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
     CS_DBG(" Constructor called");
     
     setupCCMapping();
@@ -260,10 +254,6 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Allocate a voice for this note with noise priority consideration
             int channel = voiceManager.allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), currentPresetNeedsNoise);
             
-            // CS_FILE_DBG("*** NOTE ON: note=" + juce::String(message.getNoteNumber()) + 
-            //             ", vel=" + juce::String(message.getVelocity()) + 
-            //             ", allocated channel=" + juce::String(channel) + " ***");
-            
             // Apply global pan setting to the allocated channel (optimized for real-time)
             auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
             if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
@@ -347,25 +337,6 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             rightRMS = std::sqrt(rightRMS / numSamples);
             
             bool hasAudio = (leftLevel > 0.0001f || rightLevel > 0.0001f);
-            
-            // AUDIO PAN DEBUG - DISABLED FOR PERFORMANCE
-            // if (hasAudio || lastHadAudio) { // Log when audio starts/stops or continues
-            //     // Get current pan setting
-            //     auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-            //     int panIndex = panParam ? panParam->getIndex() : 1;
-            //     juce::String panName = (panIndex == 0) ? "LEFT" : 
-            //                           (panIndex == 1) ? "CENTER" : 
-            //                           (panIndex == 2) ? "RIGHT" : "RANDOM";
-            //     
-            //     CS_FILE_DBG("AUDIO PAN DEBUG - Pan:" + panName + 
-            //                " L_peak:" + juce::String(leftLevel, 6) + 
-            //                " R_peak:" + juce::String(rightLevel, 6) + 
-            //                " L_RMS:" + juce::String(leftRMS, 6) + 
-            //                " R_RMS:" + juce::String(rightRMS, 6) + 
-            //                " Ratio L:" + juce::String(leftRMS + rightRMS > 0 ? (leftRMS / (leftRMS + rightRMS)) * 100.0f : 0.0f, 1) + "%" +
-            //                " R:" + juce::String(leftRMS + rightRMS > 0 ? (rightRMS / (leftRMS + rightRMS)) * 100.0f : 0.0f, 1) + "%");
-            // }
-            
             lastHadAudio = hasAudio;
         }
         

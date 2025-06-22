@@ -84,9 +84,6 @@ void YmfmWrapper::initializeOPM()
         setupBasicPianoVoice(channel);
     }
     
-    // Auto-play a note for testing (like sample code) - delay it a bit
-    // playTestNote(); // Disable for now, will test via MIDI
-    
     CS_DBG("OPM initialization complete");
     CS_LOG("OPM initialization complete");
 }
@@ -142,44 +139,8 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
     CS_ASSERT_BUFFER_SIZE(numSamples);
     CS_ASSERT(leftBuffer != nullptr);
     CS_ASSERT(rightBuffer != nullptr);
-    static int debugCounter = 0;
-    static bool testModeEnabled = false; // Temporary test mode - now disabled to test ymfm
-    
-    if (testModeEnabled) {
-        // Generate a simple 440 Hz test tone instead of using ymfm
-        static float phase = 0.0f;
-        const float frequency = YM2151Regs::TEST_FREQUENCY; // A4
-        const float amplitude = YM2151Regs::TEST_AMPLITUDE;
-        const float phaseIncrement = (2.0f * M_PI * frequency) / outputSampleRate;
-        
-        bool hasNonZero = false;
-        for (int i = 0; i < numSamples; i++) {
-            float sample = amplitude * std::sin(phase);
-            leftBuffer[i] = sample;
-            rightBuffer[i] = sample;  // Same signal to both channels for test mode
-            phase += phaseIncrement;
-            if (phase > 2.0f * M_PI) {
-                phase -= 2.0f * M_PI;
-            }
-            if (sample != 0.0f) {
-                hasNonZero = true;
-            }
-        }
-        
-        debugCounter++;
-        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
-            CS_DBG(" TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
-            CS_LOGF(" TEST MODE - generateSamples call #%d, hasNonZero=%d, samples=%d", 
-                      debugCounter, hasNonZero ? 1 : 0, numSamples);
-        }
-        return;
-    }
     
     if (chipType == ChipType::OPM && opmChip) {
-        static int lastNonZeroSample = 0;
-        bool hasNonZero = false;
-        int maxSample = 0;
-        
         for (int i = 0; i < numSamples; i++) {
             // Generate 1 sample like the sample code
             opmChip->generate(&opmOutput, 1);
@@ -187,18 +148,6 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
             // Convert to float and store stereo
             leftBuffer[i] = opmOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
             rightBuffer[i] = opmOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            
-            if (opmOutput.data[0] != 0 || opmOutput.data[1] != 0) {
-                hasNonZero = true;
-                lastNonZeroSample = opmOutput.data[0];
-                if (abs(opmOutput.data[0]) > abs(maxSample)) {
-                    maxSample = opmOutput.data[0];
-                }
-                if (abs(opmOutput.data[1]) > abs(maxSample)) {
-                    maxSample = opmOutput.data[1];
-                }
-            }
-            
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
