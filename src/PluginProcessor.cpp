@@ -3,7 +3,6 @@
 #include "utils/Debug.h"
 #include "utils/ParameterIDs.h"
 #include "dsp/YM2151Registers.h"
-#include "tests/PanTest.h"
 
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
@@ -25,16 +24,13 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
         CS_DBG("Deleted temp log file");
     }
     
-    CS_FILE_DBG("=== YMulator-Synth Debug Log Started ===");
-    CS_FILE_DBG("Constructor called");
-    CS_FILE_DBG("Desktop exists: " + juce::String(logFile1.getParentDirectory().exists() ? "YES" : "NO"));
-    CS_FILE_DBG("Desktop writable: " + juce::String(logFile1.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
-    CS_FILE_DBG("Temp exists: " + juce::String(logFile2.getParentDirectory().exists() ? "YES" : "NO"));
-    CS_FILE_DBG("Temp writable: " + juce::String(logFile2.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
+    // CS_FILE_DBG("=== YMulator-Synth Debug Log Started ===");
+    // CS_FILE_DBG("Constructor called");
+    // CS_FILE_DBG("Desktop exists: " + juce::String(logFile1.getParentDirectory().exists() ? "YES" : "NO"));
+    // CS_FILE_DBG("Desktop writable: " + juce::String(logFile1.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
+    // CS_FILE_DBG("Temp exists: " + juce::String(logFile2.getParentDirectory().exists() ? "YES" : "NO"));
+    // CS_FILE_DBG("Temp writable: " + juce::String(logFile2.getParentDirectory().hasWriteAccess() ? "YES" : "NO"));
     CS_DBG(" Constructor called");
-    
-    // Run pan tests to diagnose the issue
-    // PanTest::runAllTests();  // Disabled for performance
     
     setupCCMapping();
     
@@ -264,11 +260,15 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Allocate a voice for this note with noise priority consideration
             int channel = voiceManager.allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), currentPresetNeedsNoise);
             
-            CS_FILE_DBG("*** NOTE ON: note=" + juce::String(message.getNoteNumber()) + 
-                        ", vel=" + juce::String(message.getVelocity()) + 
-                        ", allocated channel=" + juce::String(channel) + " ***");
+            // CS_FILE_DBG("*** NOTE ON: note=" + juce::String(message.getNoteNumber()) + 
+            //             ", vel=" + juce::String(message.getVelocity()) + 
+            //             ", allocated channel=" + juce::String(channel) + " ***");
             
-            // Apply global pan setting to the allocated channel
+            // Apply global pan setting to the allocated channel (optimized for real-time)
+            auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
+            if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
+                setChannelRandomPan(channel);
+            }
             applyGlobalPan(channel);
             
             // Tell ymfm to play this note on the allocated channel
@@ -1412,11 +1412,8 @@ void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
             // CS_FILE_DBG("Setting RIGHT pan (0x" + juce::String::toHexString(panBits) + ")");
             break;
         case GlobalPanPosition::RANDOM:
-            // ノートオン時にランダム決定
-            int r = juce::Random::getSystemRandom().nextInt(3);
-            panBits = (r == 0) ? YM2151Regs::PAN_LEFT_ONLY : 
-                     (r == 1) ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_CENTER;
-            // CS_FILE_DBG("Setting RANDOM pan (0x" + juce::String::toHexString(panBits) + ")");
+            // Use the stored random pan value for this channel
+            panBits = channelRandomPanBits[channel];
             break;
     }
     
@@ -1451,6 +1448,16 @@ void YMulatorSynthAudioProcessor::applyGlobalPanToAllChannels()
     }
     
     // CS_FILE_DBG("Global pan applied to all channels");
+}
+
+void YMulatorSynthAudioProcessor::setChannelRandomPan(int channel)
+{
+    CS_ASSERT_CHANNEL(channel);
+    
+    // Generate new random pan value for this channel
+    int r = juce::Random::getSystemRandom().nextInt(3);
+    channelRandomPanBits[channel] = (r == 0) ? YM2151Regs::PAN_LEFT_ONLY : 
+                                   (r == 1) ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_CENTER;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
