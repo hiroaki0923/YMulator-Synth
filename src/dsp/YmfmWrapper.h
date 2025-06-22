@@ -100,6 +100,9 @@ public:
     void setNoiseParameters(bool enable, uint8_t frequency);
     void testNoiseChannel();  // Test method to verify noise functionality
     
+    // Register access for global pan functionality
+    uint8_t readCurrentRegister(int address) const;
+    
     // ymfm_interface overrides
     uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
     { 
@@ -149,6 +152,5 @@ private:
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
-    uint8_t readCurrentRegister(int address) const;
     void updateRegisterCache(uint8_t address, uint8_t value);
 };

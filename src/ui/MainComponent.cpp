@@ -49,10 +49,11 @@ void MainComponent::resized()
     // Top area for global controls (compact layout without menu space)
     auto topArea = bounds.removeFromTop(60);
     
-    // Left side: Algorithm ComboBox and Feedback Knob
-    auto controlsArea = topArea.removeFromLeft(280);
+    // Left side: Algorithm ComboBox, Feedback Knob, and Global Pan
+    auto controlsArea = topArea.removeFromLeft(380);
     auto algorithmArea = controlsArea.removeFromLeft(175).reduced(5);
     auto feedbackArea = controlsArea.removeFromLeft(105);
+    auto globalPanArea = controlsArea.removeFromLeft(100);
     
     // Algorithm ComboBox (label on left, combo on right) - standardized height
     if (algorithmComboBox && algorithmLabel) {
@@ -66,6 +67,15 @@ void MainComponent::resized()
     // Feedback Knob
     if (feedbackKnob) {
         feedbackKnob->setBounds(feedbackArea);
+    }
+    
+    // Global Pan ComboBox (label on left, combo on right)
+    if (globalPanComboBox && globalPanLabel) {
+        auto panLabelArea = globalPanArea.removeFromLeft(30);
+        globalPanLabel->setBounds(panLabelArea);
+        // Center combo box vertically with standardized height
+        auto centeredPanArea = globalPanArea.withHeight(30).withCentre(globalPanArea.getCentre());
+        globalPanComboBox->setBounds(centeredPanArea);
     }
     
     // Algorithm display
@@ -264,6 +274,22 @@ void MainComponent::setupGlobalControls()
     // Attach to parameters
     feedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getParameters(), "feedback", *feedbackHiddenSlider);
+    
+    // Global Pan ComboBox
+    globalPanComboBox = std::make_unique<juce::ComboBox>();
+    globalPanComboBox->addItemList({"Left", "Center", "Right", "Random"}, 1);
+    globalPanComboBox->setSelectedId(2, juce::dontSendNotification); // Default: Center
+    addAndMakeVisible(*globalPanComboBox);
+    
+    globalPanLabel = std::make_unique<juce::Label>("", "PAN");
+    globalPanLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+    globalPanLabel->setJustificationType(juce::Justification::centredRight);
+    globalPanLabel->setFont(juce::Font(12.0f));
+    addAndMakeVisible(*globalPanLabel);
+    
+    // Attach global pan to parameters
+    globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.getParameters(), "global_pan", *globalPanComboBox);
 }
 
 void MainComponent::setupLfoControls()

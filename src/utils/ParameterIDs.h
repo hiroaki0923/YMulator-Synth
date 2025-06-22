@@ -27,6 +27,7 @@ namespace Global {
     // Global settings
     constexpr const char* PitchBendRange = "pitch_bend_range";
     constexpr const char* MasterPan = "master_pan";
+    constexpr const char* GlobalPan = "global_pan";
     
     // LFO parameters
     constexpr const char* LfoRate = "lfo_rate";
@@ -348,3 +349,14 @@ namespace Validation {
 } // namespace Validation
 
 } // namespace ParamID
+
+// =============================================================================
+// Global Pan Position Enumeration
+// =============================================================================
+
+enum class GlobalPanPosition {
+    LEFT = 0,
+    CENTER = 1,
+    RIGHT = 2,
+    RANDOM = 3
+};

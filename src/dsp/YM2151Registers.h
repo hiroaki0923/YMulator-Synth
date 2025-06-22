@@ -92,8 +92,8 @@ constexpr uint8_t MASK_KEY_CODE = 0x7F;              // Key code field (bits 0-6
 constexpr uint8_t MASK_OCTAVE = 0x07;                // Octave field (bits 0-2)
 
 // Pan Control Masks (for register 0x20 + channel)
-constexpr uint8_t MASK_LEFT_ENABLE = 0x80;           // Left output enable (bit 7)
-constexpr uint8_t MASK_RIGHT_ENABLE = 0x40;          // Right output enable (bit 6)
+constexpr uint8_t MASK_LEFT_ENABLE = 0x40;           // Left output enable (bit 6)
+constexpr uint8_t MASK_RIGHT_ENABLE = 0x80;          // Right output enable (bit 7)
 constexpr uint8_t MASK_PAN_LR = 0xC0;                // Both L/R enable bits (bits 6-7)
 
 // Noise Control Masks (for register 0x0F)
@@ -197,8 +197,8 @@ constexpr uint8_t OPNA_MODE_VALUE = 0x9f;            // OPNA extended mode enabl
 
 // Pan Setting Values (for register 0x20 + channel bits 6-7)
 constexpr uint8_t PAN_OFF = 0x00;                    // No output (L=0, R=0)
-constexpr uint8_t PAN_RIGHT_ONLY = 0x40;             // Right only (L=0, R=1)
-constexpr uint8_t PAN_LEFT_ONLY = 0x80;              // Left only (L=1, R=0)
+constexpr uint8_t PAN_LEFT_ONLY = 0x40;              // Left only (L=1, R=0)
+constexpr uint8_t PAN_RIGHT_ONLY = 0x80;             // Right only (L=0, R=1)
 constexpr uint8_t PAN_CENTER = 0xC0;                 // Center/Both (L=1, R=1)
 
 // LFO Parameter Constants

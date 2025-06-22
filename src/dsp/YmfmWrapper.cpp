@@ -185,7 +185,6 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
             leftBuffer[i] = opmOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
             rightBuffer[i] = opmOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
             
-            
             if (opmOutput.data[0] != 0 || opmOutput.data[1] != 0) {
                 hasNonZero = true;
                 lastNonZeroSample = opmOutput.data[0];
@@ -197,18 +196,6 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
                 }
             }
             
-            // Extra detailed debug for first few samples when we might have audio
-            if (debugCounter <= YM2151Regs::MAX_DEBUG_CALLS && i < YM2151Regs::DEBUG_SAMPLE_COUNT) {
-                CS_DBG(" Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
-            }
-        }
-        
-        // Debug output every few calls to check if function is being called
-        debugCounter++;
-        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
-            CS_DBG(" generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
-            CS_LOGF(" generateSamples call #%d, hasNonZero=%d, maxValue=%d, samples=%d",
-                      debugCounter, hasNonZero ? 1 : 0, maxSample, numSamples);
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
@@ -318,9 +305,13 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
         CS_DBG(" Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
         CS_LOGF(" Setting up sine wave timbre for OPM channel %d", channel);
         
-        // Algorithm 7 (all operators parallel), L/R both output, FB=0
-        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+        // Algorithm 7 (all operators parallel), FB=0, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
+        
+        CS_DBG(" setupBasicPianoVoice preserving pan 0x" + juce::String::toHexString(currentPan) + " for channel " + juce::String((int)channel));
         
         // Configure all 4 operators like sample code
         for (int op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; op++) {
@@ -741,9 +732,13 @@ void YmfmWrapper::batchUpdateChannelParameters(uint8_t channel, uint8_t algorith
            ", feedback=" + juce::String((int)feedback));
     
     if (chipType == ChipType::OPM) {
-        // Update algorithm and feedback first
-        uint8_t conn_value = (feedback << YM2151Regs::SHIFT_FEEDBACK) | algorithm;
+        // Update algorithm and feedback first, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t conn_value = (feedback << YM2151Regs::SHIFT_FEEDBACK) | algorithm | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, conn_value);
+        
+        CS_DBG("batchUpdateChannelParameters preserving pan 0x" + juce::String::toHexString(currentPan) + " for channel " + juce::String((int)channel));
         
         // Batch update all operators for this channel
         for (int op = 0; op < 4; ++op) {

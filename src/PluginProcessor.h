@@ -84,6 +84,8 @@ private:
     void updateYmfmParameters();
     void loadPreset(int index);
     void loadPreset(const ymulatorsynth::Preset* preset);
+    void applyGlobalPan(int channel);
+    void applyGlobalPanToAllChannels();
     
 public:
     // Preset access for UI
