@@ -233,9 +233,260 @@ public:
 };
 ```
 
-### 1.2 レジスタマップリファレンス
+### 1.2 実装済みベストプラクティス
 
-#### 1.2.1 YM2151 (OPM) レジスタマップ
+#### 1.2.1 ymfm統合の正しい方法
+
+**❌ 間違った実装 - インターリーブステレオとして解釈**
+```cpp
+// 間違い: ymfm出力をインターリーブステレオとして処理
+for (int i = 0; i < numSamples; i++) {
+    opmChip->generate(&opmOutput, numSamples);  // 間違い: バッチ生成
+    leftBuffer[i] = opmOutput.data[i * 2];      // 間違い: インターリーブ想定
+    rightBuffer[i] = opmOutput.data[i * 2 + 1]; // 間違い: 存在しないデータ
+}
+```
+
+**✅ 正しい実装 - 分離チャンネルとして処理**
+```cpp
+void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples)
+{
+    CS_ASSERT_BUFFER_SIZE(numSamples);
+    CS_ASSERT(leftBuffer != nullptr);
+    CS_ASSERT(rightBuffer != nullptr);
+    
+    // 重要: バッファクリアで残留データ防止
+    std::memset(leftBuffer, 0, numSamples * sizeof(float));
+    if (leftBuffer != rightBuffer) {
+        std::memset(rightBuffer, 0, numSamples * sizeof(float));
+    }
+    
+    if (!initialized) {
+        return; // バッファはクリア済み
+    }
+    
+    if (chipType == ChipType::OPM && opmChip) {
+        // 最適化: スケールファクターを事前計算
+        const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+        
+        // 正しい方法: 1サンプルずつ生成
+        for (int i = 0; i < numSamples; i++) {
+            opmChip->generate(&opmOutput, 1);
+            
+            // ymfm出力構造: data[0]=left, data[1]=right (インターリーブではない)
+            leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
+            rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+        }
+    }
+}
+```
+
+#### 1.2.2 Audio Unit互換性のための適切なリソース管理
+
+**サンプルレート同期の確実な実装:**
+```cpp
+void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
+{
+    CS_FILE_DBG("=== YmfmWrapper::initialize ===");
+    CS_FILE_DBG("ChipType: " + juce::String(type == ChipType::OPM ? "OPM" : "OPNA"));
+    CS_FILE_DBG("Received outputSampleRate: " + juce::String(outputSampleRate));
+    
+    chipType = type;
+    this->outputSampleRate = outputSampleRate;
+    
+    if (type == ChipType::OPM) {
+        uint32_t opm_clock = YM2151Regs::OPM_DEFAULT_CLOCK;
+        initializeOPM();
+        
+        if (opmChip) {
+            uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
+            // 重要: DAWのサンプルレートを使用してDAW同期を保証
+            internalSampleRate = outputSampleRate; // ymfm_internal_rateではない
+            CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
+            CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
+            CS_FILE_DBG("Final internalSampleRate set to outputSampleRate=" + juce::String(outputSampleRate) + " Hz");
+        }
+    }
+    
+    initialized = true;
+}
+```
+
+**適切なリソース解放でオーディオ遅延防止:**
+```cpp
+void YMulatorSynthAudioProcessor::releaseResources()
+{
+    CS_FILE_DBG("=== releaseResources called ===");
+    
+    // 重要: 全ボイスクリアで音声遅延防止
+    voiceManager.releaseAllVoices();
+    
+    // ymfm状態リセット
+    ymfmWrapper.reset();
+    
+    CS_FILE_DBG("=== releaseResources complete ===");
+}
+```
+
+#### 1.2.3 グローバルパンとプリセット名保持システム
+
+**プリセット変更例外処理の実装:**
+```cpp
+void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
+{
+    // グローバルパンパラメータの識別
+    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
+    auto& allParams = AudioProcessor::getParameters();
+    bool isGlobalPanChange = (parameterIndex < allParams.size() && 
+                             allParams[parameterIndex] == globalPanParam);
+    
+    if (isGlobalPanChange) {
+        // グローバルパンの場合：全チャンネルに適用してreturn
+        applyGlobalPanToAllChannels();
+        return; // 重要: カスタムモード切り替えをスキップ
+    }
+    
+    // 通常のパラメータ変更処理
+    if (!isCustomPreset && userGestureInProgress) {
+        isCustomPreset = true; // カスタムモードに切り替え
+        
+        // UI更新通知
+        parameters.state.setProperty("isCustomMode", true, nullptr);
+        
+        // ホスト表示更新（メッセージスレッドで実行）
+        juce::MessageManager::callAsync([this]() {
+            updateHostDisplay();
+        });
+    }
+}
+```
+
+**YM2151パンニング制御の正確な実装:**
+```cpp
+void YmfmWrapper::setChannelPan(uint8_t channel, uint8_t panValue) {
+    CS_ASSERT_CHANNEL(channel);
+    
+    uint8_t regAddr = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel;
+    uint8_t currentValue = getCurrentRegisterValue(regAddr);
+    
+    // パンビット以外を保持してパンビットのみ更新
+    uint8_t newValue = (currentValue & YM2151Regs::PAN_MASK) | panValue;
+    writeRegister(regAddr, newValue);
+}
+
+namespace YM2151Regs {
+    // 修正済みパンニング制御ビット
+    constexpr uint8_t PAN_LEFT = 0x40;     // ビット6: 左チャンネル出力
+    constexpr uint8_t PAN_RIGHT = 0x80;    // ビット7: 右チャンネル出力
+    constexpr uint8_t PAN_CENTER = PAN_LEFT | PAN_RIGHT;  // 両チャンネル
+    constexpr uint8_t PAN_MASK = 0x3F;     // パンビット以外のマスク
+}
+```
+
+#### 1.2.4 リアルタイム処理の最適化
+
+**デバッグ出力の頻度制限:**
+```cpp
+void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                              juce::MidiBuffer& midiMessages)
+{
+    juce::ScopedNoDenormals noDenormals;
+    
+    // デバッグ出力の頻度制限（パフォーマンス向上）
+    static int processBlockCallCounter = 0;
+    static bool hasLoggedFirstCall = false;
+    
+    processBlockCallCounter++;
+    
+    if (!hasLoggedFirstCall) {
+        CS_DBG("processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
+            ", samples: " + juce::String(buffer.getNumSamples()));
+        hasLoggedFirstCall = true;
+    }
+    
+    buffer.clear(); // 出力バッファクリア
+    
+    // 効率的なMIDI処理ループ
+    for (const auto metadata : midiMessages) {
+        const auto message = metadata.getMessage();
+        
+        if (message.isNoteOn()) {
+            handleNoteOn(message);
+        } else if (message.isNoteOff()) {
+            handleNoteOff(message);
+        } else if (message.isController()) {
+            handleMidiCC(message.getControllerNumber(), message.getControllerValue());
+        }
+    }
+    
+    // パラメータ更新（分周して負荷軽減）
+    if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER) {
+        parameterUpdateCounter = 0;
+        updateYmfmParameters();
+    }
+    
+    // オーディオ生成
+    const int numSamples = buffer.getNumSamples();
+    if (numSamples > 0) {
+        float* leftBuffer = buffer.getWritePointer(0);
+        float* rightBuffer = buffer.getNumChannels() > 1 ? 
+            buffer.getWritePointer(1) : leftBuffer;
+        
+        ymfmWrapper.generateSamples(leftBuffer, rightBuffer, numSamples);
+        
+        // 適度なゲイン適用
+        buffer.applyGain(0, 0, numSamples, 2.0f);
+        if (buffer.getNumChannels() > 1) {
+            buffer.applyGain(1, 0, numSamples, 2.0f);
+        }
+    }
+}
+```
+
+#### 1.2.5 デバッグとトラブルシューティング
+
+**ファイルデバッグの活用:**
+```cpp
+// トラブルシューティング用のファイルデバッグ
+void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    // サンプルレート検証
+    CS_ASSERT_SAMPLE_RATE(sampleRate);
+    CS_ASSERT_BUFFER_SIZE(samplesPerBlock);
+    
+    // ファイルデバッグ（トラブルシューティング用）
+    static int callCount = 0;
+    callCount++;
+    CS_FILE_DBG("=== prepareToPlay called (call #" + juce::String(callCount) + ") ===");
+    CS_FILE_DBG("DAW provided sampleRate: " + juce::String(sampleRate, 2));
+    CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
+    
+    // ymfm初期化（DAWサンプルレート使用）
+    ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
+    
+    // パラメータ適用
+    updateYmfmParameters();
+}
+```
+
+**Audio Unit検証コマンド:**
+```bash
+# Audio Unit検証
+auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
+
+# 詳細出力（デバッグ時）
+auval -v aumu YMul Hrki
+
+# Audio Unit登録問題の解決
+killall -9 AudioComponentRegistrar
+
+# ログ確認
+log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
+```
+
+### 1.3 レジスタマップリファレンス
+
+#### 1.3.1 YM2151 (OPM) レジスタマップ
 
 ##### グローバルレジスタ
 | アドレス | 機能 | ビット構成 | 説明 |
