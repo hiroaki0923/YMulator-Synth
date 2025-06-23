@@ -1175,27 +1175,19 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, floa
     // Check if this is the GlobalPan parameter by ID
     auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
     auto& allParams = AudioProcessor::getParameters();
-    if (parameterIndex < allParams.size() && allParams[parameterIndex] == globalPanParam) {
+    bool isGlobalPanChange = (parameterIndex < allParams.size() && allParams[parameterIndex] == globalPanParam);
+    
+    if (isGlobalPanChange) {
         // Apply to ALL channels, not just active ones
         // This is necessary because YM2151 mixes all channels, not just active ones
         applyGlobalPanToAllChannels();
         
-        // Count active channels for logging
-        // DISABLED FOR PERFORMANCE  
-        // int activeChannels = 0;
-        // for (int channel = 0; channel < 8; ++channel) {
-        //     if (voiceManager.isVoiceActive(channel)) {
-        //         activeChannels++;
-        //     }
-        // }
-        // auto* panParam = static_cast<juce::AudioParameterChoice*>(globalPanParam);
-        // int panIndex = panParam ? panParam->getIndex() : 1;
-        // CS_FILE_DBG("Global pan changed to index: " + juce::String(panIndex) + 
-        //             " (raw value: " + juce::String(newValue) + ")" +
-        //             ", applied to " + juce::String(activeChannels) + " active channels");
+        // Global pan changes don't affect preset identity, so return early
+        return;
     }
     
     // Only switch to custom if not already in custom mode and gesture is in progress
+    // Global pan changes are excluded from this logic
     if (!isCustomPreset && userGestureInProgress) {
         CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
