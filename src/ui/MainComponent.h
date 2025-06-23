@@ -32,6 +32,8 @@ private:
     std::unique_ptr<juce::ComboBox> algorithmComboBox;
     std::unique_ptr<juce::Label> algorithmLabel;
     std::unique_ptr<RotaryKnob> feedbackKnob;
+    std::unique_ptr<juce::ComboBox> globalPanComboBox;
+    std::unique_ptr<juce::Label> globalPanLabel;
     
     // Bank and Preset selectors
     std::unique_ptr<juce::ComboBox> bankComboBox;
@@ -78,6 +80,7 @@ private:
     
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> globalPanAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoRateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoPmdAttachment;

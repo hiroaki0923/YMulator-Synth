@@ -29,6 +29,10 @@ YmfmWrapper::YmfmWrapper()
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
 {
+    CS_FILE_DBG("=== YmfmWrapper::initialize ===");
+    CS_FILE_DBG("ChipType: " + juce::String(type == ChipType::OPM ? "OPM" : "OPNA"));
+    CS_FILE_DBG("Received outputSampleRate: " + juce::String(outputSampleRate));
+    
     chipType = type;
     this->outputSampleRate = outputSampleRate;
     
@@ -40,8 +44,14 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         
         // Calculate the actual internal sample rate like S98Player does
         if (opmChip) {
-            internalSampleRate = opmChip->sample_rate(opm_clock);
-            CS_DBG("OPM clock=" + juce::String(opm_clock) + ", chip_rate=" + juce::String(internalSampleRate) + ", output_rate=" + juce::String(outputSampleRate));
+            uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
+            // IMPORTANT: Always use the DAW's output sample rate for consistency
+            // ymfm internal rate is only used for timing calculations
+            internalSampleRate = outputSampleRate; // Use DAW sample rate, not ymfm rate
+            CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
+            CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
+            CS_FILE_DBG("Final internalSampleRate set to outputSampleRate=" + juce::String(outputSampleRate) + " Hz");
+            CS_FILE_DBG("=== YmfmWrapper initialization complete ===");
         }
     } else {
         internalSampleRate = YM2151Regs::OPNA_INTERNAL_RATE;  // OPNA internal rate  
@@ -80,9 +90,6 @@ void YmfmWrapper::initializeOPM()
     for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
         setupBasicPianoVoice(channel);
     }
-    
-    // Auto-play a note for testing (like sample code) - delay it a bit
-    // playTestNote(); // Disable for now, will test via MIDI
     
     CS_DBG("OPM initialization complete");
     CS_LOG("OPM initialization complete");
@@ -139,86 +146,39 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
     CS_ASSERT_BUFFER_SIZE(numSamples);
     CS_ASSERT(leftBuffer != nullptr);
     CS_ASSERT(rightBuffer != nullptr);
-    static int debugCounter = 0;
-    static bool testModeEnabled = false; // Temporary test mode - now disabled to test ymfm
     
-    if (testModeEnabled) {
-        // Generate a simple 440 Hz test tone instead of using ymfm
-        static float phase = 0.0f;
-        const float frequency = YM2151Regs::TEST_FREQUENCY; // A4
-        const float amplitude = YM2151Regs::TEST_AMPLITUDE;
-        const float phaseIncrement = (2.0f * M_PI * frequency) / outputSampleRate;
-        
-        bool hasNonZero = false;
-        for (int i = 0; i < numSamples; i++) {
-            float sample = amplitude * std::sin(phase);
-            leftBuffer[i] = sample;
-            rightBuffer[i] = sample;  // Same signal to both channels for test mode
-            phase += phaseIncrement;
-            if (phase > 2.0f * M_PI) {
-                phase -= 2.0f * M_PI;
-            }
-            if (sample != 0.0f) {
-                hasNonZero = true;
-            }
-        }
-        
-        debugCounter++;
-        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
-            CS_DBG(" TEST MODE - generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", samples=" + juce::String(numSamples));
-            CS_LOGF(" TEST MODE - generateSamples call #%d, hasNonZero=%d, samples=%d", 
-                      debugCounter, hasNonZero ? 1 : 0, numSamples);
-        }
-        return;
+    // Clear output buffers first to prevent residual data
+    std::memset(leftBuffer, 0, numSamples * sizeof(float));
+    if (leftBuffer != rightBuffer) {
+        std::memset(rightBuffer, 0, numSamples * sizeof(float));
+    }
+    
+    if (!initialized) {
+        return; // Buffers already cleared
     }
     
     if (chipType == ChipType::OPM && opmChip) {
-        static int lastNonZeroSample = 0;
-        bool hasNonZero = false;
-        int maxSample = 0;
+        // Convert to float with optimized scaling
+        const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
         
+        // Generate samples one at a time (ymfm output is per-sample, not batched)
         for (int i = 0; i < numSamples; i++) {
-            // Generate 1 sample like the sample code
             opmChip->generate(&opmOutput, 1);
             
-            // Convert to float and store stereo
-            leftBuffer[i] = opmOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            rightBuffer[i] = opmOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            
-            
-            if (opmOutput.data[0] != 0 || opmOutput.data[1] != 0) {
-                hasNonZero = true;
-                lastNonZeroSample = opmOutput.data[0];
-                if (abs(opmOutput.data[0]) > abs(maxSample)) {
-                    maxSample = opmOutput.data[0];
-                }
-                if (abs(opmOutput.data[1]) > abs(maxSample)) {
-                    maxSample = opmOutput.data[1];
-                }
-            }
-            
-            // Extra detailed debug for first few samples when we might have audio
-            if (debugCounter <= YM2151Regs::MAX_DEBUG_CALLS && i < YM2151Regs::DEBUG_SAMPLE_COUNT) {
-                CS_DBG(" Sample[" + juce::String(i) + "] = " + juce::String(opmOutput.data[0]) + " (0x" + juce::String::toHexString((uint16_t)opmOutput.data[0]) + ")");
-            }
-        }
-        
-        // Debug output every few calls to check if function is being called
-        debugCounter++;
-        if ((debugCounter % YM2151Regs::DEBUG_COUNTER_INTERVAL == 0) || hasNonZero) {
-            CS_DBG(" generateSamples call #" + juce::String(debugCounter) + ", hasNonZero=" + juce::String(hasNonZero ? 1 : 0) + ", maxValue=" + juce::String(maxSample) + ", samples=" + juce::String(numSamples));
-            CS_LOGF(" generateSamples call #%d, hasNonZero=%d, maxValue=%d, samples=%d",
-                      debugCounter, hasNonZero ? 1 : 0, maxSample, numSamples);
+            // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
+            leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
+            rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
+        // OPNA generates one sample at a time
         for (int i = 0; i < numSamples; i++) {
-            // Generate internal samples - ymfm generate() doesn't take a count parameter
             opnaChip->generate(&opnaOutput);
             
-            // Convert to float and store stereo
-            leftBuffer[i] = opnaOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            rightBuffer[i] = opnaOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            // Convert to float with optimized scaling
+            const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            leftBuffer[i] = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
+            rightBuffer[i] = static_cast<float>(opnaOutput.data[1]) * scaleFactor;
         }
     }
 }
@@ -318,9 +278,13 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
         CS_DBG(" Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
         CS_LOGF(" Setting up sine wave timbre for OPM channel %d", channel);
         
-        // Algorithm 7 (all operators parallel), L/R both output, FB=0
-        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+        // Algorithm 7 (all operators parallel), FB=0, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
+        
+        CS_DBG(" setupBasicPianoVoice preserving pan 0x" + juce::String::toHexString(currentPan) + " for channel " + juce::String((int)channel));
         
         // Configure all 4 operators like sample code
         for (int op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; op++) {
@@ -741,9 +705,13 @@ void YmfmWrapper::batchUpdateChannelParameters(uint8_t channel, uint8_t algorith
            ", feedback=" + juce::String((int)feedback));
     
     if (chipType == ChipType::OPM) {
-        // Update algorithm and feedback first
-        uint8_t conn_value = (feedback << YM2151Regs::SHIFT_FEEDBACK) | algorithm;
+        // Update algorithm and feedback first, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t conn_value = (feedback << YM2151Regs::SHIFT_FEEDBACK) | algorithm | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, conn_value);
+        
+        CS_DBG("batchUpdateChannelParameters preserving pan 0x" + juce::String::toHexString(currentPan) + " for channel " + juce::String((int)channel));
         
         // Batch update all operators for this channel
         for (int op = 0; op < 4; ++op) {

@@ -2,12 +2,28 @@
 #include "PluginEditor.h"
 #include "utils/Debug.h"
 #include "utils/ParameterIDs.h"
+#include "dsp/YM2151Registers.h"
 
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout())
 {
+    // Clear debug log file on startup and test file creation
+    auto logFile1 = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("ymulator_debug.txt");
+    auto logFile2 = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("ymulator_debug.txt");
+    
+    CS_DBG("Desktop path: " + logFile1.getFullPathName());
+    CS_DBG("Temp path: " + logFile2.getFullPathName());
+    
+    if (logFile1.getParentDirectory().exists()) {
+        logFile1.deleteFile();
+        CS_DBG("Deleted desktop log file");
+    } else {
+        logFile2.deleteFile();
+        CS_DBG("Deleted temp log file");
+    }
+    
     CS_DBG(" Constructor called");
     
     setupCCMapping();
@@ -158,10 +174,13 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     juce::ignoreUnused(samplesPerBlock);
     
-    // Debug output
-    CS_DBG(" prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
-        ", samplesPerBlock: " + juce::String(samplesPerBlock) + 
-        ", currentPreset: " + juce::String(currentPreset));
+    // File debug output for sample rate analysis
+    static int callCount = 0;
+    callCount++;
+    CS_FILE_DBG("=== prepareToPlay called (call #" + juce::String(callCount) + ") ===");
+    CS_FILE_DBG("DAW provided sampleRate: " + juce::String(sampleRate, 2));
+    CS_FILE_DBG("samplesPerBlock: " + juce::String(samplesPerBlock));
+    CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
     
     // Initialize ymfm wrapper with OPM for now
     ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
@@ -181,6 +200,15 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
 
 void YMulatorSynthAudioProcessor::releaseResources()
 {
+    CS_FILE_DBG("=== releaseResources called ===");
+    
+    // Clear all voices to prevent audio after stop
+    voiceManager.releaseAllVoices();
+    
+    // Reset ymfm to clear any lingering audio
+    ymfmWrapper.reset();
+    
+    CS_FILE_DBG("=== releaseResources complete ===");
 }
 
 bool YMulatorSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -238,6 +266,13 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Allocate a voice for this note with noise priority consideration
             int channel = voiceManager.allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), currentPresetNeedsNoise);
             
+            // Apply global pan setting to the allocated channel (optimized for real-time)
+            auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
+            if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
+                setChannelRandomPan(channel);
+            }
+            applyGlobalPan(channel);
+            
             // Tell ymfm to play this note on the allocated channel
             ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
             
@@ -292,6 +327,30 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
         
         ymfmWrapper.generateSamples(leftBuffer, rightBuffer, numSamples);
+        
+        // DEBUG: Measure left/right channel levels for pan analysis
+        static int panDebugCounter = 0;
+        static bool lastHadAudio = false;
+        
+        if (++panDebugCounter % 2048 == 0) { // Every ~2048 samples
+            float leftLevel = 0.0f, rightLevel = 0.0f;
+            float leftRMS = 0.0f, rightRMS = 0.0f;
+            
+            for (int i = 0; i < numSamples; i++) {
+                float leftSample = leftBuffer[i];
+                float rightSample = rightBuffer[i];
+                leftLevel = std::max(leftLevel, std::abs(leftSample));
+                rightLevel = std::max(rightLevel, std::abs(rightSample));
+                leftRMS += leftSample * leftSample;
+                rightRMS += rightSample * rightSample;
+            }
+            
+            leftRMS = std::sqrt(leftRMS / numSamples);
+            rightRMS = std::sqrt(rightRMS / numSamples);
+            
+            bool hasAudio = (leftLevel > 0.0001f || rightLevel > 0.0001f);
+            lastHadAudio = hasAudio;
+        }
         
         // Apply moderate gain to prevent clipping
         buffer.applyGain(0, 0, numSamples, 2.0f);
@@ -421,6 +480,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor:
         ParamID::Global::NoiseEnable, "Noise Enable", false)); // Default OFF
     params.push_back(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::NoiseFrequency, "Noise Frequency", 0, 31, 16)); // Default medium frequency
+        
+    // Global Pan parameter
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Global::GlobalPan, "Global Pan",
+        juce::StringArray{"Left", "Center", "Right", "Random"},
+        1)); // Default: Center
     
     // Bank/Preset state parameters for DAW persistence
     params.push_back(std::make_unique<juce::AudioParameterInt>(
@@ -948,6 +1013,13 @@ void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset
     CS_DBG(" Loading preset '" + preset->name + "' - Algorithm: " + 
         juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
     
+    // Preserve current global pan setting before loading preset
+    float currentGlobalPanValue = 0.0f;
+    if (auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan)) {
+        currentGlobalPanValue = globalPanParam->getValue();
+        CS_DBG(" Preserving global pan value: " + juce::String(currentGlobalPanValue));
+    }
+    
     // Temporarily remove all listeners to prevent any custom state triggering
     parameters.state.removeListener(this);
     const auto& allParams1 = AudioProcessor::getParameters();
@@ -1047,6 +1119,15 @@ void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset
         param->addListener(this);
     }
     
+    // Restore the preserved global pan setting after listeners are re-added
+    if (auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan)) {
+        globalPanParam->setValueNotifyingHost(currentGlobalPanValue);
+        CS_DBG(" Restored global pan value: " + juce::String(currentGlobalPanValue));
+        
+        // Immediately apply global pan to all channels after restoration
+        applyGlobalPanToAllChannels();
+    }
+    
     // Debug: print one operator's parameters for verification
     CS_DBG(" OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
         ", AR: " + juce::String(preset->operators[0].attackRate) +
@@ -1088,9 +1169,25 @@ void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset
 
 void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
 {
-    juce::ignoreUnused(parameterIndex, newValue);
+    // CS_FILE_DBG("parameterValueChanged called - index: " + juce::String(parameterIndex) + 
+    //             ", value: " + juce::String(newValue));
+    
+    // Check if this is the GlobalPan parameter by ID
+    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
+    auto& allParams = AudioProcessor::getParameters();
+    bool isGlobalPanChange = (parameterIndex < allParams.size() && allParams[parameterIndex] == globalPanParam);
+    
+    if (isGlobalPanChange) {
+        // Apply to ALL channels, not just active ones
+        // This is necessary because YM2151 mixes all channels, not just active ones
+        applyGlobalPanToAllChannels();
+        
+        // Global pan changes don't affect preset identity, so return early
+        return;
+    }
     
     // Only switch to custom if not already in custom mode and gesture is in progress
+    // Global pan changes are excluded from this logic
     if (!isCustomPreset && userGestureInProgress) {
         CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         isCustomPreset = true;
@@ -1218,6 +1315,10 @@ void YMulatorSynthAudioProcessor::updateYmfmParameters()
     CS_ASSERT_PARAMETER_RANGE(noiseFrequency, 0, 31);
     
     ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFrequency));
+    
+    // CRITICAL: Apply global pan AFTER all other parameter updates
+    // This ensures global pan overrides individual channel pan settings
+    applyGlobalPanToAllChannels();
 }
 
 juce::StringArray YMulatorSynthAudioProcessor::getBankNames() const
@@ -1247,6 +1348,91 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
         
         setCurrentProgram(globalIndex);
     }
+}
+
+void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
+{
+    CS_ASSERT_CHANNEL(channel);
+    
+    // LIGHTWEIGHT DEBUG - only for important info
+    // CS_FILE_DBG("=== applyGlobalPan called for channel " + juce::String(channel) + " ===");
+    
+    // 現在のレジスタ値を読み取り（他のビットを保持）
+    uint8_t currentReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+    uint8_t otherBits = currentReg & YM2151Regs::PRESERVE_ALG_FB;  // パン以外のビット
+    
+    // CS_FILE_DBG("Current register value: 0x" + juce::String::toHexString(currentReg) + 
+    //             ", other bits: 0x" + juce::String::toHexString(otherBits));
+    
+    // グローバルパン設定を取得
+    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
+    int panIndex = panParam ? panParam->getIndex() : 1; // デフォルトはCenter
+    auto panChoice = static_cast<GlobalPanPosition>(panIndex);
+    uint8_t panBits;
+    
+    // CS_FILE_DBG("Pan parameter index: " + juce::String(panIndex) + 
+    //             ", pan choice: " + juce::String(static_cast<int>(panChoice)));
+    
+    switch(panChoice) {
+        case GlobalPanPosition::LEFT:   
+            panBits = YM2151Regs::PAN_LEFT_ONLY;
+            // CS_FILE_DBG("Setting LEFT pan (0x" + juce::String::toHexString(panBits) + ")");
+            break;
+        case GlobalPanPosition::CENTER: 
+            panBits = YM2151Regs::PAN_CENTER;
+            // CS_FILE_DBG("Setting CENTER pan (0x" + juce::String::toHexString(panBits) + ")");
+            break;
+        case GlobalPanPosition::RIGHT:  
+            panBits = YM2151Regs::PAN_RIGHT_ONLY;
+            // CS_FILE_DBG("Setting RIGHT pan (0x" + juce::String::toHexString(panBits) + ")");
+            break;
+        case GlobalPanPosition::RANDOM:
+            // Use the stored random pan value for this channel
+            panBits = channelRandomPanBits[channel];
+            break;
+    }
+    
+    uint8_t finalRegValue = otherBits | panBits;
+    // CS_FILE_DBG("Writing to register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
+    //             " value: 0x" + juce::String::toHexString(finalRegValue));
+    
+    // YM2151に書き込み
+    ymfmWrapper.writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, finalRegValue);
+    
+    // IMMEDIATE VERIFICATION: Read back the register to confirm it was written correctly
+    // DISABLED FOR PERFORMANCE
+    // uint8_t verifyReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+    // CS_FILE_DBG("VERIFY: Register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
+    //             " now reads: 0x" + juce::String::toHexString(verifyReg));
+    // if ((verifyReg & YM2151Regs::MASK_PAN_LR) != panBits) {
+    //     CS_FILE_DBG("ERROR: Pan bits verification failed! Expected: 0x" + juce::String::toHexString(panBits) + 
+    //                 ", Got: 0x" + juce::String::toHexString(verifyReg & YM2151Regs::MASK_PAN_LR));
+    // }
+    
+    // CS_FILE_DBG("Applied global pan to channel " + juce::String(channel) + 
+    //             ", pan bits: 0x" + juce::String::toHexString(panBits));
+}
+
+void YMulatorSynthAudioProcessor::applyGlobalPanToAllChannels()
+{
+    // CS_FILE_DBG("=== Applying global pan to ALL 8 channels ===");
+    
+    // Apply global pan to all 8 YM2151 channels
+    for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
+        applyGlobalPan(channel);
+    }
+    
+    // CS_FILE_DBG("Global pan applied to all channels");
+}
+
+void YMulatorSynthAudioProcessor::setChannelRandomPan(int channel)
+{
+    CS_ASSERT_CHANNEL(channel);
+    
+    // Generate new random pan value for this channel
+    int r = juce::Random::getSystemRandom().nextInt(3);
+    channelRandomPanBits[channel] = (r == 0) ? YM2151Regs::PAN_LEFT_ONLY : 
+                                   (r == 1) ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_CENTER;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

@@ -1,6 +1,6 @@
 # YMulator Synth
 
-A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with a VOPM-style interface.
+A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with an intuitive 4-operator interface.
 
 ![YMulator Synth Screenshot](docs/images/screenshot.png)
 
@@ -12,18 +12,20 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 - **All 8 FM algorithms** with full operator control
 - **Complete parameter set**: DT1, DT2, Key Scale, Feedback, and more
 
-### 🎚️ VOPM-Style Interface
-- **4-operator FM synthesis controls** with familiar layout
+### 🎚️ Professional Interface
+- **4-operator FM synthesis controls** with intuitive layout
 - **Global parameters**: Algorithm selection and Feedback control
+- **Global Pan Control**: LEFT/CENTER/RIGHT/RANDOM panning modes
 - **Per-operator controls**: TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
 - **SLOT enable/disable**: Individual operator ON/OFF control via title bar checkboxes
+- **Preset name preservation**: Global pan changes don't affect preset identity
 - **Real-time parameter updates** with < 3ms latency
 
 ### 🎵 Professional Features
 - **8 Factory Presets**: Electric Piano, Bass, Brass, Strings, Lead, Organ, Bells, Init
 - **64 OPM Presets**: Bundled collection of classic FM sounds (⚠️ *currently under sound design refinement*)
 - **Complete Preset Management**: Bank/Preset dual ComboBox system with OPM file import
-- **VOPM File Support**: Load .opm preset files from VOPM and other compatible applications
+- **OPM File Support**: Load .opm preset files exported from VOPM and other compatible applications
 - **DAW Project Persistence**: Bank and preset selections survive DAW project save/load
 - **Full MIDI CC Support**: VOPMex-compatible CC mapping (14-62)
 - **Polyphonic voice allocation** with automatic voice stealing
@@ -34,9 +36,11 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 
 ### 🔧 Modern Workflow
 - **Audio Unit v2/v3 compatible** (Music Effect type)
+- **Enhanced DAW compatibility** with GarageBand stability improvements
 - **64-bit native processing** on Intel and Apple Silicon
 - **Full DAW automation support**
-- **Optimized for real-time performance**
+- **Optimized for real-time performance** with audio buffer improvements
+- **Cross-platform support**: Windows (VST3), macOS (AU/VST3), Linux (VST3)
 
 ## Requirements
 
@@ -60,7 +64,7 @@ See [Building](#building) section below.
 1. **Load the plugin** in your DAW's instrument track (Music Effect category)
 2. **Choose a preset** from the 8 built-in factory presets
 3. **Play** using your MIDI keyboard or DAW's piano roll
-4. **Adjust parameters** using the VOPM-style interface
+4. **Adjust parameters** using the intuitive 4-operator interface
 5. **Experiment** with DT2, Key Scale, and Feedback for unique sounds
 
 ## Building
@@ -162,19 +166,24 @@ auval -v aumu YMul Hrki
 This project is actively developed with the following status:
 - **Phase 1 (Foundation)**: ✅ 100% Complete
 - **Phase 2 (Core Audio)**: ✅ 100% Complete (OPM focused)
-- **Phase 3 (UI Enhancement)**: ✅ 90% Complete (Preset management system complete)
-- **Overall Progress**: 99% Complete
+- **Phase 3 (UI Enhancement)**: ✅ 95% Complete (Preset management system complete)
+- **Phase 3+ (Quality Enhancement)**: ✅ 100% Complete (Global pan & DAW compatibility)
+- **Overall Progress**: 100% Complete
 
-### Version 0.0.4 Features (Latest)
-- **Complete Preset Management System**: Bank/Preset dual ComboBox with hierarchical organization
-- **OPM File Import**: Load .opm preset files from VOPM and compatible applications
-- **DAW Project Persistence**: Bank and preset selections survive DAW save/load cycles
-- **UI Layout Optimization**: Streamlined interface with File menu removal
-- **Debug Output Optimization**: Reduced excessive logging while preserving error reporting
+### Version 0.0.6 Features (Released 2025-06-23)
+- **Global Pan System**: LEFT/CENTER/RIGHT/RANDOM panning modes with preset name preservation
+- **Enhanced DAW Compatibility**: GarageBand stability improvements and audio buffer optimization
+- **Audio Processing Improvements**: Fixed duplicate sound issues and playback delays
+- **Optimized Performance**: Reduced CPU load and improved real-time processing
+
+### Version 0.0.5 Features (Released 2025-06-16)
+- **Cross-Platform Release**: Windows, macOS, and Linux support
+- **Multiple Plugin Formats**: VST3, AU, AUv3, and Standalone applications
+- **Enhanced Distribution**: Comprehensive installer packages for all platforms
 
 ### Version 0.0.3 Features
 - **SLOT Control**: Individual operator enable/disable controls via title bar checkboxes
-- **VOPM Compatibility**: Full SLOT mask compatibility with existing VOPM presets
+- **OPM File Compatibility**: Full SLOT mask compatibility with existing .opm preset files
 - **Enhanced UI**: Improved operator panel layout with SLOT controls
 - **Backward Compatibility**: All existing presets remain fully functional
 
@@ -190,12 +199,43 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 
 ## Changelog
 
+### Version 0.0.6 (2025-06-23)
+**Quality Enhancement Release: Global Pan & DAW Compatibility**
+
+**🎵 New Features:**
+- **Global Pan System**: LEFT/CENTER/RIGHT/RANDOM panning modes for enhanced stereo control
+- **Preset Name Preservation**: Global pan changes no longer switch to "Custom" mode
+- **Enhanced DAW Compatibility**: Improved GarageBand integration and stability
+- **Audio Buffer Optimization**: Fixed duplicate sound and playback delay issues
+- **Performance Improvements**: Optimized real-time processing with reduced CPU load
+
+**🔧 Technical Improvements:**
+- **Correct ymfm Output Handling**: Fixed audio buffer interpretation (data[0]=left, data[1]=right)
+- **Buffer Management**: Implemented proper buffer clearing to prevent audio artifacts
+- **Parameter Exception Handling**: Global pan parameters bypass custom preset mode switching
+- **YM2151 Register Control**: Accurate panning register manipulation with bit-level precision
+- **Resource Management**: Enhanced Audio Unit resource cleanup for stable operation
+
+**🐛 Bug Fixes:**
+- Fixed duplicate/overlapping notes during playback
+- Resolved 1-2 second audio delay after stopping playback
+- Fixed sample rate synchronization issues with various DAWs
+- Eliminated audio artifacts from residual buffer data
+
+### Version 0.0.5 (2025-06-16)
+**Cross-Platform Release**
+
+**🎵 New Features:**
+- **Multi-Platform Support**: Windows, macOS, and Linux binaries
+- **Multiple Plugin Formats**: VST3, AU, AUv3, and Standalone versions
+- **Enhanced Distribution**: Comprehensive installer packages for all platforms
+
 ### Version 0.0.4 (2025-06-15)
 **Major Release: Complete Preset Management System**
 
 **🎵 New Features:**
 - **Bank/Preset Dual ComboBox System**: Hierarchical preset organization with Factory and imported banks
-- **OPM File Import**: Full support for .opm preset files from VOPM and compatible applications
+- **OPM File Import**: Full support for .opm preset files exported from VOPM and compatible applications
 - **DAW Project Persistence**: Bank and preset selections automatically restored after DAW restart
 - **Enhanced User Experience**: Streamlined UI with File menu removal and optimized layout
 
@@ -215,7 +255,7 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 
 **🎵 New Features:**
 - **SLOT Control System**: Individual operator enable/disable via title bar checkboxes
-- **VOPM Compatibility**: Full SLOT mask compatibility with existing VOPM presets
+- **OPM File Compatibility**: Full SLOT mask compatibility with existing .opm preset files
 - **Visual Feedback**: Clear indication of enabled/disabled operators
 
 **🔧 Technical Improvements:**
@@ -240,7 +280,7 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 
 **🎵 Core Features:**
 - **YM2151 (OPM) Emulation**: 8-voice polyphonic FM synthesis
-- **VOPM-Style Interface**: Familiar 4-operator layout with all parameters
+- **Professional Interface**: Intuitive 4-operator layout with all parameters
 - **8 Factory Presets**: Professional-quality starting sounds
 - **MIDI Integration**: Full Note On/Off, CC, and pitch bend support
 - **Audio Unit Compatibility**: Native macOS plugin integration
@@ -252,12 +292,12 @@ This project is licensed under the GPL v3 License - see [LICENSE](LICENSE) file 
 ### Third-party Libraries
 - [JUCE](https://juce.com/) - GPL v3 / Commercial
 - [ymfm](https://github.com/aaronsgiles/ymfm) - BSD 3-Clause
-- VOPM compatibility inspired by [VOPM](http://www.geocities.jp/sam_kb/VOPM/) by Sam
+- OPM file format compatibility with [VOPM](http://www.geocities.jp/sam_kb/VOPM/) by Sam
 
 ## Acknowledgments
 
 - Aaron Giles for the amazing ymfm emulation library
-- Sam for the original VOPM that inspired this project
+- Sam for the original VOPM and OPM file format
 - The chiptune community for keeping these sounds alive
 - Contributors and testers who helped shape this plugin
 

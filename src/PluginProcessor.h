@@ -76,6 +76,9 @@ private:
     // Pitch bend state
     int currentPitchBend = 8192; // MIDI pitch bend center (0-16383)
     
+    // Random pan state for each channel (used in RANDOM mode)
+    uint8_t channelRandomPanBits[8] = {0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0}; // Default to CENTER
+    
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void setupCCMapping();
@@ -84,6 +87,9 @@ private:
     void updateYmfmParameters();
     void loadPreset(int index);
     void loadPreset(const ymulatorsynth::Preset* preset);
+    void applyGlobalPan(int channel);
+    void applyGlobalPanToAllChannels();
+    void setChannelRandomPan(int channel); // Set new random pan for specific channel
     
 public:
     // Preset access for UI

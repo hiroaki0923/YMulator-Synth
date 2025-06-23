@@ -435,9 +435,187 @@ void addNoiseToExistingVoice(uint8_t algorithm) {
 }
 ```
 
-### 1.6 ポリフォニック実装仕様
+### 1.6 グローバルパン機能実装
 
-#### 1.6.1 VoiceManager設計
+#### 1.6.1 グローバルパン設計思想
+グローバルパンは音色プリセットに影響しない独立したパラメータとして実装。これにより、プリセット選択後にパンポジションを調整してもプリセット名が「カスタム」に変わらない。
+
+#### 1.6.2 技術仕様
+```cpp
+enum class GlobalPanPosition : int {
+    LEFT = 0,      // 左チャンネルのみ
+    CENTER = 1,    // 中央（デフォルト）
+    RIGHT = 2,     // 右チャンネルのみ  
+    RANDOM = 3     // チャンネル毎にランダム
+};
+
+namespace YM2151Regs {
+    // パンニング制御ビット（修正済み）
+    constexpr uint8_t PAN_LEFT = 0x40;     // ビット6: 左チャンネル出力
+    constexpr uint8_t PAN_RIGHT = 0x80;    // ビット7: 右チャンネル出力
+    constexpr uint8_t PAN_CENTER = PAN_LEFT | PAN_RIGHT;  // 両チャンネル
+    constexpr uint8_t PAN_MASK = 0x3F;     // パンビット以外のマスク
+}
+```
+
+#### 1.6.3 実装アーキテクチャ
+```cpp
+class YMulatorSynthAudioProcessor {
+public:
+    // グローバルパン適用メソッド
+    void applyGlobalPan(int channel);
+    void applyGlobalPanToAllChannels();
+    void setChannelRandomPan(int channel);
+    
+    // パラメータ変更処理（グローバルパン例外処理）
+    void parameterValueChanged(int parameterIndex, float newValue) override;
+    
+private:
+    // チャンネル毎のランダムパン状態管理
+    std::array<uint8_t, 8> channelRandomPanStates;
+    std::random_device randomDevice;
+    std::mt19937 randomGenerator;
+};
+```
+
+#### 1.6.4 プリセット名保持ロジック
+```cpp
+void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue) {
+    // グローバルパンパラメータの識別
+    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
+    bool isGlobalPanChange = (parameterIndex < allParams.size() && 
+                             allParams[parameterIndex] == globalPanParam);
+    
+    if (isGlobalPanChange) {
+        applyGlobalPanToAllChannels();
+        return; // カスタムモード切り替えをスキップ
+    }
+    
+    // 通常のパラメータ変更処理
+    if (!isCustomPreset && userGestureInProgress) {
+        isCustomPreset = true; // カスタムモードに切り替え
+    }
+}
+```
+
+#### 1.6.5 YM2151レジスタ操作
+```cpp
+void YmfmWrapper::setChannelPan(uint8_t channel, uint8_t panValue) {
+    CS_ASSERT_CHANNEL(channel);
+    
+    uint8_t regAddr = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel;
+    uint8_t currentValue = getCurrentRegisterValue(regAddr);
+    
+    // パンビット以外を保持してパンビットのみ更新
+    uint8_t newValue = (currentValue & YM2151Regs::PAN_MASK) | panValue;
+    writeRegister(regAddr, newValue);
+}
+```
+
+### 1.7 オーディオバッファ処理とDAW互換性
+
+#### 1.7.1 ymfm出力バッファ構造
+ymfmライブラリの出力は**インターリーブされていない**ステレオ形式：
+```cpp
+// 正しい出力バッファ解釈
+struct ymfm_output<2> {
+    int32_t data[2];  // data[0]=左、data[1]=右（インターリーブではない）
+};
+
+// 正しいサンプル生成処理
+void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples) {
+    // バッファクリアで残留データ防止
+    std::memset(leftBuffer, 0, numSamples * sizeof(float));
+    if (leftBuffer != rightBuffer) {
+        std::memset(rightBuffer, 0, numSamples * sizeof(float));
+    }
+    
+    const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+    
+    for (int i = 0; i < numSamples; i++) {
+        opmChip->generate(&opmOutput, 1);
+        
+        // 正しい出力マッピング
+        leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
+        rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+    }
+}
+```
+
+#### 1.7.2 Audio Unit互換性対策
+```cpp
+// サンプルレート同期問題の解決
+void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate) {
+    chipType = type;
+    this->outputSampleRate = outputSampleRate;
+    
+    if (type == ChipType::OPM) {
+        uint32_t opm_clock = YM2151Regs::OPM_DEFAULT_CLOCK;
+        initializeOPM();
+        
+        if (opmChip) {
+            uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
+            // 重要: DAWのサンプルレートを使用してDAW同期を保証
+            internalSampleRate = outputSampleRate; // ymfm_internal_rateではない
+        }
+    }
+}
+
+// リソース解放でオーディオ遅延を防止
+void YMulatorSynthAudioProcessor::releaseResources() {
+    voiceManager.releaseAllVoices();  // 全ボイスクリア
+    ymfmWrapper.reset();              // ymfm状態リセット
+}
+```
+
+#### 1.7.3 リアルタイム処理最適化
+```cpp
+// パフォーマンス最適化済みオーディオ処理
+void YMulatorSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages) {
+    // デバッグ出力の最適化（リアルタイム処理中は最小限）
+    static int callCounter = 0;
+    if (++callCounter % 1000 == 0) {  // 1000回に1回のみログ
+        CS_DBG("processBlock #" + String(callCounter));
+    }
+    
+    buffer.clear();  // 出力バッファクリア
+    
+    // MIDI処理
+    for (const auto metadata : midiMessages) {
+        // 効率的なMIDI処理...
+    }
+    
+    // パラメータ更新（分周して負荷軽減）
+    if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER) {
+        parameterUpdateCounter = 0;
+        updateYmfmParameters();
+    }
+    
+    // オーディオ生成
+    ymfmWrapper.generateSamples(
+        buffer.getWritePointer(0),
+        buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : buffer.getWritePointer(0),
+        buffer.getNumSamples()
+    );
+}
+```
+
+#### 1.7.4 Audio Unit検証
+```bash
+# Audio Unit検証コマンド
+auval -v aumu YMul Hrki  # YMulator Synthの検証
+
+# 成功例出力:
+# PASS: YMulatorSynth
+# --------------------------------------------------
+# TOTAL TESTS RUN: 21
+# PASSED: 21
+# FAILED: 0
+```
+
+### 1.8 ポリフォニック実装仕様
+
+#### 1.8.1 VoiceManager設計
 
 ```cpp
 class VoiceManager {
@@ -465,7 +643,7 @@ public:
 };
 ```
 
-#### 1.6.2 パラメータ同期の実装
+#### 1.8.2 パラメータ同期の実装
 
 **問題**: UIパラメータ変更時、全チャンネルへの反映が必要
 **解決**: パラメータ更新ループで全8チャンネルを更新
@@ -487,7 +665,7 @@ void updateYmfmParameters() {
 }
 ```
 
-#### 1.6.3 MIDI処理フロー
+#### 1.8.3 MIDI処理フロー
 
 ```
 MIDI Note On → VoiceManager::allocateVoice() → チャンネル決定
@@ -503,9 +681,9 @@ ymfmWrapper.noteOff(channel, note)
 レジスタ書き込み（Key Off） → VoiceManager::releaseVoice()
 ```
 
-### 1.7 S98録音機能
+### 1.9 S98録音機能
 
-#### 1.6.1 S98フォーマット仕様
+#### 1.9.1 S98フォーマット仕様
 ```cpp
 struct S98Header {
     char magic[3];          // "S98"
@@ -520,7 +698,7 @@ struct S98Header {
 };
 ```
 
-#### 1.6.2 録音エンジン
+#### 1.9.2 録音エンジン
 ```cpp
 class S98Recorder {
 public:
