@@ -174,10 +174,13 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     juce::ignoreUnused(samplesPerBlock);
     
-    // Debug output
-    CS_DBG(" prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
-        ", samplesPerBlock: " + juce::String(samplesPerBlock) + 
-        ", currentPreset: " + juce::String(currentPreset));
+    // File debug output for sample rate analysis
+    static int callCount = 0;
+    callCount++;
+    CS_FILE_DBG("=== prepareToPlay called (call #" + juce::String(callCount) + ") ===");
+    CS_FILE_DBG("DAW provided sampleRate: " + juce::String(sampleRate, 2));
+    CS_FILE_DBG("samplesPerBlock: " + juce::String(samplesPerBlock));
+    CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
     
     // Initialize ymfm wrapper with OPM for now
     ymfmWrapper.initialize(YmfmWrapper::ChipType::OPM, static_cast<uint32_t>(sampleRate));
@@ -197,6 +200,15 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
 
 void YMulatorSynthAudioProcessor::releaseResources()
 {
+    CS_FILE_DBG("=== releaseResources called ===");
+    
+    // Clear all voices to prevent audio after stop
+    voiceManager.releaseAllVoices();
+    
+    // Reset ymfm to clear any lingering audio
+    ymfmWrapper.reset();
+    
+    CS_FILE_DBG("=== releaseResources complete ===");
 }
 
 bool YMulatorSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const

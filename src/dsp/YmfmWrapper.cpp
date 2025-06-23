@@ -29,6 +29,10 @@ YmfmWrapper::YmfmWrapper()
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
 {
+    CS_FILE_DBG("=== YmfmWrapper::initialize ===");
+    CS_FILE_DBG("ChipType: " + juce::String(type == ChipType::OPM ? "OPM" : "OPNA"));
+    CS_FILE_DBG("Received outputSampleRate: " + juce::String(outputSampleRate));
+    
     chipType = type;
     this->outputSampleRate = outputSampleRate;
     
@@ -44,7 +48,10 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
             // IMPORTANT: Always use the DAW's output sample rate for consistency
             // ymfm internal rate is only used for timing calculations
             internalSampleRate = outputSampleRate; // Use DAW sample rate, not ymfm rate
-            CS_DBG("OPM clock=" + juce::String(opm_clock) + ", ymfm_rate=" + juce::String(ymfm_internal_rate) + ", using_output_rate=" + juce::String(outputSampleRate));
+            CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
+            CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
+            CS_FILE_DBG("Final internalSampleRate set to outputSampleRate=" + juce::String(outputSampleRate) + " Hz");
+            CS_FILE_DBG("=== YmfmWrapper initialization complete ===");
         }
     } else {
         internalSampleRate = YM2151Regs::OPNA_INTERNAL_RATE;  // OPNA internal rate  
@@ -140,24 +147,38 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
     CS_ASSERT(leftBuffer != nullptr);
     CS_ASSERT(rightBuffer != nullptr);
     
+    // Clear output buffers first to prevent residual data
+    std::memset(leftBuffer, 0, numSamples * sizeof(float));
+    if (leftBuffer != rightBuffer) {
+        std::memset(rightBuffer, 0, numSamples * sizeof(float));
+    }
+    
+    if (!initialized) {
+        return; // Buffers already cleared
+    }
+    
     if (chipType == ChipType::OPM && opmChip) {
+        // Convert to float with optimized scaling
+        const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+        
+        // Generate samples one at a time (ymfm output is per-sample, not batched)
         for (int i = 0; i < numSamples; i++) {
-            // Generate 1 sample like the sample code
             opmChip->generate(&opmOutput, 1);
             
-            // Convert to float and store stereo
-            leftBuffer[i] = opmOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            rightBuffer[i] = opmOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
+            leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
+            rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
         }
         
     } else if (chipType == ChipType::OPNA && opnaChip) {
+        // OPNA generates one sample at a time
         for (int i = 0; i < numSamples; i++) {
-            // Generate internal samples - ymfm generate() doesn't take a count parameter
             opnaChip->generate(&opnaOutput);
             
-            // Convert to float and store stereo
-            leftBuffer[i] = opnaOutput.data[0] / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            rightBuffer[i] = opnaOutput.data[1] / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            // Convert to float with optimized scaling
+            const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+            leftBuffer[i] = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
+            rightBuffer[i] = static_cast<float>(opnaOutput.data[1]) * scaleFactor;
         }
     }
 }
