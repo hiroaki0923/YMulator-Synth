@@ -33,6 +33,10 @@ if(GTest_FOUND)
         unit/SimpleParameterTest.cpp
         unit/ParameterDebugTest.cpp
         unit/PluginProcessorComprehensiveTest.cpp
+        unit/VoiceManagerTest.cpp
+        unit/YmfmWrapperTest.cpp
+        unit/PresetManagerTest.cpp
+        unit/VOPMParserTest.cpp
         
         # Main source files needed for testing
         ${CMAKE_SOURCE_DIR}/src/PluginProcessor.cpp
