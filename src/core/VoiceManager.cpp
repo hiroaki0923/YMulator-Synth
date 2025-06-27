@@ -206,3 +206,22 @@ int VoiceManager::findAvailableVoiceWithNoisePriority(bool needsNoise)
         return findAvailableVoice();
     }
 }
+
+void VoiceManager::reset()
+{
+    // Reset all voices to inactive state
+    for (auto& voice : voices) {
+        voice.active = false;
+        voice.note = 0;
+        voice.velocity = 0;
+        voice.timestamp = 0;
+    }
+    
+    // Reset timestamp counter
+    currentTimestamp = 0;
+    
+    // Reset stealing policy to default
+    stealingPolicy = StealingPolicy::OLDEST;
+    
+    CS_DBG("VoiceManager reset to initial state");
+}

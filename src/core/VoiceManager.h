@@ -1,5 +1,6 @@
 #pragma once
 
+#include "VoiceManagerInterface.h"
 #include <array>
 #include <cstdint>
 #include <algorithm>
@@ -10,7 +11,7 @@
  * YM2151 has 8 independent channels, allowing for 8-note polyphony.
  * This class handles voice allocation, voice stealing, and channel management.
  */
-class VoiceManager
+class VoiceManager : public VoiceManagerInterface
 {
 public:
     static constexpr int MAX_VOICES = 8;  // YM2151 has 8 channels
@@ -19,25 +20,22 @@ public:
     ~VoiceManager() = default;
     
     // Voice allocation
-    int allocateVoice(uint8_t note, uint8_t velocity);
-    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise);
-    void releaseVoice(uint8_t note);
-    void releaseAllVoices();
+    int allocateVoice(uint8_t note, uint8_t velocity) override;
+    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise) override;
+    void releaseVoice(uint8_t note) override;
+    void releaseAllVoices() override;
     
     // Voice state queries
-    bool isVoiceActive(int channel) const;
-    uint8_t getNoteForChannel(int channel) const;
-    uint8_t getVelocityForChannel(int channel) const;
-    int getChannelForNote(uint8_t note) const;
+    bool isVoiceActive(int channel) const override;
+    uint8_t getNoteForChannel(int channel) const override;
+    uint8_t getVelocityForChannel(int channel) const override;
+    int getChannelForNote(uint8_t note) const override;
     
     // Voice stealing policy
-    enum class StealingPolicy {
-        OLDEST,     // Steal the oldest playing voice
-        QUIETEST,   // Steal the voice with lowest velocity
-        LOWEST      // Steal the lowest pitched voice
-    };
+    void setStealingPolicy(StealingPolicy policy) override { stealingPolicy = policy; }
     
-    void setStealingPolicy(StealingPolicy policy) { stealingPolicy = policy; }
+    // Reset functionality for testing
+    void reset() override;
     
 private:
     struct Voice {
