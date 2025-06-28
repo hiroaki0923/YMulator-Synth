@@ -43,7 +43,7 @@ jobs:
     - name: Build main project (for JUCE dependencies)
       run: |
         cd build
-        cmake --build . --target YMulatorSynthAU --parallel 8 --config RelWithDebInfo
+        cmake --build . --target YMulator-Synth_AU --parallel 8 --config RelWithDebInfo
     
     - name: Build tests only
       run: |
