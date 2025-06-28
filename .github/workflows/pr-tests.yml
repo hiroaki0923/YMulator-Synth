@@ -49,19 +49,19 @@ jobs:
     
     - name: Run all tests
       run: |
-        # Use our unified test script with quiet output
-        ./scripts/test.sh --quiet
+        # Use our unified test script with Google Test only output
+        ./scripts/test.sh --gtest-only
     
     - name: Run specific test categories
       run: |
         echo "=== Unit Tests ==="
-        ./scripts/test.sh --unit --quiet
+        ./scripts/test.sh --unit --gtest-only
         
         echo "=== Integration Tests ==="
-        ./scripts/test.sh --integration --quiet
+        ./scripts/test.sh --integration --gtest-only
         
         echo "=== Regression Tests ==="
-        ./scripts/test.sh --regression --quiet
+        ./scripts/test.sh --regression --gtest-only
     
     - name: Validate Audio Unit
       run: |

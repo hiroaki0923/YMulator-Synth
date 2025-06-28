@@ -49,6 +49,7 @@ OPTIONS:
     -l, --list          List available tests
     -v, --verbose       Show verbose test output
     -q, --quiet         Show minimal output
+    --gtest-only        Show only Google Test output (suppress JUCE debug)
     --auval             Run Audio Unit validation
     --build             Build before running tests
     --gtest-args ARGS   Pass additional arguments to gtest
@@ -63,6 +64,7 @@ EXAMPLES:
     ./scripts/test.sh                           # Run all tests
     ./scripts/test.sh -u                        # Unit tests only
     ./scripts/test.sh -f "ParameterManager"     # Tests matching "ParameterManager"
+    ./scripts/test.sh --gtest-only             # Only Google Test output (no JUCE debug)
     ./scripts/test.sh -l                        # List all available tests
     ./scripts/test.sh --auval                   # Audio Unit validation only
     ./scripts/test.sh --build -v               # Build then run tests verbosely
@@ -127,10 +129,19 @@ run_unit_tests() {
     # Exclude integration and regression tests
     local exclude="--gtest_filter=${filter}:-*Integration*:*Comprehensive*:*Regression*:*Quality*:*Performance*:*RandomPan*:*AudioQuality*"
     
-    if [[ "$quiet" == "true" ]]; then
-        ./bin/YMulatorSynthAU_Tests $exclude $gtest_args --gtest_brief=1
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        # Redirect both stdout and stderr to capture only Google Test output
+        env $env_vars ./bin/YMulatorSynthAU_Tests $exclude $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+    elif [[ "$quiet" == "true" ]]; then
+        env $env_vars ./bin/YMulatorSynthAU_Tests $exclude $gtest_args --gtest_brief=1 2>/dev/null
     else
-        ./bin/YMulatorSynthAU_Tests $exclude $gtest_args
+        env $env_vars ./bin/YMulatorSynthAU_Tests $exclude $gtest_args
     fi
 }
 
@@ -143,10 +154,19 @@ run_integration_tests() {
     
     local filter="--gtest_filter=*Integration*:*Comprehensive*"
     
-    if [[ "$quiet" == "true" ]]; then
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        # Redirect both stdout and stderr to capture only Google Test output
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+    elif [[ "$quiet" == "true" ]]; then
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>/dev/null
     else
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args
     fi
 }
 
@@ -159,10 +179,19 @@ run_regression_tests() {
     
     local filter="--gtest_filter=*Regression*:*RandomPan*"
     
-    if [[ "$quiet" == "true" ]]; then
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        # Redirect both stdout and stderr to capture only Google Test output
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+    elif [[ "$quiet" == "true" ]]; then
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>/dev/null
     else
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args
     fi
 }
 
@@ -175,10 +204,19 @@ run_quality_tests() {
     
     local filter="--gtest_filter=*Quality*:*Performance*:*Audio*"
     
-    if [[ "$quiet" == "true" ]]; then
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        # Redirect both stdout and stderr to capture only Google Test output
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+    elif [[ "$quiet" == "true" ]]; then
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>/dev/null
     else
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args
     fi
 }
 
@@ -192,10 +230,19 @@ run_filtered_tests() {
     
     local filter="--gtest_filter=*${pattern}*"
     
-    if [[ "$quiet" == "true" ]]; then
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        # Redirect both stdout and stderr to capture only Google Test output
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+    elif [[ "$quiet" == "true" ]]; then
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args --gtest_brief=1 2>/dev/null
     else
-        ./bin/YMulatorSynthAU_Tests $filter $gtest_args
+        env $env_vars ./bin/YMulatorSynthAU_Tests $filter $gtest_args
     fi
 }
 
@@ -240,6 +287,7 @@ QUIET=false
 VERBOSE=false
 BUILD_FIRST=false
 LIST_TESTS=false
+GTEST_ONLY=false
 TEST_MODE="all"
 FILTER_PATTERN=""
 GTEST_ARGS=""
@@ -281,6 +329,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         -q|--quiet)
             QUIET=true
+            shift
+            ;;
+        --gtest-only)
+            GTEST_ONLY=true
+            QUIET=true  # Automatically enable quiet mode
             shift
             ;;
         --auval)

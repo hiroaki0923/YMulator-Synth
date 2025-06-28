@@ -286,6 +286,9 @@ cmake --install .
 ./scripts/test.sh --filter "ParameterManager"
 ./scripts/test.sh --filter "Pan"
 
+# Google Testの結果のみ表示（デバッグログなし）
+./scripts/test.sh --gtest-only
+
 # CI/自動テスト用クワイエットモード
 ./scripts/test.sh --quiet
 

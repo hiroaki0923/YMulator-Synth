@@ -288,6 +288,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ./scripts/test.sh --filter "ParameterManager"
 ./scripts/test.sh --filter "Pan"
 
+# Show only Google Test output (no debug logs)
+./scripts/test.sh --gtest-only
+
 # Quiet mode for CI/automated testing
 ./scripts/test.sh --quiet
 
