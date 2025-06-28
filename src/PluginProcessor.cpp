@@ -520,39 +520,6 @@ void YMulatorSynthAudioProcessor::handlePitchBend(int pitchBendValue)
     }
 }
 
-void YMulatorSynthAudioProcessor::OLD_handlePitchBend(int pitchBendValue)
-{
-    // Assert valid pitch bend range (14-bit value)
-    CS_ASSERT_PARAMETER_RANGE(pitchBendValue, 0, 16383);
-    
-    // Store the current pitch bend value (0-16383, center is 8192)
-    currentPitchBend = pitchBendValue;
-    
-    // Get pitch bend range from parameter (1-12 semitones)
-    int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::PitchBendRange));
-    
-    // Calculate pitch bend amount in semitones
-    // MIDI pitch bend: 0-16383, center = 8192
-    // Range: -range to +range semitones
-    float pitchBendSemitones = ((pitchBendValue - 8192) / 8192.0f) * pitchBendRange;
-    
-    // Update all active voices with pitch bend
-    for (int channel = 0; channel < 8; ++channel)
-    {
-        if (voiceManager->isVoiceActive(channel))
-        {
-            uint8_t note = voiceManager->getNoteForChannel(channel);
-            uint8_t velocity = voiceManager->getVelocityForChannel(channel);
-            
-            // Apply pitch bend to the note frequency
-            ymfmWrapper->setPitchBend(channel, pitchBendSemitones);
-        }
-    }
-    
-    CS_DBG(" Pitch bend applied - Value: " + juce::String(pitchBendValue) + 
-        ", Range: " + juce::String(pitchBendRange) + " semitones" +
-        ", Amount: " + juce::String(pitchBendSemitones, 3) + " semitones");
-}
 
 void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
 {
@@ -1146,58 +1113,17 @@ void YMulatorSynthAudioProcessor::processMidiMessages(juce::MidiBuffer& midiMess
     // This method is kept for backward compatibility but should not be called
     CS_DBG("DEPRECATED processMidiMessages called - should use midiProcessor directly");
 }
-        } else if (message.isPitchWheel()) {
-            CS_DBG(" Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
-            handlePitchBend(message.getPitchWheelValue());
-        }
-    }
-}
 
 void YMulatorSynthAudioProcessor::processMidiNoteOn(const juce::MidiMessage& message)
 {
-    // Assert valid MIDI note and velocity
-    CS_ASSERT_NOTE(message.getNoteNumber());
-    CS_ASSERT_VELOCITY(message.getVelocity());
-    
-    CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
-        ", Velocity: " + juce::String(message.getVelocity()));
-    
-    // Check if current preset needs noise (has noise enabled)
-    bool currentPresetNeedsNoise = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
-    
-    // Allocate a voice for this note with noise priority consideration
-    int channel = voiceManager->allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), currentPresetNeedsNoise);
-    
-    // Apply global pan setting to the allocated channel (optimized for real-time)
-    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
-        setChannelRandomPan(channel);
-    }
-    applyGlobalPan(channel);
-    
-    // Tell ymfm to play this note on the allocated channel
-    ymfmWrapper->noteOn(channel, message.getNoteNumber(), message.getVelocity());
+    // Delegate to MidiProcessor
+    midiProcessor->processMidiNoteOn(message);
 }
 
 void YMulatorSynthAudioProcessor::processMidiNoteOff(const juce::MidiMessage& message)
 {
-    // Assert valid MIDI note
-    CS_ASSERT_NOTE(message.getNoteNumber());
-    
-    CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
-    
-    // Find which channel is playing this note
-    int channel = voiceManager->getChannelForNote(message.getNoteNumber());
-    if (channel >= 0) {
-        // Assert valid channel allocation
-        CS_ASSERT_CHANNEL(channel);
-        
-        // Tell ymfm to stop this note
-        ymfmWrapper->noteOff(channel, message.getNoteNumber());
-        
-        // Release the voice
-        voiceManager->releaseVoice(message.getNoteNumber());
-    }
+    // Delegate to MidiProcessor
+    midiProcessor->processMidiNoteOff(message);
 }
 
 void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>& buffer)
