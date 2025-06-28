@@ -186,13 +186,13 @@ constexpr uint8_t KF_SCALE_FACTOR = 64;              // KF fractional scaling
 // =============================================================================
 
 // Default voice parameters (for setupBasicPianoVoice)
-constexpr uint8_t DEFAULT_ALGORITHM_FB_LR = 0xC7;    // Algorithm 7, L/R both, FB=0
+constexpr uint8_t DEFAULT_ALGORITHM_FB_LR = 0xC0;    // Algorithm 0, L/R both, FB=0
 constexpr uint8_t DEFAULT_DT1_MUL = 0x01;            // DT1=0, MUL=1
-constexpr uint8_t DEFAULT_TOTAL_LEVEL = 32;          // Moderate volume
+constexpr uint8_t DEFAULT_TOTAL_LEVEL = 0;           // Maximum volume (TL=0 is loudest in YM2151)
 constexpr uint8_t DEFAULT_KS_AR = 0x1F;              // KS=0, AR=31 (fast attack)
 constexpr uint8_t DEFAULT_AMS_D1R = 0x00;            // AMS-EN=0, D1R=0
 constexpr uint8_t DEFAULT_DT2_D2R = 0x00;            // DT2=0, D2R=0  
-constexpr uint8_t DEFAULT_D1L_RR = 0xF7;             // D1L=15, RR=7
+constexpr uint8_t DEFAULT_D1L_RR = 0x07;             // D1L=0 (no decay), RR=7
 constexpr uint8_t OPNA_MODE_VALUE = 0x9f;            // OPNA extended mode enable
 
 // Pan Setting Values (for register 0x20 + channel bits 6-7)

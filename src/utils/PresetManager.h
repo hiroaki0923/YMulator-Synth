@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../core/PresetManagerInterface.h"
 #include <juce_core/juce_core.h>
 #include <juce_data_structures/juce_data_structures.h>
 #include "VOPMParser.h"
@@ -79,144 +80,52 @@ struct Bank
 /**
  * Manages preset loading, saving, and organization
  */
-class PresetManager
+class PresetManager : public PresetManagerInterface
 {
 public:
     PresetManager();
     ~PresetManager() = default;
     
-    /**
-     * Initialize with factory presets and load external presets
-     */
-    void initialize();
+    // Interface implementation - Initialization
+    void initialize() override;
     
-    /**
-     * Load presets from OPM file
-     * @param file The .opm file to load
-     * @return Number of presets loaded
-     */
-    int loadOPMFile(const juce::File& file);
+    // Interface implementation - File operations
+    int loadOPMFile(const juce::File& file) override;
+    int loadBundledPresets() override;
+    bool saveOPMFile(const juce::File& file) const override;
+    bool savePresetAsOPM(const juce::File& file, const Preset& preset) const override;
     
-    /**
-     * Load presets from bundled resources
-     * @return Number of presets loaded
-     */
-    int loadBundledPresets();
+    // Interface implementation - Preset access
+    const Preset* getPreset(int id) const override;
+    const Preset* getPreset(const juce::String& name) const override;
+    juce::StringArray getPresetNames() const override;
+    int getNumPresets() const override { return static_cast<int>(presets.size()); }
     
-    /**
-     * Get preset by ID
-     * @param id Preset ID (0-based)
-     * @return Preset pointer or nullptr if not found
-     */
-    const Preset* getPreset(int id) const;
+    // Interface implementation - Bank management
+    const std::vector<Bank>& getBanks() const override { return banks; }
+    juce::StringArray getPresetsForBank(int bankIndex) const override;
+    const Preset* getPresetInBank(int bankIndex, int presetIndex) const override;
+    int getGlobalPresetIndex(int bankIndex, int presetIndex) const override;
     
-    /**
-     * Get preset by name
-     * @param name Preset name
-     * @return Preset pointer or nullptr if not found
-     */
-    const Preset* getPreset(const juce::String& name) const;
+    // Interface implementation - Preset modification
+    void addPreset(const Preset& preset) override;
+    void removePreset(int id) override;
+    void clear() override;
     
-    /**
-     * Get all preset names
-     * @return Array of preset names
-     */
-    juce::StringArray getPresetNames() const;
+    // Interface implementation - User presets and data persistence
+    bool addUserPreset(const Preset& preset) override;
+    bool saveUserData() override;
+    int loadUserData() override;
+    juce::File getUserDataDirectory() const override;
     
-    /**
-     * Get number of available presets
-     */
-    int getNumPresets() const { return static_cast<int>(presets.size()); }
+    // Interface implementation - Factory presets
+    std::vector<Preset> getFactoryPresets() override;
     
-    /**
-     * Get all banks
-     */
-    const std::vector<Bank>& getBanks() const { return banks; }
+    // Static factory method (for backward compatibility)
+    static std::vector<Preset> createFactoryPresets();
     
-    /**
-     * Get presets for a specific bank
-     * @param bankIndex Index of the bank
-     * @return Array of preset names in the bank
-     */
-    juce::StringArray getPresetsForBank(int bankIndex) const;
-    
-    /**
-     * Get preset by bank and preset index
-     * @param bankIndex Index of the bank
-     * @param presetIndex Index within the bank
-     * @return Preset pointer or nullptr if not found
-     */
-    const Preset* getPresetInBank(int bankIndex, int presetIndex) const;
-    
-    /**
-     * Get global preset index from bank/preset indices
-     * @param bankIndex Index of the bank
-     * @param presetIndex Index within the bank
-     * @return Global preset index or -1 if not found
-     */
-    int getGlobalPresetIndex(int bankIndex, int presetIndex) const;
-    
-    /**
-     * Add a new preset
-     * @param preset The preset to add
-     */
-    void addPreset(const Preset& preset);
-    
-    /**
-     * Remove preset by ID
-     * @param id Preset ID to remove
-     */
-    void removePreset(int id);
-    
-    /**
-     * Save current presets to OPM file
-     * @param file Target file
-     * @return True if successful
-     */
-    bool saveOPMFile(const juce::File& file) const;
-    
-    /**
-     * Save a single preset as OPM file
-     * @param file Target file
-     * @param preset Preset to save
-     * @return True if successful
-     */
-    bool savePresetAsOPM(const juce::File& file, const Preset& preset) const;
-    
-    /**
-     * Clear all presets
-     */
-    void clear();
-    
-    /**
-     * Get factory presets (built-in)
-     */
-    static std::vector<Preset> getFactoryPresets();
-    
-    /**
-     * Add a preset to the User bank
-     * @param preset The preset to add
-     * @return True if successful
-     */
-    bool addUserPreset(const Preset& preset);
-    
-    /**
-     * Save all user data (user presets and imported banks) to persistent storage
-     * @return True if successful
-     */
-    bool saveUserData();
-    
-    /**
-     * Load user data from persistent storage
-     * @return Number of user presets/banks loaded
-     */
-    int loadUserData();
-    
-    /**
-     * Get the user data directory
-     * @return User data directory path
-     */
-    juce::File getUserDataDirectory() const;
+    // Interface implementation - Reset functionality for testing
+    void reset() override;
 
 private:
     std::vector<Preset> presets;

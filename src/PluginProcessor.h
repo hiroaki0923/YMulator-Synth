@@ -2,16 +2,27 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/YmfmWrapper.h"
+#include "dsp/YmfmWrapperInterface.h"
 #include "core/VoiceManager.h"
+#include "core/VoiceManagerInterface.h"
 #include "utils/PresetManager.h"
+#include "core/PresetManagerInterface.h"
 #include <unordered_map>
+#include <memory>
 
 class YMulatorSynthAudioProcessor : public juce::AudioProcessor,
                                public juce::AudioProcessorParameter::Listener,
                                public juce::ValueTree::Listener
 {
 public:
+    // Default constructor (creates concrete implementations)
     YMulatorSynthAudioProcessor();
+    
+    // Dependency injection constructor (for testing)
+    YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapper,
+                               std::unique_ptr<VoiceManagerInterface> voiceManager,
+                               std::unique_ptr<PresetManagerInterface> presetManager);
+    
     ~YMulatorSynthAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -56,17 +67,16 @@ public:
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
 private:
-    YmfmWrapper ymfmWrapper;
-    VoiceManager voiceManager;
+    // Dependency injection - use interfaces for testability
+    std::unique_ptr<YmfmWrapperInterface> ymfmWrapper;
+    std::unique_ptr<VoiceManagerInterface> voiceManager;
+    std::unique_ptr<PresetManagerInterface> presetManager;
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
     std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     std::atomic<int> parameterUpdateCounter{0};
     static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
-    
-    // Preset management
-    ymulatorsynth::PresetManager presetManager;
     int currentPreset = 0;
     bool needsPresetReapply = false;
     bool isCustomPreset = false;
@@ -91,17 +101,28 @@ private:
     void applyGlobalPanToAllChannels();
     void setChannelRandomPan(int channel); // Set new random pan for specific channel
     
+    // Audio processing helper methods
+    void processMidiMessages(juce::MidiBuffer& midiMessages);
+    void processMidiNoteOn(const juce::MidiMessage& message);
+    void processMidiNoteOff(const juce::MidiMessage& message);
+    void generateAudioSamples(juce::AudioBuffer<float>& buffer);
+    
+    // Preset loading helper methods
+    void loadPresetParameters(const ymulatorsynth::Preset* preset, float& preservedGlobalPan);
+    void applyPresetToYmfm(const ymulatorsynth::Preset* preset);
+    void setupParameterListeners(bool enable);
+    
 public:
     // Preset access for UI
-    const ymulatorsynth::PresetManager& getPresetManager() const { return presetManager; }
-    ymulatorsynth::PresetManager& getPresetManager() { return presetManager; }
+    const PresetManagerInterface& getPresetManager() const { return *presetManager; }
+    PresetManagerInterface& getPresetManager() { return *presetManager; }
     int getCurrentPresetIndex() const { return currentPreset; }
     void setCurrentPreset(int index);
-    juce::StringArray getPresetNames() const { return presetManager.getPresetNames(); }
+    juce::StringArray getPresetNames() const { return presetManager->getPresetNames(); }
     
     // Bank access for UI
     juce::StringArray getBankNames() const;
-    juce::StringArray getPresetsForBank(int bankIndex) const { return presetManager.getPresetsForBank(bankIndex); }
+    juce::StringArray getPresetsForBank(int bankIndex) const { return presetManager->getPresetsForBank(bankIndex); }
     void setCurrentPresetInBank(int bankIndex, int presetIndex);
     
     // Custom preset management

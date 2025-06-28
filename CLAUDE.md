@@ -406,3 +406,170 @@ auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval F
 **⚠️ PATH CRITICAL:** Always ensure you're in `/Users/hiroaki.kimura/projects/ChipSynth-AU/build/` for build commands. If you get "No rule to make target 'Makefile'" error, you're in the wrong directory.
 
 **🔒 These rules are derived from proven improvements that enhanced code quality, reduced bugs, and improved maintainability. Deviation requires explicit justification and documentation.**
+
+## 🧪 Testing Best Practices and Critical Lessons
+
+### **⚠️ CRITICAL LESSON: Never Modify Tests to Hide Implementation Issues**
+
+Based on hard-learned experience during DAW-independent testing framework development:
+
+#### **The Wrong Approach:**
+```cpp
+// ❌ BAD - Changing test to accommodate unexpected behavior
+TEST_F(ParameterTest, OperatorTest) {
+    // Originally tested op0_tl, but it returned 0, so changed to op1_tl
+    auto param = ParamID::Op::tl(1);  // Changed from 0 to 1
+    // ...
+}
+```
+
+#### **The Right Approach:**
+1. **ALWAYS investigate implementation first** when tests fail
+2. **Understand the design specification** before assuming bugs
+3. **Consult industry standards** (VOPM, YM2151 documentation)
+4. **Only modify tests after confirming the implementation behavior is correct**
+
+#### **Real Example from YMulator-Synth:**
+
+**Initial Assumption (WRONG):** "Op0 parameters are broken, returning 0"
+**Reality (CORRECT):** YMulator-Synth uses **1-based operator indexing** (Op1-Op4), not 0-based (Op0-Op3)
+
+**Why 1-based indexing is correct:**
+- **VOPM compatibility**: VOPM software uses OP1-OP4 labeling
+- **YM2151 standard**: Industry documentation refers to Operators 1-4
+- **User expectations**: UI displays "Operator 1", "Operator 2", etc.
+- **MIDI CC mapping**: Standard uses Op1_TL, Op2_TL, etc.
+
+#### **Testing Methodology:**
+
+**✅ CORRECT Process:**
+1. **Test fails** → Investigate root cause
+2. **Check specification** → Consult docs/, ADRs, industry standards
+3. **Understand design intent** → Verify if behavior is intentional
+4. **Fix implementation OR update test** → Based on specification, not convenience
+
+**❌ WRONG Process:**
+1. **Test fails** → Immediately change test to pass
+2. **Skip investigation** → Assume implementation is correct
+3. **Hide potential bugs** → Tests become meaningless
+
+### **⚠️ CRITICAL LESSON 2: Never Use Tolerance Without Technical Justification**
+
+From state save/restore testing experience, another critical anti-pattern was discovered:
+
+#### **The Wrong Approach:**
+```cpp
+// ❌ BAD - Adding tolerance to "fix" failing tests without investigation
+TEST_F(StateSaveRestoreTest, ParameterPersistence) {
+    setParameterValue(0.75f);
+    auto state = saveState();
+    loadState(state);
+    // Test was failing, so added tolerance instead of investigating
+    EXPECT_NEAR(getParameterValue(), 0.75f, 0.1f);  // ❌ WRONG
+}
+```
+
+#### **The Root Cause Analysis:**
+The test was **designed incorrectly**, not the implementation:
+
+```cpp
+// WRONG: Setting parameters AFTER loading preset overwrites values
+setParameterValue(0.75f);      // Set to 0.75
+setCurrentProgram(3);          // Preset loading overwrites to preset value!
+// Result: 0.75f → preset value (e.g., 0.285714f)
+```
+
+#### **The Correct Approach:**
+```cpp
+// ✅ GOOD - Proper test design with exact expectations
+TEST_F(StateSaveRestoreTest, ParameterPersistence) {
+    setCurrentProgram(3);                    // Load preset first
+    setParameterValueWithGesture(0.5f);      // Then modify to create known state
+    
+    float originalValue = getParameterValue();  // Capture actual quantized value
+    auto state = saveState();
+    changeState();                           // Make changes
+    loadState(state);                        // Restore
+    
+    // State save/restore must be EXACT - no tolerance
+    EXPECT_FLOAT_EQ(getParameterValue(), originalValue);  // ✅ CORRECT
+}
+```
+
+#### **When Tolerance IS Justified:**
+
+**✅ Hardware Quantization (YM2151 registers):**
+```cpp
+// Algorithm parameter has only 8 discrete values (0-7)
+EXPECT_NEAR(getAlgorithm(), expectedAlgorithm, 0.05f);  // Hardware limitation
+```
+
+**✅ Floating-Point Precision:**
+```cpp
+// Mathematical calculations with inherent precision limits
+EXPECT_NEAR(calculateFrequency(note), expectedFreq, 0.001f);  // Math precision
+```
+
+**❌ NEVER Use Tolerance For:**
+- State save/restore operations (must be exact)
+- Digital parameter storage (no precision loss)
+- Boolean or discrete value checks
+- "Fixing" test design problems
+
+#### **Critical Rules:**
+1. **EXPECT_FLOAT_EQ()** for exact digital operations
+2. **EXPECT_NEAR()** only with documented technical justification
+3. **Document the reason** for any tolerance in comments
+4. **Investigate test design** before adding tolerance
+5. **Never use tolerance to hide implementation bugs**
+
+**"根拠なく幅を持たせて値をチェックしているテストケースは実装の問題を隠す"** - Always justify tolerance with technical reasoning.
+
+#### **YMulator-Synth Specific Design Rules:**
+
+**Parameter Indexing:**
+```cpp
+// ✅ CORRECT - Operators 1-4 exist
+ParamID::Op::tl(1)  // Operator 1 Total Level
+ParamID::Op::tl(2)  // Operator 2 Total Level
+ParamID::Op::tl(3)  // Operator 3 Total Level
+ParamID::Op::tl(4)  // Operator 4 Total Level
+
+// ❌ WRONG - Operator 0 does NOT exist in this system
+ParamID::Op::tl(0)  // Returns 0/default - not a bug, by design
+```
+
+**Parameter Quantization:**
+```cpp
+// ✅ Account for hardware-accurate quantization
+EXPECT_NEAR(value, expected, 0.05f);  // Allow for YM2151 discrete values
+
+// ❌ Don't expect perfect floating-point precision
+EXPECT_EQ(value, 0.75f);  // Will fail due to quantization
+```
+
+### **🎯 Testing Framework Location:**
+
+**DAW-Independent Testing:** `tests/` directory contains:
+- **MockAudioProcessorHost**: Simulates DAW environment
+- **AudioOutputVerifier**: Validates audio characteristics
+- **MidiSequenceGenerator**: Creates test sequences
+- **Comprehensive parameter testing**: Without requiring Logic Pro/Ableton
+
+**Running Tests:**
+```bash
+# Build tests
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --target YMulatorSynthAU_Tests
+
+# Run all tests
+ctest --output-on-failure
+
+# Debug specific failures
+./bin/YMulatorSynthAU_Tests --gtest_filter="ParameterDebugTest.*"
+```
+
+### **🔥 Key Takeaway:**
+
+**"Tests should verify expected behavior, not accommodate bugs. When tests fail, investigate the implementation first, understand the design specification second, and only modify tests last—after confirming the implementation behavior matches the intended design."**
+
+This principle saved the project from hiding what initially appeared to be implementation bugs but were actually correct design choices aligned with industry standards.

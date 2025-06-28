@@ -74,25 +74,21 @@ void YmfmWrapper::reset()
 
 void YmfmWrapper::initializeOPM()
 {
-    CS_DBG("Creating OPM chip instance");
-    CS_LOG("Creating OPM chip instance");
+    // Creating OPM chip instance
     
     opmChip = std::make_unique<ymfm::ym2151>(*this);
     
-    CS_DBG("Resetting OPM chip");
-    CS_LOG("Resetting OPM chip");
+    // Resetting OPM chip
     opmChip->reset();
     
-    CS_DBG("OPM chip reset complete, setting up voice");
-    CS_LOG("OPM chip reset complete, setting up voice");
+    // OPM chip reset complete, setting up voice
     
     // Setup basic piano voice on all 8 channels
     for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
         setupBasicPianoVoice(channel);
     }
     
-    CS_DBG("OPM initialization complete");
-    CS_LOG("OPM initialization complete");
+    // OPM initialization complete
 }
 
 void YmfmWrapper::initializeOPNA()
@@ -117,14 +113,14 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     currentRegisters[addr] = data;
     
     if (chipType == ChipType::OPM && opmChip) {
-        CS_DBG(" Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
-        CS_LOGF(" Writing register 0x%02X = 0x%02X", addr, data);
+        // DEBUG: Enable register write logging for investigation
+        // Register write debug output disabled for performance
         
         // Use write_address and write_data like sample code
         opmChip->write_address(addr);
         opmChip->write_data(data);
     } else if (chipType == ChipType::OPNA && opnaChip) {
-        CS_DBG(" OPNA Writing register 0x" + juce::String::toHexString(addr) + " = 0x" + juce::String::toHexString(data));
+        // OPNA register write debug output disabled
         
         opnaChip->write_address(addr);
         opnaChip->write_data(data);
@@ -161,9 +157,15 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
         // Convert to float with optimized scaling
         const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
         
+        // ymfm library design: generate 1 sample at a time
+        // The library handles internal timing, no need for clock calculation
+        
         // Generate samples one at a time (ymfm output is per-sample, not batched)
         for (int i = 0; i < numSamples; i++) {
+            // CORRECT: ymfm::generate(output*, samples_to_generate)
             opmChip->generate(&opmOutput, 1);
+            
+            // Sample generation debug output disabled for performance
             
             // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
             leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
@@ -191,8 +193,7 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;  // Limit to 8 channels
     
-    CS_DBG(" noteOn - channel=" + juce::String((int)channel) + ", note=" + juce::String((int)note) + ", velocity=" + juce::String((int)velocity));
-    CS_LOGF(" noteOn - channel=%d, note=%d, velocity=%d", channel, note, velocity);
+    // noteOn called - debug output disabled for performance
     
     // Store the base note for this channel
     channelStates[channel].baseNote = note;
@@ -207,9 +208,7 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;  // Upper 7 bits
         uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;  // Lower 6 bits, shifted for register format
         
-        CS_DBG(" MIDI Note " + juce::String((int)note) + " with pitch bend " + juce::String(channelStates[channel].pitchBend) +
-            " -> FNUM=0x" + juce::String::toHexString(fnum) + ", KC=0x" + juce::String::toHexString(kc) + ", KF=0x" + juce::String::toHexString(kf));
-        CS_LOGF(" OPM noteOn - KC=0x%02X, KF=0x%02X", kc, kf);
+        // MIDI note conversion debug output disabled
         
         // Write KC and KF
         writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
@@ -221,9 +220,7 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Key On (all operators enabled)
         writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_ON_ALL_OPS | channel);
         
-        CS_DBG(" Key On register 0x" + juce::String::toHexString(YM2151Regs::REG_KEY_ON_OFF) + " = 0x" + juce::String::toHexString(YM2151Regs::KEY_ON_ALL_OPS | channel));
-        CS_DBG(" OPM registers written for note on");
-        CS_LOG(" OPM registers written for note on");
+        // Key-on debug output disabled
         
     } else if (chipType == ChipType::OPNA) {
         uint8_t block = note / 12 - 1;
@@ -275,31 +272,33 @@ uint16_t YmfmWrapper::noteToFnum(uint8_t note)
 void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
 {
     if (chipType == ChipType::OPM) {
-        CS_DBG(" Setting up sine wave timbre for OPM channel " + juce::String((int)channel));
-        CS_LOGF(" Setting up sine wave timbre for OPM channel %d", channel);
+        // Setting up sine wave timbre for OPM channel (debug output disabled)
         
-        // Algorithm 7 (all operators parallel), FB=0, preserve current pan setting
-        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
-        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
-        uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
+        // Algorithm 0 (simple FM), FB=0, ensure output enabled
+        // Always enable both L/R outputs (PAN_CENTER = 0xC0)
+        uint8_t algFbLr = 0x00 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
         
-        CS_DBG(" setupBasicPianoVoice preserving pan 0x" + juce::String::toHexString(currentPan) + " for channel " + juce::String((int)channel));
+        // setupBasicPianoVoice debug output disabled
         
-        // Configure all 4 operators like sample code
+        // Configure all 4 operators for Algorithm 0 (simple FM)
         for (int op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; op++) {
             int base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
             
             writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, YM2151Regs::DEFAULT_DT1_MUL);     // DT1=0, MUL=1
-            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, YM2151Regs::DEFAULT_TOTAL_LEVEL);   // TL=32 (moderate volume)
+            
+            // In Algorithm 0: OP1->OP2->OP3->OP4 (OP4 is carrier, others are modulators)
+            // Set carrier (OP4, index 3) to full volume, modulators to moderate level
+            uint8_t totalLevel = (op == 3) ? 0 : 32;  // OP4 (carrier) loud, others moderate
+            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, totalLevel);
+            
             writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, YM2151Regs::DEFAULT_KS_AR);       // KS=0, AR=31
             writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, YM2151Regs::DEFAULT_AMS_D1R);     // AMS-EN=0, D1R=0
             writeRegister(YM2151Regs::REG_DT2_D2R_BASE + base_addr, YM2151Regs::DEFAULT_DT2_D2R);     // DT2=0, D2R=0
-            writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, YM2151Regs::DEFAULT_D1L_RR);      // D1L=15, RR=7
+            writeRegister(YM2151Regs::REG_D1L_RR_BASE + base_addr, YM2151Regs::DEFAULT_D1L_RR);      // D1L=0, RR=7
         }
         
-        CS_DBG(" OPM voice setup complete (sine wave timbre)");
-        CS_LOG(" OPM voice setup complete (sine wave timbre)");
+        // OPM voice setup complete (debug output disabled)
     }
 }
 

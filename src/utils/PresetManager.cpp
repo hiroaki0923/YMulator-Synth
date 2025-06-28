@@ -1,7 +1,12 @@
 #include "PresetManager.h"
 #include "Debug.h"
 #include "VOPMParser.h"
+
+#ifdef USING_MOCK_BINARY_DATA
+#include "../tests/mocks/MockBinaryData.h"
+#else
 #include "BinaryData.h"
+#endif
 
 namespace ymulatorsynth {
 
@@ -445,6 +450,11 @@ void PresetManager::clear()
 
 std::vector<Preset> PresetManager::getFactoryPresets()
 {
+    return createFactoryPresets();
+}
+
+std::vector<Preset> PresetManager::createFactoryPresets()
+{
     std::vector<Preset> factoryPresets;
     
     for (int i = 0; i < NUM_FACTORY_PRESETS; ++i)
@@ -855,6 +865,16 @@ bool PresetManager::loadImportedBanks()
     
     CS_DBG("Loaded " + juce::String(loaded) + " presets from imported banks");
     return loaded > 0;
+}
+
+void PresetManager::reset()
+{
+    // Clear all presets and banks
+    presets.clear();
+    banks.clear();
+    userBankIndex = -1;
+    
+    CS_DBG("PresetManager reset to initial state");
 }
 
 } // namespace ymulatorsynth
