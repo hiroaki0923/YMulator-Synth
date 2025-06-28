@@ -49,19 +49,19 @@ jobs:
     
     - name: Run all tests
       run: |
-        # Use our unified test script
-        ./scripts/test.sh
+        # Use our unified test script with quiet output
+        ./scripts/test.sh --quiet
     
     - name: Run specific test categories
       run: |
         echo "=== Unit Tests ==="
-        ./scripts/test.sh --unit
+        ./scripts/test.sh --unit --quiet
         
         echo "=== Integration Tests ==="
-        ./scripts/test.sh --integration
+        ./scripts/test.sh --integration --quiet
         
         echo "=== Regression Tests ==="
-        ./scripts/test.sh --regression
+        ./scripts/test.sh --regression --quiet
     
     - name: Validate Audio Unit
       run: |

@@ -93,8 +93,8 @@ jobs:
         ./scripts/build.sh setup
         ./scripts/build.sh release
         
-        # Run comprehensive tests
-        ./scripts/test.sh --all
+        # Run comprehensive tests with quiet output
+        ./scripts/test.sh --all --quiet
     
     - name: Package macOS plugins
       run: |
@@ -166,9 +166,9 @@ jobs:
         ./scripts/build.sh setup
         ./scripts/build.sh release
         
-        # Run tests (excluding Audio Unit validation on Linux)
-        ./scripts/test.sh --unit
-        ./scripts/test.sh --integration
+        # Run tests with quiet output (excluding Audio Unit validation on Linux)
+        ./scripts/test.sh --unit --quiet
+        ./scripts/test.sh --integration --quiet
     
     - name: Package Linux plugins
       run: |
