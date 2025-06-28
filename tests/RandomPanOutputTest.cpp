@@ -2,6 +2,7 @@
 #include "../src/PluginProcessor.h"
 #include "../src/utils/ParameterIDs.h"
 #include "../src/utils/Debug.h"
+#include "../src/core/ParameterManager.h"
 
 /**
  * Test actual audio output in Random Pan Mode
@@ -17,7 +18,7 @@ protected:
         auto* globalPanParam = dynamic_cast<juce::AudioParameterChoice*>(
             processor->getParameters().getParameter(ParamID::Global::GlobalPan));
         ASSERT_NE(globalPanParam, nullptr);
-        float randomValue = globalPanParam->convertTo0to1(static_cast<int>(GlobalPanPosition::RANDOM));
+        float randomValue = globalPanParam->convertTo0to1(static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM));
         globalPanParam->setValueNotifyingHost(randomValue);
         
         CS_FILE_DBG("=== RandomPanOutputTest SetUp Complete - RANDOM mode active ===");

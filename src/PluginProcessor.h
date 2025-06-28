@@ -7,6 +7,7 @@
 #include "core/VoiceManagerInterface.h"
 #include "core/MidiProcessor.h"
 #include "core/MidiProcessorInterface.h"
+#include "core/ParameterManager.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
 #include <unordered_map>
@@ -24,6 +25,7 @@ public:
     YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapper,
                                std::unique_ptr<VoiceManagerInterface> voiceManager,
                                std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor,
+                               std::unique_ptr<ymulatorsynth::ParameterManager> parameterManager,
                                std::unique_ptr<PresetManagerInterface> presetManager);
     
     ~YMulatorSynthAudioProcessor() override;
@@ -74,34 +76,44 @@ private:
     std::unique_ptr<YmfmWrapperInterface> ymfmWrapper;
     std::unique_ptr<VoiceManagerInterface> voiceManager;
     std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor;
+    std::unique_ptr<ymulatorsynth::ParameterManager> parameterManager;
     std::unique_ptr<PresetManagerInterface> presetManager;
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
-    std::atomic<int> parameterUpdateCounter{0};
-    static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     int currentPreset = 0;
     bool needsPresetReapply = false;
-    bool isCustomPreset = false;
-    juce::String customPresetName = "Custom";
-    bool userGestureInProgress = false;
     
     // Legacy MIDI state (deprecated - TODO: remove after full migration)
     std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     int currentPitchBend = 8192;
-    uint8_t channelRandomPanBits[8] = {0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0};
     
-    // Methods
-    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-    void setupCCMapping();
-    void handleMidiCC(int ccNumber, int value);
-    void handlePitchBend(int pitchBendValue);
-    void updateYmfmParameters();
+    // Methods (temporary - will be moved to ParameterManager)
     void loadPreset(int index);
     void loadPreset(const ymulatorsynth::Preset* preset);
-    void applyGlobalPan(int channel);
-    void applyGlobalPanToAllChannels();
-    void setChannelRandomPan(int channel);
+    
+    // Temporary parameter management (until full migration)
+    void updateYmfmParameters() { if (parameterManager) parameterManager->updateYmfmParameters(); }
+    void applyGlobalPanToAllChannels() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); }
+    void setupParameterListeners(bool enable) { if (parameterManager) parameterManager->setupParameterListeners(enable); }
+    void loadPresetParameters(const ymulatorsynth::Preset* preset, float& preservedGlobalPan) { 
+        if (parameterManager) parameterManager->loadPresetParameters(preset, preservedGlobalPan); 
+    }
+    void applyPresetToYmfm(const ymulatorsynth::Preset* preset) { 
+        if (parameterManager) parameterManager->applyPresetToYmfm(preset); 
+    }
+    void applyGlobalPan(int channel) { if (parameterManager) parameterManager->applyGlobalPan(channel); }
+    void setChannelRandomPan(int channel) { if (parameterManager) parameterManager->setChannelRandomPan(channel); }
+    
+    // Deprecated MIDI methods (for backward compatibility)
+    void setupCCMapping() {} // No-op - handled by MidiProcessor
+    void handleMidiCC(int ccNumber, int value) { if (midiProcessor) midiProcessor->handleMidiCC(ccNumber, value); }
+    void handlePitchBend(int pitchBendValue) { if (midiProcessor) midiProcessor->handlePitchBend(pitchBendValue); }
+    
+    // Deprecated parameter layout method (for tests that might still call it)
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    
+    // Custom preset state access (removed - duplicated in public section)
     
     // Audio processing helper methods
     void processMidiMessages(juce::MidiBuffer& midiMessages);
@@ -109,10 +121,6 @@ private:
     void processMidiNoteOff(const juce::MidiMessage& message);
     void generateAudioSamples(juce::AudioBuffer<float>& buffer);
     
-    // Preset loading helper methods
-    void loadPresetParameters(const ymulatorsynth::Preset* preset, float& preservedGlobalPan);
-    void applyPresetToYmfm(const ymulatorsynth::Preset* preset);
-    void setupParameterListeners(bool enable);
     
 public:
     // Preset access for UI
@@ -127,9 +135,15 @@ public:
     juce::StringArray getPresetsForBank(int bankIndex) const { return presetManager->getPresetsForBank(bankIndex); }
     void setCurrentPresetInBank(int bankIndex, int presetIndex);
     
-    // Custom preset management
-    bool isInCustomMode() const { return isCustomPreset; }
-    juce::String getCustomPresetName() const { return customPresetName; }
+    // Custom preset management (delegated to ParameterManager)
+    bool isInCustomMode() const { return parameterManager ? parameterManager->isInCustomMode() : false; }
+    const juce::String& getCustomPresetName() const { 
+        static juce::String empty; 
+        return parameterManager ? parameterManager->getCustomPresetName() : empty; 
+    }
+    void setCustomMode(bool custom, const juce::String& name = juce::String()) { 
+        if (parameterManager) parameterManager->setCustomMode(custom, name); 
+    }
     
     // OPM file operations
     int loadOpmFile(const juce::File& file);

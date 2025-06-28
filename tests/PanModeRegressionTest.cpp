@@ -2,6 +2,7 @@
 #include "../src/PluginProcessor.h"
 #include "../src/utils/ParameterIDs.h"
 #include "../src/utils/Debug.h"
+#include "../src/core/ParameterManager.h"
 
 /**
  * Regression tests to prevent pan mode issues discovered during Random Pan Mode debugging.
@@ -27,7 +28,7 @@ protected:
             processor->getParameters().getParameter(ParamID::Global::GlobalPan));
     }
     
-    void setGlobalPanMode(GlobalPanPosition mode) {
+    void setGlobalPanMode(ymulatorsynth::GlobalPanPosition mode) {
         auto* globalPanParam = getGlobalPanParameter();
         ASSERT_NE(globalPanParam, nullptr);
         float value = globalPanParam->convertTo0to1(static_cast<int>(mode));
@@ -94,7 +95,7 @@ protected:
 
 TEST_F(PanModeRegressionTest, RandomModeNotOverriddenByUpdateYmfmParameters) {
     // Set to RANDOM mode
-    setGlobalPanMode(GlobalPanPosition::RANDOM);
+    setGlobalPanMode(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     // Play multiple notes to establish different random pan values
     std::vector<PanAnalysis> initialResults;
@@ -142,15 +143,15 @@ TEST_F(PanModeRegressionTest, FixedPanModesNotAffectedByRandomModeCode) {
     // the RANDOM mode code paths
     
     struct TestCase {
-        GlobalPanPosition mode;
+        ymulatorsynth::GlobalPanPosition mode;
         std::string name;
         std::function<bool(const PanAnalysis&)> validator;
     };
     
     std::vector<TestCase> testCases = {
-        {GlobalPanPosition::LEFT, "LEFT", [](const PanAnalysis& a) { return a.isLeft(); }},
-        {GlobalPanPosition::CENTER, "CENTER", [](const PanAnalysis& a) { return a.isCenter(); }},
-        {GlobalPanPosition::RIGHT, "RIGHT", [](const PanAnalysis& a) { return a.isRight(); }}
+        {ymulatorsynth::GlobalPanPosition::LEFT, "LEFT", [](const PanAnalysis& a) { return a.isLeft(); }},
+        {ymulatorsynth::GlobalPanPosition::CENTER, "CENTER", [](const PanAnalysis& a) { return a.isCenter(); }},
+        {ymulatorsynth::GlobalPanPosition::RIGHT, "RIGHT", [](const PanAnalysis& a) { return a.isRight(); }}
     };
     
     for (const auto& testCase : testCases) {
@@ -174,7 +175,7 @@ TEST_F(PanModeRegressionTest, FixedPanModesNotAffectedByRandomModeCode) {
 
 TEST_F(PanModeRegressionTest, PresetLoadingPreservesRandomMode) {
     // Set to RANDOM mode
-    setGlobalPanMode(GlobalPanPosition::RANDOM);
+    setGlobalPanMode(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     // Verify RANDOM mode is active
     auto analysis1 = playNoteAndAnalyze(60);
@@ -184,7 +185,7 @@ TEST_F(PanModeRegressionTest, PresetLoadingPreservesRandomMode) {
     processor->setCurrentPreset(0);  // Load first preset
     
     // Verify RANDOM mode is still active
-    EXPECT_EQ(getGlobalPanParameter()->getIndex(), static_cast<int>(GlobalPanPosition::RANDOM))
+    EXPECT_EQ(getGlobalPanParameter()->getIndex(), static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM))
         << "RANDOM mode should be preserved after preset loading";
     
     // Verify RANDOM mode still works functionally
@@ -215,13 +216,13 @@ TEST_F(PanModeRegressionTest, PresetLoadingPreservesRandomMode) {
 TEST_F(PanModeRegressionTest, RapidPanModeChanges) {
     // Test rapid switching between pan modes to ensure no race conditions
     
-    GlobalPanPosition modes[] = {
-        GlobalPanPosition::LEFT,
-        GlobalPanPosition::RANDOM,
-        GlobalPanPosition::CENTER,
-        GlobalPanPosition::RANDOM,
-        GlobalPanPosition::RIGHT,
-        GlobalPanPosition::RANDOM
+    ymulatorsynth::GlobalPanPosition modes[] = {
+        ymulatorsynth::GlobalPanPosition::LEFT,
+        ymulatorsynth::GlobalPanPosition::RANDOM,
+        ymulatorsynth::GlobalPanPosition::CENTER,
+        ymulatorsynth::GlobalPanPosition::RANDOM,
+        ymulatorsynth::GlobalPanPosition::RIGHT,
+        ymulatorsynth::GlobalPanPosition::RANDOM
     };
     
     for (auto mode : modes) {
@@ -238,7 +239,7 @@ TEST_F(PanModeRegressionTest, RapidPanModeChanges) {
     }
     
     // Final verification that RANDOM mode works after all the switching
-    setGlobalPanMode(GlobalPanPosition::RANDOM);
+    setGlobalPanMode(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     std::vector<PanAnalysis> finalResults;
     for (int note = 60; note < 64; ++note) {

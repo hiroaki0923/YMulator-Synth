@@ -351,12 +351,6 @@ namespace Validation {
 } // namespace ParamID
 
 // =============================================================================
-// Global Pan Position Enumeration
+// Global Pan Position Enumeration (moved to ParameterManager.h)
 // =============================================================================
-
-enum class GlobalPanPosition {
-    LEFT = 0,
-    CENTER = 1,
-    RIGHT = 2,
-    RANDOM = 3
-};
+// NOTE: GlobalPanPosition is now defined in core/ParameterManager.h

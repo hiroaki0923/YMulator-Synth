@@ -41,6 +41,7 @@ target_sources(YMulator-Synth
         PluginEditor.cpp
         core/VoiceManager.cpp
         core/MidiProcessor.cpp
+        core/ParameterManager.cpp
         dsp/YmfmWrapper.cpp
         dsp/EnvelopeGenerator.cpp
         ui/MainComponent.cpp

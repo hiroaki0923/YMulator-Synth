@@ -2,6 +2,7 @@
 #include "../src/PluginProcessor.h"
 #include "../src/utils/ParameterIDs.h"
 #include "../src/utils/Debug.h"
+#include "../src/core/ParameterManager.h"
 /**
  * Simple debug test to trace Random Pan Mode execution
  */
@@ -41,13 +42,13 @@ TEST_F(RandomPanDebugTest, VerifyRandomModeSetup) {
     CS_FILE_DBG("Current GlobalPan value: " + juce::String(globalPanParam->getIndex()));
     
     // Set to RANDOM mode
-    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(GlobalPanPosition::RANDOM));
+    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM));
     globalPanParam->setValueNotifyingHost(randomValue);
     
-    CS_FILE_DBG("Set GlobalPan to RANDOM mode (index " + juce::String(static_cast<int>(GlobalPanPosition::RANDOM)) + ")");
+    CS_FILE_DBG("Set GlobalPan to RANDOM mode (index " + juce::String(static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM)) + ")");
     CS_FILE_DBG("New GlobalPan value: " + juce::String(globalPanParam->getIndex()));
     
-    EXPECT_EQ(globalPanParam->getIndex(), static_cast<int>(GlobalPanPosition::RANDOM));
+    EXPECT_EQ(globalPanParam->getIndex(), static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM));
     
     CS_FILE_DBG("=== VerifyRandomModeSetup test complete ===");
 }
@@ -57,7 +58,7 @@ TEST_F(RandomPanDebugTest, TraceNotePlayback) {
     
     // Set to RANDOM mode first
     auto* globalPanParam = getGlobalPanParameter();
-    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(GlobalPanPosition::RANDOM));
+    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM));
     globalPanParam->setValueNotifyingHost(randomValue);
     
     CS_FILE_DBG("Set to RANDOM mode, now testing note playback...");
@@ -97,7 +98,7 @@ TEST_F(RandomPanDebugTest, TestUpdateYmfmParameters) {
     
     // Set to RANDOM mode
     auto* globalPanParam = getGlobalPanParameter();
-    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(GlobalPanPosition::RANDOM));
+    float randomValue = globalPanParam->convertTo0to1(static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM));
     globalPanParam->setValueNotifyingHost(randomValue);
     
     CS_FILE_DBG("Testing updateYmfmParameters in RANDOM mode...");

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/PluginProcessor.h"
 #include "../src/utils/ParameterIDs.h"
+#include "../src/core/ParameterManager.h"
 
 /**
  * Audio quality tests to ensure pan modes don't introduce audio artifacts.
@@ -20,7 +21,7 @@ protected:
         }
     }
     
-    void setGlobalPanMode(GlobalPanPosition mode) {
+    void setGlobalPanMode(ymulatorsynth::GlobalPanPosition mode) {
         auto* globalPanParam = dynamic_cast<juce::AudioParameterChoice*>(
             processor->getParameters().getParameter(ParamID::Global::GlobalPan));
         ASSERT_NE(globalPanParam, nullptr);
@@ -125,11 +126,11 @@ protected:
 };
 
 TEST_F(AudioQualityTest, AllPanModesProduceCleanAudio) {
-    GlobalPanPosition modes[] = {
-        GlobalPanPosition::LEFT,
-        GlobalPanPosition::CENTER,
-        GlobalPanPosition::RIGHT,
-        GlobalPanPosition::RANDOM
+    ymulatorsynth::GlobalPanPosition modes[] = {
+        ymulatorsynth::GlobalPanPosition::LEFT,
+        ymulatorsynth::GlobalPanPosition::CENTER,
+        ymulatorsynth::GlobalPanPosition::RIGHT,
+        ymulatorsynth::GlobalPanPosition::RANDOM
     };
     
     for (auto mode : modes) {
@@ -157,16 +158,16 @@ TEST_F(AudioQualityTest, AllPanModesProduceCleanAudio) {
 
 TEST_F(AudioQualityTest, PanPositionsHaveCorrectStereoBalance) {
     struct TestCase {
-        GlobalPanPosition mode;
+        ymulatorsynth::GlobalPanPosition mode;
         float expectedBalance;
         float tolerance;
         std::string name;
     };
     
     std::vector<TestCase> testCases = {
-        {GlobalPanPosition::LEFT, -0.8f, 0.3f, "LEFT"},      // Should be mostly left
-        {GlobalPanPosition::CENTER, 0.0f, 0.3f, "CENTER"},   // Should be balanced
-        {GlobalPanPosition::RIGHT, 0.8f, 0.3f, "RIGHT"}      // Should be mostly right
+        {ymulatorsynth::GlobalPanPosition::LEFT, -0.8f, 0.3f, "LEFT"},      // Should be mostly left
+        {ymulatorsynth::GlobalPanPosition::CENTER, 0.0f, 0.3f, "CENTER"},   // Should be balanced
+        {ymulatorsynth::GlobalPanPosition::RIGHT, 0.8f, 0.3f, "RIGHT"}      // Should be mostly right
     };
     
     for (const auto& testCase : testCases) {
@@ -182,7 +183,7 @@ TEST_F(AudioQualityTest, PanPositionsHaveCorrectStereoBalance) {
 }
 
 TEST_F(AudioQualityTest, RandomModeShowsVariedStereoBalance) {
-    setGlobalPanMode(GlobalPanPosition::RANDOM);
+    setGlobalPanMode(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     std::vector<float> balanceValues;
     
@@ -226,11 +227,11 @@ TEST_F(AudioQualityTest, RandomModeShowsVariedStereoBalance) {
 }
 
 TEST_F(AudioQualityTest, ConsistentAudioLevelAcrossPanModes) {
-    GlobalPanPosition modes[] = {
-        GlobalPanPosition::LEFT,
-        GlobalPanPosition::CENTER,
-        GlobalPanPosition::RIGHT,
-        GlobalPanPosition::RANDOM
+    ymulatorsynth::GlobalPanPosition modes[] = {
+        ymulatorsynth::GlobalPanPosition::LEFT,
+        ymulatorsynth::GlobalPanPosition::CENTER,
+        ymulatorsynth::GlobalPanPosition::RIGHT,
+        ymulatorsynth::GlobalPanPosition::RANDOM
     };
     
     std::vector<float> rmsLevels;

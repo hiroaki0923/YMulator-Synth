@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "utils/ParameterIDs.h"
 #include "utils/Debug.h"
+#include "core/ParameterManager.h"
 
 using namespace YMulatorSynth;
 
@@ -37,7 +38,7 @@ protected:
         host->processBlock(*processor, 128);
     }
     
-    void setGlobalPan(GlobalPanPosition position) {
+    void setGlobalPan(ymulatorsynth::GlobalPanPosition position) {
         float normalizedValue = static_cast<float>(static_cast<int>(position)) / 3.0f;  // 4 positions: 0-3
         // CS_FILE_DBG("Setting GlobalPan to position " + juce::String(static_cast<int>(position)) + 
         //     " (normalized: " + juce::String(normalizedValue) + ")");
@@ -58,7 +59,7 @@ TEST_F(GlobalPanTest, LeftPanTest) {
     CS_DBG("=== Testing Global Pan LEFT ===");
     
     // Set pan to LEFT
-    setGlobalPan(GlobalPanPosition::LEFT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::LEFT);
     
     // Verify parameter was set
     float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
@@ -88,7 +89,7 @@ TEST_F(GlobalPanTest, CenterPanTest) {
     CS_DBG("=== Testing Global Pan CENTER ===");
     
     // Set pan to CENTER
-    setGlobalPan(GlobalPanPosition::CENTER);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::CENTER);
     
     // Verify parameter was set
     float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
@@ -119,7 +120,7 @@ TEST_F(GlobalPanTest, RightPanTest) {
     CS_DBG("=== Testing Global Pan RIGHT ===");
     
     // Set pan to RIGHT
-    setGlobalPan(GlobalPanPosition::RIGHT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::RIGHT);
     
     // Verify parameter was set
     float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
@@ -151,19 +152,19 @@ TEST_F(GlobalPanTest, PanTransitionTest) {
     playNoteAndProcess();
     
     // Test LEFT
-    setGlobalPan(GlobalPanPosition::LEFT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::LEFT);
     host->processBlock(*processor, 256);
     auto [leftL, rightL] = getChannelLevels();
     CS_DBG("Transition LEFT - Left: " + juce::String(leftL) + ", Right: " + juce::String(rightL));
     
     // Test CENTER  
-    setGlobalPan(GlobalPanPosition::CENTER);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::CENTER);
     host->processBlock(*processor, 256);
     auto [leftC, rightC] = getChannelLevels();
     CS_DBG("Transition CENTER - Left: " + juce::String(leftC) + ", Right: " + juce::String(rightC));
     
     // Test RIGHT
-    setGlobalPan(GlobalPanPosition::RIGHT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::RIGHT);
     host->processBlock(*processor, 256);
     auto [leftR, rightR] = getChannelLevels();
     CS_DBG("Transition RIGHT - Left: " + juce::String(leftR) + ", Right: " + juce::String(rightR));
@@ -190,7 +191,7 @@ TEST_F(GlobalPanTest, MultipleNotePanTest) {
     CS_DBG("=== Testing Multiple Notes with Pan ===");
     
     // Test with chord
-    setGlobalPan(GlobalPanPosition::LEFT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::LEFT);
     
     host->sendMidiNoteOn(*processor, 1, 60, 100);  // C
     host->sendMidiNoteOn(*processor, 1, 64, 100);  // E
@@ -220,7 +221,7 @@ TEST_F(GlobalPanTest, RandomPanTest) {
     CS_DBG("=== Testing Global Pan RANDOM ===");
     
     // Set pan to RANDOM
-    setGlobalPan(GlobalPanPosition::RANDOM);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     // Verify parameter was set
     float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
@@ -281,7 +282,7 @@ TEST_F(GlobalPanTest, VoiceAllocationOrderNonNoiseTest) {
     host->processBlock(*processor, 128);
     
     // Set pan to LEFT for easier tracking
-    setGlobalPan(GlobalPanPosition::LEFT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::LEFT);
     
     // Play 8 simultaneous notes to fill all channels
     for (int i = 0; i < 8; ++i) {
@@ -311,7 +312,7 @@ TEST_F(GlobalPanTest, VoiceAllocationNoiseTest) {
     host->processBlock(*processor, 128);
     
     // Set pan to RIGHT for easier tracking
-    setGlobalPan(GlobalPanPosition::RIGHT);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::RIGHT);
     
     // Play multiple notes (should all use channel 7)
     host->sendMidiNoteOn(*processor, 1, 60, 100);
@@ -338,7 +339,7 @@ TEST_F(GlobalPanTest, MonophonicRandomPanTest) {
     CS_DBG("=== Testing Monophonic RANDOM Pan ===");
     
     // Set pan to RANDOM
-    setGlobalPan(GlobalPanPosition::RANDOM);
+    setGlobalPan(ymulatorsynth::GlobalPanPosition::RANDOM);
     
     // Disable noise to ensure non-noise behavior
     host->setParameterValue(*processor, ParamID::Global::NoiseEnable, 0.0f);
