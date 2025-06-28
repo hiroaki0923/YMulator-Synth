@@ -1,5 +1,9 @@
 name: Cross-Platform Build and Release
 
+# This workflow builds YMulator-Synth for all supported platforms
+# and creates a GitHub release with binaries. Uses unified build scripts
+# where possible for consistency and maintainability.
+
 on:
   # Automatic trigger when a tag is pushed
   push:
@@ -28,23 +32,26 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.3
-      
-    - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.22'
-    
-    - name: Configure CMake (Windows)
+    - name: Setup dependencies
       run: |
+        # Install CMake via chocolatey (more reliable on Windows)
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+        
+        # Refresh PATH
+        refreshenv
+        
+        # Verify installation
+        cmake --version
+    
+    - name: Setup project and build Windows VST3
+      run: |
+        # Manual setup for Windows (bash scripts have limited Windows support)
+        git submodule update --init --recursive
+        
+        # Configure and build
         mkdir build
         cd build
         cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-    
-    - name: Build Windows VST3
-      run: |
-        cd build
         cmake --build . --config Release --parallel
     
     - name: Package Windows VST3
@@ -67,21 +74,27 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.22'
-    
-    - name: Configure CMake (macOS)
+    - name: Setup dependencies
       run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        # Install required tools
+        brew install cmake
+        
+        # Verify installation
+        cmake --version
     
-    - name: Build macOS plugins
+    - name: Setup dependencies for macOS
       run: |
-        cd build
-        cmake --build . --parallel
+        # Install Google Test for testing
+        brew install googletest
+    
+    - name: Build and test macOS plugins
+      run: |
+        # Use our unified build script
+        ./scripts/build.sh setup
+        ./scripts/build.sh release --quiet
+        
+        # Run comprehensive tests
+        ./scripts/test.sh --all --quiet
     
     - name: Package macOS plugins
       run: |
@@ -108,12 +121,14 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Install dependencies
+    - name: Setup dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           cmake \
           build-essential \
+          libgtest-dev \
+          libgmock-dev \
           libasound2-dev \
           libjack-jackd2-dev \
           ladspa-sdk \
@@ -130,17 +145,30 @@ jobs:
           libglu1-mesa-dev \
           mesa-common-dev \
           pkg-config
+        
+        # Install Google Test if not available via package manager
+        if ! pkg-config --exists gtest; then
+          cd /tmp
+          git clone https://github.com/google/googletest.git
+          cd googletest
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          sudo cmake --install build
+        fi
+        
+        # Verify installations
+        cmake --version
+        pkg-config --modversion gtest || echo "Google Test installed manually"
     
-    - name: Configure CMake (Linux)
+    - name: Build and test Linux plugins
       run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-    
-    - name: Build Linux plugins
-      run: |
-        cd build
-        cmake --build . --parallel
+        # Use our unified build script
+        ./scripts/build.sh setup
+        ./scripts/build.sh release --quiet
+        
+        # Run tests (excluding Audio Unit validation on Linux)
+        ./scripts/test.sh --unit --quiet
+        ./scripts/test.sh --integration --quiet
     
     - name: Package Linux plugins
       run: |

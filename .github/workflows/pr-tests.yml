@@ -1,5 +1,9 @@
 name: Pull Request Tests
 
+# This workflow runs comprehensive tests on pull requests to ensure
+# code quality and prevent regressions. Uses unified test scripts
+# for consistent testing across environments.
+
 on:
   pull_request:
     branches: [ main, develop ]
@@ -7,6 +11,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'third_party/**'
+      - 'scripts/**'
       - 'CMakeLists.txt'
       - '.github/workflows/pr-tests.yml'
   
@@ -24,62 +29,64 @@ jobs:
       with:
         submodules: recursive
         
-    - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.22'
-    
-    - name: Install Google Test
+    - name: Setup dependencies
       run: |
-        brew install googletest
-    
-    - name: Configure CMake
+        # Install required tools
+        brew install cmake googletest
+        
+        # Verify tools are available
+        cmake --version
+        
+    - name: Initial project setup
       run: |
-        mkdir -p build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON \
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations -O2"
+        # Use our unified build script for setup
+        ./scripts/build.sh setup
     
-    - name: Build main project (for JUCE dependencies)
+    - name: Build project
       run: |
-        cd build
-        cmake --build . --target YMulator-Synth_AU --parallel 8 --config RelWithDebInfo
+        # Use our unified build script for building
+        ./scripts/build.sh debug --quiet
     
-    - name: Build tests only
+    - name: Run all tests
       run: |
-        cd build
-        cmake --build . --target YMulatorSynthAU_Tests --parallel 8 --config RelWithDebInfo
+        # Use our unified test script
+        ./scripts/test.sh --quiet
     
-    - name: Run unit tests
+    - name: Run specific test categories
       run: |
-        cd build
-        ctest --output-on-failure --timeout 300 --parallel 4
-      env:
-        CTEST_OUTPUT_ON_FAILURE: 1
+        echo "=== Unit Tests ==="
+        ./scripts/test.sh --unit --quiet
+        
+        echo "=== Integration Tests ==="
+        ./scripts/test.sh --integration --quiet
+        
+        echo "=== Regression Tests ==="
+        ./scripts/test.sh --regression --quiet
     
     - name: Validate Audio Unit
       run: |
-        cd build
-        # Kill any existing AudioComponentRegistrar processes
-        sudo killall -9 AudioComponentRegistrar 2>/dev/null || true
-        
-        # Wait a moment for cleanup
-        sleep 2
-        
-        # Run auval with timeout (macOS specific validation)
-        timeout 60 auval -v aumu YMul Hrki > auval_output.txt 2>&1 && echo "✅ auval PASSED" || echo "❌ auval FAILED"
-        
-        # Show auval results (first 50 lines to avoid spam)
-        echo "=== auval output (first 50 lines) ==="
-        head -50 auval_output.txt || true
+        # Use our unified test script for Audio Unit validation
+        ./scripts/test.sh --auval
       continue-on-error: true  # Don't fail the workflow if auval has issues
     
     - name: Upload test results on failure
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results
+        name: test-results-${{ github.run_number }}
         path: |
           build/Testing/
           build/auval_output.txt
+          build/bin/YMulatorSynthAU_Tests
         retention-days: 7
+        
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.run_number }}
+        path: |
+          build/*.log
+          build/CMakeFiles/CMakeOutput.log
+          build/CMakeFiles/CMakeError.log
+        retention-days: 3
