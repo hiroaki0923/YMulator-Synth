@@ -1,7 +1,12 @@
 #include "PresetManager.h"
 #include "Debug.h"
 #include "VOPMParser.h"
+
+#ifdef USING_MOCK_BINARY_DATA
+#include "../tests/mocks/MockBinaryData.h"
+#else
 #include "BinaryData.h"
+#endif
 
 namespace ymulatorsynth {
 

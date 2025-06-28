@@ -68,13 +68,14 @@ if(GTest_FOUND)
     # Test executable
     add_executable(YMulatorSynthAU_Tests ${TEST_SOURCES})
     
-    # Add JUCE binary data if it exists
+    # Add JUCE binary data if it exists, otherwise use mock
     if(EXISTS "${JUCE_BINARY_DATA_FILE}")
         target_sources(YMulatorSynthAU_Tests PRIVATE "${JUCE_BINARY_DATA_FILE}")
         message(STATUS "Added JUCE binary data file: ${JUCE_BINARY_DATA_FILE}")
     else()
-        message(WARNING "JUCE binary data file not found: ${JUCE_BINARY_DATA_FILE}")
-        message(STATUS "Tests will be built without binary data - some UI tests may fail")
+        message(STATUS "JUCE binary data not available - using MockBinaryData")
+        target_sources(YMulatorSynthAU_Tests PRIVATE "mocks/MockBinaryData.cpp")
+        target_compile_definitions(YMulatorSynthAU_Tests PRIVATE USING_MOCK_BINARY_DATA=1)
     endif()
     
     target_include_directories(YMulatorSynthAU_Tests
