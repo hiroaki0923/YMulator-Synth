@@ -182,7 +182,7 @@ TEST_F(PanModeRegressionTest, PresetLoadingPreservesRandomMode) {
     ASSERT_TRUE(analysis1.hasAudio()) << "Should have audio output in RANDOM mode";
     
     // Load a preset (this was one of the places that could override pan)
-    processor->setCurrentPreset(0);  // Load first preset
+    processor->setCurrentProgram(0);  // Load first preset
     
     // Verify RANDOM mode is still active
     EXPECT_EQ(getGlobalPanParameter()->getIndex(), static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM))

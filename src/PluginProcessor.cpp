@@ -36,6 +36,9 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     // Initialize ParameterManager with parameters
     parameterManager->initializeParameters(parameters);
     
+    // Initialize StateManager with dependencies
+    stateManager = std::make_unique<ymulatorsynth::StateManager>(parameters, *presetManager, *parameterManager);
+    
     // Initialize MidiProcessor after other components are ready
     midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
     
@@ -43,12 +46,12 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     presetManager->initialize();
     
     // Load default preset (Init) 
-    setCurrentPreset(7); // Init preset
+    setCurrentProgram(7); // Init preset
     
     // Add parameter change listener through ValueTree after initial setup
     parameters.state.addListener(this);
     
-    CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
+    CS_DBG(" Constructor completed - default preset: " + juce::String(getCurrentProgram()));
 }
 
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapperPtr,
@@ -76,12 +79,12 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     presetManager->initialize();
     
     // Load default preset (Init) before adding listener
-    setCurrentPreset(7); // Init preset
+    setCurrentProgram(7); // Init preset
     
     // Add parameter change listener through ValueTree after initial setup
     parameters.state.addListener(this);
     
-    CS_DBG(" Dependency injection constructor completed - default preset: " + juce::String(currentPreset));
+    CS_DBG(" Dependency injection constructor completed - default preset: " + juce::String(getCurrentProgram()));
 }
 
 YMulatorSynthAudioProcessor::~YMulatorSynthAudioProcessor()
@@ -121,90 +124,9 @@ double YMulatorSynthAudioProcessor::getTailLengthSeconds() const
     return 0.0;
 }
 
-int YMulatorSynthAudioProcessor::getNumPrograms()
-{
-    // Add 1 for custom preset if active
-    return presetManager->getNumPresets() + (isInCustomMode() ? 1 : 0);
-}
+// State management methods moved to StateManager (delegated through header)
 
-int YMulatorSynthAudioProcessor::getCurrentProgram()
-{
-    if (isInCustomMode()) {
-        return presetManager->getNumPresets(); // Custom preset index
-    }
-    return currentPreset;
-}
-
-void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
-{
-    CS_DBG(" setCurrentProgram called with index: " + juce::String(index) + 
-        ", current isCustomPreset: " + juce::String(isInCustomMode() ? "true" : "false"));
-    
-    // Check if this is the custom preset index
-    if (index == presetManager->getNumPresets() && isInCustomMode()) {
-        // Stay in custom mode, don't change anything
-        CS_DBG(" Staying in custom preset mode");
-        return;
-    }
-    
-    // Reset custom state and load factory preset
-    if (parameterManager) {
-        parameterManager->setCustomMode(false);
-    }
-    
-    // Notify UI components of custom mode change
-    parameters.state.setProperty("isCustomMode", false, nullptr);
-    
-    CS_DBG(" Reset isCustomPreset to false, calling setCurrentPreset");
-    setCurrentPreset(index);
-    
-    // Notify host about program change
-    updateHostDisplay();
-    
-    // Find which bank/preset this global index corresponds to and update state
-    bool foundBankPreset = false;
-    for (int bankIdx = 0; bankIdx < static_cast<int>(presetManager->getBanks().size()); ++bankIdx) {
-        const auto& bank = presetManager->getBanks()[bankIdx];
-        for (int presetIdx = 0; presetIdx < static_cast<int>(bank.presetIndices.size()); ++presetIdx) {
-            if (bank.presetIndices[presetIdx] == index) {
-                // Found the bank/preset combination - update state
-                parameters.state.setProperty(ParamID::Global::CurrentBankIndex, bankIdx, nullptr);
-                parameters.state.setProperty(ParamID::Global::CurrentPresetInBank, presetIdx, nullptr);
-                
-                foundBankPreset = true;
-                break;
-            }
-        }
-        if (foundBankPreset) break;
-    }
-    
-    // Notify the UI to update the preset combo box
-    // Send a special property change to trigger UI update without affecting custom state
-    juce::MessageManager::callAsync([this]() {
-        parameters.state.sendPropertyChangeMessage("presetIndexChanged");
-    });
-}
-
-const juce::String YMulatorSynthAudioProcessor::getProgramName(int index)
-{
-    // Handle custom preset case
-    if (index == presetManager->getNumPresets() && isInCustomMode()) {
-        return getCustomPresetName();
-    }
-    
-    if (index >= 0 && index < presetManager->getNumPresets())
-    {
-        auto presetNames = presetManager->getPresetNames();
-        return presetNames[index];
-    }
-    
-    return {};
-}
-
-void YMulatorSynthAudioProcessor::changeProgramName(int index, const juce::String& newName)
-{
-    juce::ignoreUnused(index, newName);
-}
+// setCurrentProgram, getProgramName, changeProgramName moved to StateManager (delegated through header)
 
 void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -230,9 +152,9 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
-        loadPreset(currentPreset);
+        loadPreset(getCurrentProgram());
         needsPresetReapply = false;
-        CS_DBG(" Applied deferred preset " + juce::String(currentPreset));
+        CS_DBG(" Applied deferred preset " + juce::String(getCurrentProgram()));
     }
     
     CS_DBG(" ymfm initialization complete");
@@ -303,74 +225,9 @@ juce::AudioProcessorEditor* YMulatorSynthAudioProcessor::createEditor()
     return new YMulatorSynthAudioProcessorEditor(*this);
 }
 
-void YMulatorSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
-{
-    auto state = parameters.copyState();
-    
-    // Add current preset number and custom state to state
-    state.setProperty("currentPreset", currentPreset, nullptr);
-    state.setProperty("isCustomPreset", parameterManager->isInCustomMode(), nullptr);
-    state.setProperty("customPresetName", parameterManager->getCustomPresetName(), nullptr);
-    
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
-    
-    CS_DBG(" State saved - preset: " + juce::String(currentPreset) + 
-        ", custom: " + juce::String(isInCustomMode() ? "true" : "false"));
-}
+// getStateInformation moved to StateManager (delegated through header)
 
-void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
-{
-    CS_DBG(" setStateInformation called - size: " + juce::String(sizeInBytes));
-    
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-    
-    if (xmlState.get() != nullptr)
-    {
-        CS_DBG(" XML state parsed successfully");
-        if (xmlState->hasTagName(parameters.state.getType()))
-        {
-            auto newState = juce::ValueTree::fromXml(*xmlState);
-            parameters.replaceState(newState);
-            
-            // Restore preset number and custom state
-            currentPreset = newState.getProperty("currentPreset", 0);
-            bool customMode = newState.getProperty("isCustomPreset", false);
-            juce::String customName = newState.getProperty("customPresetName", "Custom");
-            parameterManager->setCustomMode(customMode, customName);
-            
-            CS_DBG(" State loaded - preset: " + juce::String(currentPreset) + 
-                ", custom: " + juce::String(customMode ? "true" : "false"));
-            
-            // Restore user data (imported OMP files and user presets) FIRST
-            int restoredItems = presetManager->loadUserData();
-            CS_DBG(" User data restored: " + juce::String(restoredItems) + " items, notifying UI of bank list changes");
-            
-            // THEN apply the preset (after banks are loaded)
-            if (!isInCustomMode() && ymfmWrapper->isInitialized()) {
-                CS_DBG(" Applying preset after state restore");
-                setCurrentPreset(currentPreset);
-            } else if (!isInCustomMode()) {
-                CS_DBG(" Deferring preset application until ymfm init");
-                needsPresetReapply = true;
-            } else {
-                CS_DBG(" Staying in custom mode after state restore");
-            }
-            
-            // Notify UI that banks/presets may have changed
-            juce::MessageManager::callAsync([this]() {
-                parameters.state.sendPropertyChangeMessage("bankListUpdated");
-            });
-            
-            // Update host display
-            updateHostDisplay();
-        } else {
-            CS_DBG(" XML state tag mismatch");
-        }
-    } else {
-        CS_DBG(" Failed to parse XML state");
-    }
-}
+// setStateInformation moved to StateManager (delegated through header)
 
 // DEPRECATED: Moved to ParameterManager::createParameterLayout()
 juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor::createParameterLayout()
@@ -506,28 +363,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor:
 
 
 
-void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
-{
-    // Assert valid preset index range
-    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager->getNumPresets() - 1);
-    
-    if (index >= 0 && index < presetManager->getNumPresets())
-    {
-        currentPreset = index;
-        if (parameterManager) parameterManager->setCustomMode(false); // Reset custom state when loading factory preset
-        
-        if (ymfmWrapper->isInitialized()) {
-            loadPreset(index);
-            CS_DBG(" Loaded preset " + juce::String(index) + ": " + getProgramName(index));
-        } else {
-            needsPresetReapply = true;
-            CS_DBG(" Preset " + juce::String(index) + " will be applied when ymfm is initialized");
-        }
-        
-        // Update host display
-        updateHostDisplay();
-    }
-}
+// setCurrentPreset moved to StateManager (use setCurrentProgram instead)
 
 int YMulatorSynthAudioProcessor::loadOpmFile(const juce::File& file)
 {
@@ -779,53 +615,9 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String
     return success;
 }
 
-void YMulatorSynthAudioProcessor::loadPreset(int index)
-{
-    // Assert valid preset index range
-    CS_ASSERT_PARAMETER_RANGE(index, 0, presetManager->getNumPresets() - 1);
-    
-    auto preset = presetManager->getPreset(index);
-    if (preset != nullptr)
-    {
-        loadPreset(preset);
-    }
-}
+// loadPreset(int) moved to StateManager (delegated through header)
 
-void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset)
-{
-    if (preset == nullptr) return;
-    
-    CS_DBG(" Loading preset '" + preset->name + "' - Algorithm: " + 
-        juce::String(preset->algorithm) + ", Feedback: " + juce::String(preset->feedback));
-    
-    float preservedGlobalPan = 0.0f;
-    
-    // Disable listeners during preset loading
-    setupParameterListeners(false);
-    
-    // Load all preset parameters
-    loadPresetParameters(preset, preservedGlobalPan);
-    
-    // Re-enable listeners
-    setupParameterListeners(true);
-    
-    // Restore global pan setting
-    if (auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan)) {
-        globalPanParam->setValueNotifyingHost(preservedGlobalPan);
-        CS_DBG(" Restored global pan value: " + juce::String(preservedGlobalPan));
-        // Skip applying pan if RANDOM mode - MidiProcessor will handle per-note random pan
-        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM)) {
-            applyGlobalPanToAllChannels();
-        }
-    }
-    
-    // Apply preset to ymfm engine
-    applyPresetToYmfm(preset);
-    
-    CS_DBG(" OP1 loaded - TL: " + juce::String(preset->operators[0].totalLevel) + 
-        ", AR: " + juce::String(preset->operators[0].attackRate) +
-        ", MUL: " + juce::String(preset->operators[0].multiple));
-}
+// loadPreset(Preset*) moved to StateManager through ParameterManager
 
 void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
 {

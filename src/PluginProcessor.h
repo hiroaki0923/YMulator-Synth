@@ -8,6 +8,7 @@
 #include "core/MidiProcessor.h"
 #include "core/MidiProcessorInterface.h"
 #include "core/ParameterManager.h"
+#include "core/StateManager.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
 #include <unordered_map>
@@ -47,14 +48,14 @@ public:
     bool isMidiEffect() const override;
     double getTailLengthSeconds() const override;
 
-    int getNumPrograms() override;
-    int getCurrentProgram() override;
-    void setCurrentProgram(int index) override;
-    const juce::String getProgramName(int index) override;
-    void changeProgramName(int index, const juce::String& newName) override;
+    int getNumPrograms() override { return stateManager ? stateManager->getNumPrograms() : 1; }
+    int getCurrentProgram() override { return stateManager ? stateManager->getCurrentProgram() : 0; }
+    void setCurrentProgram(int index) override { if (stateManager) stateManager->setCurrentProgram(index); }
+    const juce::String getProgramName(int index) override { return stateManager ? stateManager->getProgramName(index) : "Unknown"; }
+    void changeProgramName(int index, const juce::String& newName) override { if (stateManager) stateManager->changeProgramName(index, newName); }
 
-    void getStateInformation(juce::MemoryBlock& destData) override;
-    void setStateInformation(const void* data, int sizeInBytes) override;
+    void getStateInformation(juce::MemoryBlock& destData) override { if (stateManager) stateManager->getStateInformation(destData); }
+    void setStateInformation(const void* data, int sizeInBytes) override { if (stateManager) stateManager->setStateInformation(data, sizeInBytes); }
     
     // AudioProcessorParameter::Listener (required by interface)
     void parameterValueChanged(int parameterIndex, float newValue) override;
@@ -78,19 +79,18 @@ private:
     std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor;
     std::unique_ptr<ymulatorsynth::ParameterManager> parameterManager;
     std::unique_ptr<PresetManagerInterface> presetManager;
+    std::unique_ptr<ymulatorsynth::StateManager> stateManager;
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
-    int currentPreset = 0;
     bool needsPresetReapply = false;
     
     // Legacy MIDI state (deprecated - TODO: remove after full migration)
     std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     int currentPitchBend = 8192;
     
-    // Methods (temporary - will be moved to ParameterManager)
-    void loadPreset(int index);
-    void loadPreset(const ymulatorsynth::Preset* preset);
+    // State management delegation methods
+    void loadPreset(int index) { if (stateManager) stateManager->loadPreset(index); }
     
     // Temporary parameter management (until full migration)
     void updateYmfmParameters() { if (parameterManager) parameterManager->updateYmfmParameters(); }
@@ -126,8 +126,7 @@ public:
     // Preset access for UI
     const PresetManagerInterface& getPresetManager() const { return *presetManager; }
     PresetManagerInterface& getPresetManager() { return *presetManager; }
-    int getCurrentPresetIndex() const { return currentPreset; }
-    void setCurrentPreset(int index);
+    int getCurrentPresetIndex() const { return stateManager ? stateManager->getCurrentPresetIndex() : 0; }
     juce::StringArray getPresetNames() const { return presetManager->getPresetNames(); }
     
     // Bank access for UI
