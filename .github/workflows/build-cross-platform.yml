@@ -91,10 +91,10 @@ jobs:
       run: |
         # Use our unified build script
         ./scripts/build.sh setup
-        ./scripts/build.sh release --quiet
+        ./scripts/build.sh release
         
         # Run comprehensive tests
-        ./scripts/test.sh --all --quiet
+        ./scripts/test.sh --all
     
     - name: Package macOS plugins
       run: |
@@ -164,11 +164,11 @@ jobs:
       run: |
         # Use our unified build script
         ./scripts/build.sh setup
-        ./scripts/build.sh release --quiet
+        ./scripts/build.sh release
         
         # Run tests (excluding Audio Unit validation on Linux)
-        ./scripts/test.sh --unit --quiet
-        ./scripts/test.sh --integration --quiet
+        ./scripts/test.sh --unit
+        ./scripts/test.sh --integration
     
     - name: Package Linux plugins
       run: |

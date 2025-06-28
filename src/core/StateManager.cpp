@@ -30,8 +30,8 @@ void StateManager::getStateInformation(juce::MemoryBlock& destData)
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     juce::AudioProcessor::copyXmlToBinary(*xml, destData);
     
-    CS_DBG("State saved - currentPreset: " + juce::String(currentPreset) + 
-           ", isCustom: " + juce::String(parameterManager.isInCustomMode()));
+    CS_DBG(juce::String("State saved - currentPreset: ") + juce::String(currentPreset) + 
+           ", isCustom: " + (parameterManager.isInCustomMode() ? "true" : "false"));
 }
 
 void StateManager::setStateInformation(const void* data, int sizeInBytes)
@@ -59,7 +59,7 @@ void StateManager::setStateInformation(const void* data, int sizeInBytes)
                 bool isCustom = newState.getProperty("isCustomPreset", false);
                 juce::String customName = newState.getProperty("customPresetName", "Custom");
                 parameterManager.setCustomMode(isCustom, customName);
-                CS_DBG("Restored custom preset state - isCustom: " + juce::String(isCustom) + 
+                CS_DBG(juce::String("Restored custom preset state - isCustom: ") + (isCustom ? "true" : "false") + 
                        ", name: " + customName);
             }
             
