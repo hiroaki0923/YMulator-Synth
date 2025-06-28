@@ -41,6 +41,9 @@ if(GTest_FOUND)
         unit/PresetManagerTest.cpp
         unit/VOPMParserTest.cpp
         unit/GlobalPanTest.cpp
+        unit/ParameterManagerTest.cpp
+        unit/StateManagerTest.cpp
+        unit/ParameterStateIntegrationTest.cpp
         RandomPanDebugTest.cpp
         RandomPanOutputTest.cpp
         PanModeRegressionTest.cpp
