@@ -53,15 +53,15 @@ protected:
         return std::sqrt(sum / buffer.size());
     }
     
-    // Helper function to generate audio and wait for ymfm to produce sound
+    // Simplified audio detection function to reduce test execution time
     bool generateAndWaitForAudio(std::vector<float>& leftBuffer, std::vector<float>& rightBuffer, 
-                                int maxAttempts = 100) {
+                                int maxAttempts = 5) {
+        
         for (int attempt = 0; attempt < maxAttempts; ++attempt) {
             std::fill(leftBuffer.begin(), leftBuffer.end(), 0.0f);
             std::fill(rightBuffer.begin(), rightBuffer.end(), 0.0f);
             
             wrapper->generateSamples(leftBuffer.data(), rightBuffer.data(), leftBuffer.size());
-            
             
             // Use a very low threshold for detection
             if (hasNonSilentAudio(leftBuffer, 0.0001f) || hasNonSilentAudio(rightBuffer, 0.0001f)) {
@@ -141,9 +141,8 @@ TEST_F(YmfmWrapperTest, SilenceWithoutNotes) {
     EXPECT_FALSE(hasNonSilentAudio(rightBuffer));
 }
 
-TEST_F(YmfmWrapperTest, DISABLED_AudioGenerationWithNotes) {
-    // TEMPORARILY DISABLED: ymfm library is not generating audio output
-    // This appears to be a library-level issue unrelated to our dependency injection
+TEST_F(YmfmWrapperTest, AudioGenerationWithNotes) {
+    // RE-ENABLED: Investigating ymfm library audio output issue
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
@@ -157,7 +156,7 @@ TEST_F(YmfmWrapperTest, DISABLED_AudioGenerationWithNotes) {
     EXPECT_TRUE(generateAndWaitForAudio(leftBuffer, rightBuffer));
 }
 
-TEST_F(YmfmWrapperTest, DISABLED_StereoAudioGeneration) {
+TEST_F(YmfmWrapperTest, StereoAudioGeneration) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
@@ -184,7 +183,7 @@ TEST_F(YmfmWrapperTest, DISABLED_StereoAudioGeneration) {
     EXPECT_LT(ratio, 10.0f); // Not more than 10:1 ratio
 }
 
-TEST_F(YmfmWrapperTest, DISABLED_VariableBufferSizes) {
+TEST_F(YmfmWrapperTest, VariableBufferSizes) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     wrapper->noteOn(0, 60, 100);
     
@@ -207,7 +206,7 @@ TEST_F(YmfmWrapperTest, DISABLED_VariableBufferSizes) {
 // 3. Note On/Off Testing
 // =============================================================================
 
-TEST_F(YmfmWrapperTest, DISABLED_BasicNoteOnOff) {
+TEST_F(YmfmWrapperTest, BasicNoteOnOff) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
@@ -237,7 +236,7 @@ TEST_F(YmfmWrapperTest, DISABLED_BasicNoteOnOff) {
     EXPECT_TRUE(becomesQuiet);
 }
 
-TEST_F(YmfmWrapperTest, DISABLED_MultipleNotesSimultaneous) {
+TEST_F(YmfmWrapperTest, MultipleNotesSimultaneous) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
@@ -269,7 +268,7 @@ TEST_F(YmfmWrapperTest, DISABLED_MultipleNotesSimultaneous) {
     EXPECT_GT(chordRMS, releaseRMS);
 }
 
-TEST_F(YmfmWrapperTest, DISABLED_NoteVelocityResponse) {
+TEST_F(YmfmWrapperTest, NoteVelocityResponse) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
@@ -482,7 +481,7 @@ TEST_F(YmfmWrapperTest, ZeroSampleGeneration) {
 // 8. Performance and Stability Testing
 // =============================================================================
 
-TEST_F(YmfmWrapperTest, DISABLED_ExtendedOperation) {
+TEST_F(YmfmWrapperTest, ExtendedOperation) {
     wrapper->initialize(YmfmWrapperInterface::ChipType::OPM, 44100);
     
     const int bufferSize = 512;
