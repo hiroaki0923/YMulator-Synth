@@ -26,7 +26,7 @@ endif()
 
 if(GTest_FOUND)
     # Check if JUCE binary data has been generated
-    set(JUCE_BINARY_DATA_FILE "${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode/BinaryData1.cpp")
+    set(JUCE_BINARY_DATA_FILE "${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulator-Synth_Resources/JuceLibraryCode/BinaryData1.cpp")
     
     # Define test sources
     set(TEST_SOURCES
@@ -65,6 +65,9 @@ if(GTest_FOUND)
         # Additional test files will be added here
     )
     
+    # Test executable
+    add_executable(YMulatorSynthAU_Tests ${TEST_SOURCES})
+    
     # Add JUCE binary data if it exists
     if(EXISTS "${JUCE_BINARY_DATA_FILE}")
         target_sources(YMulatorSynthAU_Tests PRIVATE "${JUCE_BINARY_DATA_FILE}")
@@ -74,16 +77,13 @@ if(GTest_FOUND)
         message(STATUS "Tests will be built without binary data - some UI tests may fail")
     endif()
     
-    # Test executable
-    add_executable(YMulatorSynthAU_Tests ${TEST_SOURCES})
-    
     target_include_directories(YMulatorSynthAU_Tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_SOURCE_DIR}/src
             ${CMAKE_SOURCE_DIR}/third_party/ymfm/src
             ${CMAKE_BINARY_DIR}/_deps/juce-src/modules
-            ${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode
+            ${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulator-Synth_Resources/JuceLibraryCode
     )
     
     # Handle different GTest linking scenarios
