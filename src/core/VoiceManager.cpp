@@ -23,6 +23,7 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
         // Update the existing voice
         voices[existingChannel].velocity = velocity;
         voices[existingChannel].timestamp = ++currentTimestamp;
+        CS_FILE_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
         CS_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
         return existingChannel;
     }
@@ -36,6 +37,7 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
     voices[channel].velocity = velocity;
     voices[channel].timestamp = ++currentTimestamp;
     
+    CS_FILE_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
     CS_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
     return channel;
 }
@@ -65,6 +67,8 @@ int VoiceManager::allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity,
     voices[channel].velocity = velocity;
     voices[channel].timestamp = ++currentTimestamp;
     
+    CS_FILE_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel) + 
+           (needsNoise ? " (noise-enabled preset)" : ""));
     CS_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel) + 
            (needsNoise ? " (noise-enabled preset)" : ""));
     return channel;
@@ -76,6 +80,7 @@ void VoiceManager::releaseVoice(uint8_t note)
     for (int i = 0; i < MAX_VOICES; ++i) {
         if (voices[i].active && voices[i].note == note) {
             voices[i].active = false;
+            CS_FILE_DBG(" Released note " + juce::String(note) + " from channel " + juce::String(i));
             CS_DBG(" Released note " + juce::String(note) + " from channel " + juce::String(i));
             return;
         }
@@ -125,7 +130,9 @@ int VoiceManager::findAvailableVoice()
     // First, look for an inactive voice, starting from channel 7 (noise-capable)
     // This prioritizes noise-capable channel 7 for rhythm instruments
     for (int i = MAX_VOICES - 1; i >= 0; --i) {
+        CS_FILE_DBG("Checking voice " + juce::String(i) + " - active: " + juce::String(voices[i].active ? "true" : "false"));
         if (!voices[i].active) {
+            CS_FILE_DBG("Found available voice: " + juce::String(i));
             return i;
         }
     }
@@ -170,39 +177,35 @@ int VoiceManager::findAvailableVoice()
 
 int VoiceManager::findAvailableVoiceWithNoisePriority(bool needsNoise)
 {
+    CS_FILE_DBG("findAvailableVoiceWithNoisePriority - needsNoise: " + juce::String(needsNoise ? "true" : "false"));
+    
     if (needsNoise) {
-        // For noise-enabled presets, prioritize channel 7 (the only noise-capable channel)
+        // For noise-enabled presets, ONLY use channel 7
+        CS_FILE_DBG("Noise preset: checking only channel 7 - active: " + juce::String(voices[7].active ? "true" : "false"));
+        
         if (!voices[7].active) {
-            CS_DBG(" Allocating noise-capable channel 7 for noise preset");
+            CS_FILE_DBG("Allocating channel 7 for noise preset");
+            CS_DBG(" Allocating channel 7 for noise preset");
             return 7;
         }
         
-        // If channel 7 is busy, look for other channels starting from high channels
-        for (int i = MAX_VOICES - 2; i >= 0; --i) {  // 6, 5, 4, 3, 2, 1, 0
-            if (!voices[i].active) {
-                CS_DBG(" Channel 7 busy, allocating channel " + juce::String(i) + " for noise preset (noise disabled)");
-                return i;
-            }
-        }
-        
-        // All voices active, steal channel 7 if possible for noise presets
-        CS_DBG(" All channels busy, stealing channel 7 for noise preset");
+        // If channel 7 is busy, steal it for noise presets (noise presets ONLY use channel 7)
+        CS_FILE_DBG("Channel 7 busy, stealing it for noise preset (noise ONLY uses channel 7)");
+        CS_DBG(" Channel 7 busy, stealing it for noise preset");
         return 7;
     } else {
-        // For non-noise presets, avoid channel 7 if possible
-        for (int i = MAX_VOICES - 2; i >= 0; --i) {  // Start from 6, avoid 7
+        // For non-noise presets, start from channel 7 and work downward (7→6→5→4→3→2→1→0)
+        CS_FILE_DBG("Non-noise preset: checking channels 7-0 in order");
+        for (int i = MAX_VOICES - 1; i >= 0; --i) {  // Start from 7, go down to 0
+            CS_FILE_DBG("Checking channel " + juce::String(i) + " for non-noise preset - active: " + juce::String(voices[i].active ? "true" : "false"));
             if (!voices[i].active) {
+                CS_FILE_DBG("Found available channel " + juce::String(i) + " for non-noise preset");
                 return i;
             }
         }
         
-        // If channels 0-6 are all busy, check channel 7
-        if (!voices[7].active) {
-            return 7;
-        }
-        
-        // All voices active, use normal stealing policy but prefer not to steal channel 7
-        // unless it's the best candidate according to the policy
+        // All voices active, use normal stealing policy
+        CS_FILE_DBG("All channels busy, using stealing policy");
         return findAvailableVoice();
     }
 }

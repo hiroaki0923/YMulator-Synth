@@ -41,6 +41,10 @@ if(GTest_FOUND)
         unit/PresetManagerTest.cpp
         unit/VOPMParserTest.cpp
         unit/GlobalPanTest.cpp
+        RandomPanDebugTest.cpp
+        RandomPanOutputTest.cpp
+        PanModeRegressionTest.cpp
+        AudioQualityTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
         
         # Main source files needed for testing

@@ -138,6 +138,9 @@ public:
     // User preset management
     bool saveCurrentPresetToUserBank(const juce::String& presetName);
     
+    // Testing interface
+    ymulatorsynth::MidiProcessorInterface* getMidiProcessor() { return midiProcessor.get(); }
+    
 private:
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(YMulatorSynthAudioProcessor)

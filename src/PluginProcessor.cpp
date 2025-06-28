@@ -4,6 +4,8 @@
 #include "utils/ParameterIDs.h"
 #include "dsp/YM2151Registers.h"
 
+using namespace ymulatorsynth;
+
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
@@ -828,7 +830,10 @@ void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset
     if (auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan)) {
         globalPanParam->setValueNotifyingHost(preservedGlobalPan);
         CS_DBG(" Restored global pan value: " + juce::String(preservedGlobalPan));
-        applyGlobalPanToAllChannels();
+        // Skip applying pan if RANDOM mode - MidiProcessor will handle per-note random pan
+        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+            applyGlobalPanToAllChannels();
+        }
     }
     
     // Apply preset to ymfm engine
@@ -852,7 +857,10 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, floa
     if (isGlobalPanChange) {
         // Apply to ALL channels, not just active ones
         // This is necessary because YM2151 mixes all channels, not just active ones
-        applyGlobalPanToAllChannels();
+        // BUT: Skip if switching TO RANDOM mode - MidiProcessor will handle per-note random pan
+        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+            applyGlobalPanToAllChannels();
+        }
         
         // Global pan changes don't affect preset identity, so return early
         return;
@@ -952,10 +960,16 @@ void YMulatorSynthAudioProcessor::updateYmfmParameters()
             ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::Detune2, dt2);
         }
         
-        // Update channel pan
-        float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
-        CS_ASSERT_PAN_RANGE(pan);
-        ymfmWrapper->setChannelPan(channel, pan);
+        // Update channel pan - BUT skip if GlobalPan is RANDOM (MidiProcessor handles it)
+        auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
+        if (!globalPanParam || globalPanParam->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+            float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
+            CS_ASSERT_PAN_RANGE(pan);
+            ymfmWrapper->setChannelPan(channel, pan);
+            CS_FILE_DBG("updateYmfmParameters - Setting individual channel " + juce::String(channel) + " pan to " + juce::String(pan));
+        } else {
+            CS_FILE_DBG("updateYmfmParameters - SKIPPING individual channel pan (RANDOM mode active)");
+        }
         
         // Update channel AMS/PMS settings
         int ams = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::ams(channel).c_str()));
@@ -990,7 +1004,15 @@ void YMulatorSynthAudioProcessor::updateYmfmParameters()
     
     // CRITICAL: Apply global pan AFTER all other parameter updates
     // This ensures global pan overrides individual channel pan settings
-    applyGlobalPanToAllChannels();
+    // BUT: Skip if GlobalPan is RANDOM - MidiProcessor handles per-note random pan
+    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
+    if (!panParam || panParam->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+        CS_FILE_DBG("PluginProcessor::updateYmfmParameters - calling applyGlobalPanToAllChannels (pan mode: " + 
+                   juce::String(panParam ? panParam->getIndex() : -1) + ")");
+        applyGlobalPanToAllChannels();
+    } else {
+        CS_FILE_DBG("PluginProcessor::updateYmfmParameters - SKIPPING applyGlobalPanToAllChannels (RANDOM mode active)");
+    }
 }
 
 juce::StringArray YMulatorSynthAudioProcessor::getBankNames() const

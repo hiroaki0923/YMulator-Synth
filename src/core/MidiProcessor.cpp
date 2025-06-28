@@ -45,8 +45,8 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     CS_ASSERT_NOTE(message.getNoteNumber());
     CS_ASSERT_VELOCITY(message.getVelocity());
     
-    // CS_FILE_DBG("MidiProcessor::processMidiNoteOn - Note: " + juce::String(message.getNoteNumber()) + 
-    //     ", Velocity: " + juce::String(message.getVelocity()));
+    CS_FILE_DBG("MidiProcessor::processMidiNoteOn - Note: " + juce::String(message.getNoteNumber()) + 
+        ", Velocity: " + juce::String(message.getVelocity()));
     
     CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
         ", Velocity: " + juce::String(message.getVelocity()));
@@ -60,6 +60,7 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     // Apply global pan setting to the allocated channel (optimized for real-time)
     auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
     if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
+        // ALWAYS generate new random pan for each note (not just once per channel)
         setChannelRandomPan(channel);
     }
     applyGlobalPan(channel);
@@ -73,6 +74,7 @@ void MidiProcessor::processMidiNoteOff(const juce::MidiMessage& message)
     // Assert valid MIDI note
     CS_ASSERT_NOTE(message.getNoteNumber());
     
+    CS_FILE_DBG("MidiProcessor::processMidiNoteOff - Note: " + juce::String(message.getNoteNumber()));
     CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
     
     // Find which channel is playing this note
@@ -209,7 +211,7 @@ void MidiProcessor::setChannelRandomPan(int channel)
     // Generate random pan bits for this channel (0=Left, 1=Center, 2=Right)
     channelRandomPanBits[channel] = static_cast<uint8_t>(juce::Random::getSystemRandom().nextInt(3));
     
-    CS_DBG(" Channel " + juce::String(channel) + " random pan set to: " + 
+    CS_FILE_DBG(" Channel " + juce::String(channel) + " random pan set to: " + 
         juce::String(channelRandomPanBits[channel]));
 }
 
@@ -217,7 +219,7 @@ void MidiProcessor::applyGlobalPan(int channel)
 {
     CS_ASSERT_CHANNEL(channel);
     
-    // CS_FILE_DBG("MidiProcessor::applyGlobalPan called for channel " + juce::String(channel));
+    CS_FILE_DBG("MidiProcessor::applyGlobalPan called for channel " + juce::String(channel));
     
     auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
     if (!panParam) {
@@ -228,7 +230,7 @@ void MidiProcessor::applyGlobalPan(int channel)
     int globalPanIndex = panParam->getIndex();
     uint8_t panValue = 0xC0; // Default: both L and R enabled (center)
     
-    // CS_FILE_DBG("Global pan index: " + juce::String(globalPanIndex));
+    CS_FILE_DBG("Global pan index: " + juce::String(globalPanIndex));
     
     switch (static_cast<GlobalPanPosition>(globalPanIndex)) {
         case GlobalPanPosition::LEFT:
@@ -245,10 +247,24 @@ void MidiProcessor::applyGlobalPan(int channel)
             break;
         case GlobalPanPosition::RANDOM:
             // Use the pre-generated random pan bits for this channel
+            CS_FILE_DBG("RANDOM: Channel " + juce::String(channel) + " using stored value " + juce::String(channelRandomPanBits[channel]));
             switch (channelRandomPanBits[channel]) {
-                case 0: panValue = YM2151Regs::PAN_LEFT_ONLY; break;  // Left: 0x40
-                case 1: panValue = YM2151Regs::PAN_CENTER; break;     // Center: 0xC0
-                case 2: panValue = YM2151Regs::PAN_RIGHT_ONLY; break; // Right: 0x80
+                case 0: 
+                    panValue = YM2151Regs::PAN_LEFT_ONLY; 
+                    CS_FILE_DBG("RANDOM: Setting LEFT (0x40)");
+                    break;  // Left: 0x40
+                case 1: 
+                    panValue = YM2151Regs::PAN_CENTER; 
+                    CS_FILE_DBG("RANDOM: Setting CENTER (0xC0)");
+                    break;     // Center: 0xC0
+                case 2: 
+                    panValue = YM2151Regs::PAN_RIGHT_ONLY; 
+                    CS_FILE_DBG("RANDOM: Setting RIGHT (0x80)");
+                    break; // Right: 0x80
+                default:
+                    panValue = YM2151Regs::PAN_CENTER;
+                    CS_FILE_DBG("RANDOM: Invalid value " + juce::String(channelRandomPanBits[channel]) + ", defaulting to CENTER");
+                    break;
             }
             break;
     }
@@ -264,9 +280,9 @@ void MidiProcessor::applyGlobalPan(int channel)
         normalizedPan = 0.5f;  // Center
     }
     
-    // CS_FILE_DBG("Converting pan bits 0x" + juce::String::toHexString(panValue) + 
-    //     " to normalized value " + juce::String(normalizedPan));
-    // CS_FILE_DBG("Calling ymfmWrapper.setChannelPan(" + juce::String(channel) + ", " + juce::String(normalizedPan) + ")");
+    CS_FILE_DBG("MidiProcessor::applyGlobalPan - Converting pan bits 0x" + juce::String::toHexString(panValue) + 
+        " to normalized value " + juce::String(normalizedPan));
+    CS_FILE_DBG("MidiProcessor::applyGlobalPan - Calling ymfmWrapper.setChannelPan(" + juce::String(channel) + ", " + juce::String(normalizedPan) + ")");
     ymfmWrapper.setChannelPan(channel, normalizedPan);
     
     // CS_FILE_DBG(" Applied global pan to channel " + juce::String(channel) + 

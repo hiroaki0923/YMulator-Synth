@@ -30,14 +30,13 @@ public:
     #define CS_DBG(msg) DBG(msg)
     #define CS_LOG(msg) std::cout << msg << std::endl
     #define CS_LOGF(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
+    #define CS_FILE_DBG(msg) DebugLogger::log(juce::String(msg))
 #else
     #define CS_DBG(msg) ((void)0)
     #define CS_LOG(msg) ((void)0)
     #define CS_LOGF(fmt, ...) ((void)0)
+    #define CS_FILE_DBG(msg) ((void)0)
 #endif
-
-// File debug logging is ALWAYS enabled for troubleshooting
-#define CS_FILE_DBG(msg) DebugLogger::log(juce::String(msg))
 
 // Additional debug utilities and assertions
 #ifdef JUCE_DEBUG

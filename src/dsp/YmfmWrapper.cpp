@@ -534,7 +534,7 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
     
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
     
-    CS_DBG("Setting channel " + juce::String((int)channel) + " pan to " + juce::String(panValue, 3));
+    CS_FILE_DBG("YmfmWrapper::setChannelPan - Setting channel " + juce::String((int)channel) + " pan to " + juce::String(panValue, 3));
     
     if (chipType == ChipType::OPM) {
         // Read current register value
@@ -548,10 +548,10 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
         
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, newValue);
         
-        CS_DBG("Pan register updated - channel=" + juce::String((int)channel) + 
-               ", pan=" + juce::String(panValue, 3) + 
-               ", panBits=0x" + juce::String::toHexString(panBits) + 
-               ", reg=0x" + juce::String::toHexString(newValue));
+        CS_FILE_DBG("YmfmWrapper::setChannelPan - Pan register updated - channel=" + juce::String((int)channel) + 
+                   ", pan=" + juce::String(panValue, 3) + 
+                   ", panBits=0x" + juce::String::toHexString(panBits) + 
+                   ", reg=0x" + juce::String::toHexString(newValue));
     } else if (chipType == ChipType::OPNA) {
         // OPNA uses different pan control mechanism
         // For now, just debug log - OPNA pan would need separate implementation

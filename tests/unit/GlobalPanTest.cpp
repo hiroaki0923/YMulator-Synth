@@ -214,3 +214,176 @@ TEST_F(GlobalPanTest, MultipleNotePanTest) {
     host->sendMidiNoteOff(*processor, 1, 67);
     host->processBlock(*processor, 128);
 }
+
+// Test Global Pan RANDOM setting
+TEST_F(GlobalPanTest, RandomPanTest) {
+    CS_DBG("=== Testing Global Pan RANDOM ===");
+    
+    // Set pan to RANDOM
+    setGlobalPan(GlobalPanPosition::RANDOM);
+    
+    // Verify parameter was set
+    float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
+    float expectedRandom = 3.0f / 3.0f;  // RANDOM = 3
+    EXPECT_NEAR(panValue, expectedRandom, 0.1f);
+    
+    // Play multiple notes and collect pan distribution
+    std::map<std::pair<bool, bool>, int> panDistribution; // {hasLeft, hasRight} -> count
+    
+    for (int note = 60; note < 70; ++note) {
+        // Play note
+        host->sendMidiNoteOn(*processor, 1, note, 100);
+        host->processBlock(*processor, 256);
+        
+        auto [leftRMS, rightRMS] = getChannelLevels();
+        bool hasLeft = leftRMS > 0.001f;
+        bool hasRight = rightRMS > 0.001f;
+        
+        panDistribution[{hasLeft, hasRight}]++;
+        
+        // CS_FILE_DBG("Note " + juce::String(note) + " - Left: " + juce::String(leftRMS) + 
+        //     ", Right: " + juce::String(rightRMS) + 
+        //     " -> (" + juce::String(hasLeft ? 1 : 0) + "," + juce::String(hasRight ? 1 : 0) + ")");
+        
+        // Stop note
+        host->sendMidiNoteOff(*processor, 1, note);
+        host->processBlock(*processor, 128);
+    }
+    
+    // Analyze distribution
+    int leftOnlyCount = panDistribution[{true, false}];   // LEFT
+    int bothCount = panDistribution[{true, true}];        // CENTER
+    int rightOnlyCount = panDistribution[{false, true}];  // RIGHT
+    int totalNotes = leftOnlyCount + bothCount + rightOnlyCount;
+    
+    // CS_FILE_DBG("Pan distribution - Left: " + juce::String(leftOnlyCount) + 
+    //     ", Center: " + juce::String(bothCount) + 
+    //     ", Right: " + juce::String(rightOnlyCount) + 
+    //     ", Total: " + juce::String(totalNotes));
+    
+    // Verify randomness (at least 2 different pan positions should appear)
+    int uniquePanPositions = (leftOnlyCount > 0 ? 1 : 0) + 
+                            (bothCount > 0 ? 1 : 0) + 
+                            (rightOnlyCount > 0 ? 1 : 0);
+    
+    EXPECT_GE(uniquePanPositions, 2) << "Random pan should produce at least 2 different positions out of 10 notes";
+    
+    // Verify no notes are completely silent
+    EXPECT_EQ(totalNotes, 10) << "All notes should produce some output";
+}
+
+// Test voice allocation order for non-noise presets (should start from channel 7)
+TEST_F(GlobalPanTest, VoiceAllocationOrderNonNoiseTest) {
+    CS_DBG("=== Testing Voice Allocation Order (Non-Noise) ===");
+    
+    // Ensure we're using a non-noise preset
+    host->setParameterValue(*processor, ParamID::Global::NoiseEnable, 0.0f);
+    host->processBlock(*processor, 128);
+    
+    // Set pan to LEFT for easier tracking
+    setGlobalPan(GlobalPanPosition::LEFT);
+    
+    // Play 8 simultaneous notes to fill all channels
+    for (int i = 0; i < 8; ++i) {
+        int note = 60 + i;
+        host->sendMidiNoteOn(*processor, 1, note, 100);
+        host->processBlock(*processor, 64);  // Small buffer to allow processing
+    }
+    
+    // Verify output (all should contribute to left channel)
+    auto [leftRMS, rightRMS] = getChannelLevels();
+    EXPECT_GT(leftRMS, 0.01f) << "All 8 voices should contribute to left output";
+    
+    // Release all notes
+    for (int i = 0; i < 8; ++i) {
+        int note = 60 + i;
+        host->sendMidiNoteOff(*processor, 1, note);
+        host->processBlock(*processor, 32);
+    }
+}
+
+// Test voice allocation for noise presets (should use only channel 7)
+TEST_F(GlobalPanTest, VoiceAllocationNoiseTest) {
+    CS_DBG("=== Testing Voice Allocation (Noise Only) ===");
+    
+    // Enable noise preset
+    host->setParameterValue(*processor, ParamID::Global::NoiseEnable, 1.0f);
+    host->processBlock(*processor, 128);
+    
+    // Set pan to RIGHT for easier tracking
+    setGlobalPan(GlobalPanPosition::RIGHT);
+    
+    // Play multiple notes (should all use channel 7)
+    host->sendMidiNoteOn(*processor, 1, 60, 100);
+    host->processBlock(*processor, 128);
+    
+    auto [leftRMS1, rightRMS1] = getChannelLevels();
+    EXPECT_GT(rightRMS1, 0.001f) << "First note should produce right output";
+    
+    // Play second note (should steal channel 7)
+    host->sendMidiNoteOn(*processor, 1, 64, 100);
+    host->processBlock(*processor, 128);
+    
+    auto [leftRMS2, rightRMS2] = getChannelLevels();
+    EXPECT_GT(rightRMS2, 0.001f) << "Second note should also use right output (channel 7)";
+    
+    // Clean up
+    host->sendMidiNoteOff(*processor, 1, 60);
+    host->sendMidiNoteOff(*processor, 1, 64);
+    host->processBlock(*processor, 128);
+}
+
+// Test monophonic RANDOM pan behavior
+TEST_F(GlobalPanTest, MonophonicRandomPanTest) {
+    CS_DBG("=== Testing Monophonic RANDOM Pan ===");
+    
+    // Set pan to RANDOM
+    setGlobalPan(GlobalPanPosition::RANDOM);
+    
+    // Disable noise to ensure non-noise behavior
+    host->setParameterValue(*processor, ParamID::Global::NoiseEnable, 0.0f);
+    host->processBlock(*processor, 128);
+    
+    // Track pan results for sequential notes
+    std::vector<std::string> panResults;
+    
+    for (int note = 60; note < 65; ++note) {
+        // Play note
+        host->sendMidiNoteOn(*processor, 1, note, 100);
+        host->processBlock(*processor, 256);
+        
+        auto [leftRMS, rightRMS] = getChannelLevels();
+        
+        std::string panType;
+        if (leftRMS > 0.001f && rightRMS <= 0.001f) {
+            panType = "LEFT";
+        } else if (rightRMS > 0.001f && leftRMS <= 0.001f) {
+            panType = "RIGHT";
+        } else if (leftRMS > 0.001f && rightRMS > 0.001f) {
+            panType = "CENTER";
+        } else {
+            panType = "SILENT";
+        }
+        
+        panResults.push_back(panType);
+        
+        CS_DBG("Note " + juce::String(note) + " -> " + panType + 
+               " (L:" + juce::String(leftRMS, 3) + ", R:" + juce::String(rightRMS, 3) + ")");
+        
+        // Stop note before next
+        host->sendMidiNoteOff(*processor, 1, note);
+        host->processBlock(*processor, 128);
+    }
+    
+    // Verify that we get different pan positions across the sequence
+    std::set<std::string> uniquePanTypes(panResults.begin(), panResults.end());
+    uniquePanTypes.erase("SILENT");  // Remove SILENT if present
+    
+    EXPECT_GE(uniquePanTypes.size(), 2) << "Monophonic RANDOM pan should produce at least 2 different pan positions";
+    EXPECT_EQ(panResults.size(), 5) << "Should test exactly 5 notes";
+    
+    // Verify no notes are silent
+    for (const auto& result : panResults) {
+        EXPECT_NE(result, "SILENT") << "No notes should be silent";
+    }
+}
