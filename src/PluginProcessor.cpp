@@ -1027,13 +1027,13 @@ void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
     CS_ASSERT_CHANNEL(channel);
     
     // LIGHTWEIGHT DEBUG - only for important info
-    // CS_FILE_DBG("=== applyGlobalPan called for channel " + juce::String(channel) + " ===");
+    // CS_DBG("=== applyGlobalPan called for channel " + juce::String(channel) + " ===");
     
     // 現在のレジスタ値を読み取り（他のビットを保持）
     uint8_t currentReg = ymfmWrapper->readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
     uint8_t otherBits = currentReg & YM2151Regs::PRESERVE_ALG_FB;  // パン以外のビット
     
-    // CS_FILE_DBG("Current register value: 0x" + juce::String::toHexString(currentReg) + 
+    // CS_DBG("Current register value: 0x" + juce::String::toHexString(currentReg) + 
     //             ", other bits: 0x" + juce::String::toHexString(otherBits));
     
     // グローバルパン設定を取得
@@ -1042,21 +1042,21 @@ void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
     auto panChoice = static_cast<GlobalPanPosition>(panIndex);
     uint8_t panBits;
     
-    // CS_FILE_DBG("Pan parameter index: " + juce::String(panIndex) + 
+    // CS_DBG("Pan parameter index: " + juce::String(panIndex) + 
     //             ", pan choice: " + juce::String(static_cast<int>(panChoice)));
     
     switch(panChoice) {
         case GlobalPanPosition::LEFT:   
             panBits = YM2151Regs::PAN_LEFT_ONLY;
-            // CS_FILE_DBG("Setting LEFT pan (0x" + juce::String::toHexString(panBits) + ")");
+            CS_DBG("Setting LEFT pan (0x" + juce::String::toHexString(panBits) + ")");
             break;
         case GlobalPanPosition::CENTER: 
             panBits = YM2151Regs::PAN_CENTER;
-            // CS_FILE_DBG("Setting CENTER pan (0x" + juce::String::toHexString(panBits) + ")");
+            CS_DBG("Setting CENTER pan (0x" + juce::String::toHexString(panBits) + ")");
             break;
         case GlobalPanPosition::RIGHT:  
             panBits = YM2151Regs::PAN_RIGHT_ONLY;
-            // CS_FILE_DBG("Setting RIGHT pan (0x" + juce::String::toHexString(panBits) + ")");
+            CS_DBG("Setting RIGHT pan (0x" + juce::String::toHexString(panBits) + ")");
             break;
         case GlobalPanPosition::RANDOM:
             // Use the stored random pan value for this channel
@@ -1065,7 +1065,7 @@ void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
     }
     
     uint8_t finalRegValue = otherBits | panBits;
-    // CS_FILE_DBG("Writing to register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
+    // CS_DBG("Writing to register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
     //             " value: 0x" + juce::String::toHexString(finalRegValue));
     
     // YM2151に書き込み

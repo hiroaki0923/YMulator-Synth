@@ -1,4 +1,5 @@
 #include "MidiProcessor.h"
+#include "dsp/YM2151Registers.h"
 
 namespace ymulatorsynth {
 
@@ -43,6 +44,9 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     // Assert valid MIDI note and velocity
     CS_ASSERT_NOTE(message.getNoteNumber());
     CS_ASSERT_VELOCITY(message.getVelocity());
+    
+    // CS_FILE_DBG("MidiProcessor::processMidiNoteOn - Note: " + juce::String(message.getNoteNumber()) + 
+    //     ", Velocity: " + juce::String(message.getVelocity()));
     
     CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
         ", Velocity: " + juce::String(message.getVelocity()));
@@ -213,37 +217,60 @@ void MidiProcessor::applyGlobalPan(int channel)
 {
     CS_ASSERT_CHANNEL(channel);
     
+    // CS_FILE_DBG("MidiProcessor::applyGlobalPan called for channel " + juce::String(channel));
+    
     auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    if (!panParam) return;
+    if (!panParam) {
+        // CS_FILE_DBG("ERROR: GlobalPan parameter not found!");
+        return;
+    }
     
     int globalPanIndex = panParam->getIndex();
     uint8_t panValue = 0xC0; // Default: both L and R enabled (center)
     
+    // CS_FILE_DBG("Global pan index: " + juce::String(globalPanIndex));
+    
     switch (static_cast<GlobalPanPosition>(globalPanIndex)) {
         case GlobalPanPosition::LEFT:
-            panValue = 0x80; // Only left channel
+            panValue = YM2151Regs::PAN_LEFT_ONLY;  // 0x40: Only left channel (L=1, R=0)
+            // CS_FILE_DBG("Setting LEFT pan: 0x" + juce::String::toHexString(panValue));
             break;
         case GlobalPanPosition::CENTER:
-            panValue = 0xC0; // Both channels (center)
+            panValue = YM2151Regs::PAN_CENTER;     // 0xC0: Both channels (L=1, R=1)
+            // CS_FILE_DBG("Setting CENTER pan: 0x" + juce::String::toHexString(panValue));
             break;
         case GlobalPanPosition::RIGHT:
-            panValue = 0x40; // Only right channel
+            panValue = YM2151Regs::PAN_RIGHT_ONLY; // 0x80: Only right channel (L=0, R=1)
+            // CS_FILE_DBG("Setting RIGHT pan: 0x" + juce::String::toHexString(panValue));
             break;
         case GlobalPanPosition::RANDOM:
             // Use the pre-generated random pan bits for this channel
             switch (channelRandomPanBits[channel]) {
-                case 0: panValue = 0x80; break; // Left
-                case 1: panValue = 0xC0; break; // Center
-                case 2: panValue = 0x40; break; // Right
+                case 0: panValue = YM2151Regs::PAN_LEFT_ONLY; break;  // Left: 0x40
+                case 1: panValue = YM2151Regs::PAN_CENTER; break;     // Center: 0xC0
+                case 2: panValue = YM2151Regs::PAN_RIGHT_ONLY; break; // Right: 0x80
             }
             break;
     }
     
-    // Apply pan to the YM2151 channel (convert uint8_t to float for interface)
-    ymfmWrapper.setChannelPan(channel, static_cast<float>(panValue));
+    // Apply pan to the YM2151 channel
+    // Convert register bits to normalized float (0.0-1.0) for YmfmWrapper interface
+    float normalizedPan;
+    if (panValue == YM2151Regs::PAN_LEFT_ONLY) {
+        normalizedPan = 0.0f;  // Left
+    } else if (panValue == YM2151Regs::PAN_RIGHT_ONLY) {
+        normalizedPan = 1.0f;  // Right  
+    } else {
+        normalizedPan = 0.5f;  // Center
+    }
     
-    CS_DBG(" Applied global pan to channel " + juce::String(channel) + 
-        ": 0x" + juce::String::toHexString(panValue));
+    // CS_FILE_DBG("Converting pan bits 0x" + juce::String::toHexString(panValue) + 
+    //     " to normalized value " + juce::String(normalizedPan));
+    // CS_FILE_DBG("Calling ymfmWrapper.setChannelPan(" + juce::String(channel) + ", " + juce::String(normalizedPan) + ")");
+    ymfmWrapper.setChannelPan(channel, normalizedPan);
+    
+    // CS_FILE_DBG(" Applied global pan to channel " + juce::String(channel) + 
+    //     ": 0x" + juce::String::toHexString(panValue));
 }
 
 bool MidiProcessor::currentPresetNeedsNoise() const

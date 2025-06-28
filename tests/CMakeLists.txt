@@ -40,6 +40,7 @@ if(GTest_FOUND)
         unit/YmfmWrapperTest.cpp
         unit/PresetManagerTest.cpp
         unit/VOPMParserTest.cpp
+        unit/GlobalPanTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
         
         # Main source files needed for testing
