@@ -16,7 +16,7 @@ on:
 jobs:
   tests:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     
     steps:
     - name: Checkout code
@@ -37,12 +37,18 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+        cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON \
+          -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations -O2"
     
-    - name: Build project and tests
+    - name: Build main project (for JUCE dependencies)
       run: |
         cd build
-        cmake --build . --parallel --config Debug
+        cmake --build . --target YMulatorSynthAU --parallel 8 --config RelWithDebInfo
+    
+    - name: Build tests only
+      run: |
+        cd build
+        cmake --build . --target YMulatorSynthAU_Tests --parallel 8 --config RelWithDebInfo
     
     - name: Run unit tests
       run: |

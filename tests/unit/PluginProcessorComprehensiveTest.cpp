@@ -50,8 +50,8 @@ TEST_F(PluginProcessorComprehensiveTest, ConstructorInitializesCorrectly) {
     EXPECT_TRUE(processor->hasEditor());
     
     // Verify output bus configuration
-    EXPECT_EQ(processor->getNumInputChannels(), 0);  // Synth has no audio input
-    EXPECT_EQ(processor->getNumOutputChannels(), 2); // Stereo output
+    EXPECT_EQ(processor->getTotalNumInputChannels(), 0);  // Synth has no audio input
+    EXPECT_EQ(processor->getTotalNumOutputChannels(), 2); // Stereo output
 }
 
 TEST_F(PluginProcessorComprehensiveTest, MultipleConstructorDestruction) {

@@ -28,8 +28,8 @@ protected:
 // Test that the plugin initializes without crashing
 TEST_F(PluginBasicTest, InitializationTest) {
     EXPECT_NE(processor, nullptr);
-    EXPECT_EQ(processor->getNumInputChannels(), 0);  // Synth has no audio input
-    EXPECT_EQ(processor->getNumOutputChannels(), 2); // Stereo output
+    EXPECT_EQ(processor->getTotalNumInputChannels(), 0);  // Synth has no audio input
+    EXPECT_EQ(processor->getTotalNumOutputChannels(), 2); // Stereo output
 }
 
 // Test that the plugin produces sound when receiving MIDI
