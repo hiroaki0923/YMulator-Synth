@@ -52,81 +52,104 @@ YMulator-Synth is a modern FM synthesis Audio Unit plugin for macOS that emulate
 
 ## Build Commands
 
-⚠️ **CRITICAL PATH REQUIREMENTS:**
-- **ALWAYS run build commands from project root directory** (not from src/ or other subdirectories)
-- **Build directory is:** `/Users/hiroaki.kimura/projects/ChipSynth-AU/build/`
-- **If build fails with "No rule to make target 'Makefile'"**, you're in the wrong directory
+**⚠️ IMPORTANT: Use the provided build scripts for consistent, cross-platform builds.**
+
+### Quick Start
 
 ```bash
-# ===== PATH VERIFICATION FIRST =====
-# MUST be in project root (not src/, build/, etc.)
-pwd  # Should show: /Users/hiroaki.kimura/projects/ChipSynth-AU
-ls   # Should show: build/ src/ CMakeLists.txt CLAUDE.md etc.
+# Initial setup (run once)
+./scripts/build.sh setup
 
-# If not in project root, navigate there:
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU
+# Build the project
+./scripts/build.sh build
 
-# ===== INITIAL SETUP =====
+# Run all tests
+./scripts/test.sh
+
+# Audio Unit validation
+./scripts/test.sh --auval
+```
+
+### Build Script Usage
+
+```bash
+# Show all available commands
+./scripts/build.sh --help
+
+# Common operations
+./scripts/build.sh setup           # Initial project setup
+./scripts/build.sh build           # Build project
+./scripts/build.sh rebuild         # Clean and rebuild
+./scripts/build.sh clean           # Clean build directory
+./scripts/build.sh debug           # Debug build
+./scripts/build.sh install         # Install plugin
+./scripts/build.sh test            # Run tests
+./scripts/build.sh auval           # Audio Unit validation
+
+# Build options
+./scripts/build.sh build --quiet   # Suppress output
+./scripts/build.sh build --jobs 8  # Use 8 parallel jobs
+```
+
+### Test Script Usage
+
+```bash
+# Show all available test options
+./scripts/test.sh --help
+
+# Test categories
+./scripts/test.sh --all             # Run all tests (default)
+./scripts/test.sh --unit            # Unit tests only
+./scripts/test.sh --integration     # Integration tests only
+./scripts/test.sh --regression      # Regression tests only
+
+# Specific test filtering
+./scripts/test.sh --filter "ParameterManager"  # Tests matching pattern
+./scripts/test.sh --list                       # List available tests
+./scripts/test.sh ParameterManager             # Shorthand for filter
+
+# Test options
+./scripts/test.sh --build --verbose  # Build then run tests verbosely
+./scripts/test.sh --quiet            # Minimal output
+```
+
+### Manual Build (Advanced)
+
+If you need manual control over the build process:
+
+```bash
+# Prerequisites check
+cmake --version  # Should be 3.22+
+git --version    # For submodules
+
+# Initial setup
 git submodule update --init --recursive
 
-# ===== BUILD PROCESS =====
-# Step 1: Create/enter build directory  
+# Configure and build
 mkdir -p build && cd build
-
-# Step 2: Configure (only needed once or after changes)
 cmake .. -DCMAKE_BUILD_TYPE=Release
-
-# Step 3: Build with minimal output
-cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
-
-# ===== ALTERNATIVE: Quick rebuild from any location =====
-# This handles path navigation automatically
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
-
-# ===== DEBUG BUILD =====
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-cmake --build . --parallel > /dev/null 2>&1 && echo "Build successful" || echo "Build failed"
-
-# ===== BUILD WITH FULL OUTPUT (for debugging) =====
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
 cmake --build . --parallel
 
-# ===== CLEAN AND REBUILD =====
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
-cmake --build . --clean-first --parallel > /dev/null 2>&1 && echo "Clean build successful" || echo "Clean build failed"
+# Run tests
+ctest --output-on-failure
 
-# ===== INSTALL =====
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
-cmake --install .
+# Audio Unit validation
+auval -v aumu YMul Hrki
+```
 
-# ===== TESTING =====
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
-ctest --output-on-failure --quiet    # Quiet output
-ctest --output-on-failure            # Full output for debugging
+### Troubleshooting
 
-# ===== AUDIO UNIT VALIDATION =====
-# Can be run from any directory
-auval -a  # List all Audio Units
-auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"  # Minimal output
-auval -v aumu YMul Hrki  # Full output for debugging
-
-# ===== TROUBLESHOOTING =====
+```bash
 # Fix Audio Unit registration issues
 killall -9 AudioComponentRegistrar
 
-# View Audio Unit logs  
+# View Audio Unit logs
 log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 
-# ===== COMMON PATH ERRORS =====
-# ERROR: "No rule to make target 'Makefile'" 
-# SOLUTION: You're in wrong directory. Run: cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build
-
-# ERROR: "cmake: command not found"
-# SOLUTION: Install CMake via: brew install cmake
-
-# ERROR: "No such file or directory: CMakeLists.txt"
-# SOLUTION: You're not in project root. Run: cd /Users/hiroaki.kimura/projects/ChipSynth-AU
+# Common issues:
+# - "cmake: command not found" → Install CMake: brew install cmake
+# - Build errors → Try: ./scripts/build.sh clean && ./scripts/build.sh rebuild
+# - Test failures → Check: ./scripts/test.sh --verbose
 ```
 
 **⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/ymulatorsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
