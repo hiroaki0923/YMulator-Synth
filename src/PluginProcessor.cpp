@@ -10,6 +10,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
        parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout()),
        ymfmWrapper(std::make_unique<YmfmWrapper>()),
        voiceManager(std::make_unique<VoiceManager>()),
+       midiProcessor(nullptr), // Will be initialized after other components
        presetManager(std::make_unique<ymulatorsynth::PresetManager>())
 {
     // Clear debug log file on startup and test file creation
@@ -29,7 +30,8 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     
     CS_DBG(" Constructor called");
     
-    setupCCMapping();
+    // Initialize MidiProcessor after other components are ready
+    midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters);
     
     // Initialize preset manager
     presetManager->initialize();
@@ -51,17 +53,17 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
 
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapperPtr,
                                                         std::unique_ptr<VoiceManagerInterface> voiceManagerPtr,
+                                                        std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessorPtr,
                                                         std::unique_ptr<PresetManagerInterface> presetManagerPtr)
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
        parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout()),
        ymfmWrapper(std::move(ymfmWrapperPtr)),
        voiceManager(std::move(voiceManagerPtr)),
+       midiProcessor(std::move(midiProcessorPtr)),
        presetManager(std::move(presetManagerPtr))
 {
     CS_DBG(" Dependency injection constructor called");
-    
-    setupCCMapping();
     
     // Initialize preset manager
     presetManager->initialize();
@@ -278,8 +280,8 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Clear output buffer
     buffer.clear();
     
-    // Process all MIDI events
-    processMidiMessages(midiMessages);
+    // Process all MIDI events through MidiProcessor
+    midiProcessor->processMidiMessages(midiMessages);
     
     // Update parameters periodically
     if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER)
@@ -497,116 +499,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor:
 
 void YMulatorSynthAudioProcessor::setupCCMapping()
 {
-    // VOPMex compatible MIDI CC mapping
-    
-    // Global parameters
-    ccToParameterMap[14] = parameters.getParameter(ParamID::Global::Algorithm);
-    ccToParameterMap[15] = parameters.getParameter(ParamID::Global::Feedback);
-    
-    // LFO parameters (CC 76-79)
-    ccToParameterMap[ParamID::MIDI_CC::LfoRate] = 
-        parameters.getParameter(ParamID::Global::LfoRate);
-    ccToParameterMap[ParamID::MIDI_CC::LfoAmd] = 
-        parameters.getParameter(ParamID::Global::LfoAmd);
-    ccToParameterMap[ParamID::MIDI_CC::LfoPmd] = 
-        parameters.getParameter(ParamID::Global::LfoPmd);
-    ccToParameterMap[ParamID::MIDI_CC::LfoWaveform] = 
-        parameters.getParameter(ParamID::Global::LfoWaveform);
-    
-    // Noise parameters - AudioParameterBool needs special handling for MIDI CC
-    ccToParameterMap[ParamID::MIDI_CC::NoiseEnable] = 
-        parameters.getParameter(ParamID::Global::NoiseEnable);
-    ccToParameterMap[ParamID::MIDI_CC::NoiseFrequency] = 
-        parameters.getParameter(ParamID::Global::NoiseFrequency);
-    
-    // Operator parameters (4 operators)
-    for (int op = 1; op <= 4; ++op)
-    {
-        juce::String opId = "op" + juce::String(op);
-        int opIndex = op - 1;
-        
-        // Total Level (CC 16-19)
-        ccToParameterMap[16 + opIndex] = 
-            parameters.getParameter(ParamID::Op::tl(op));
-        
-        // Multiple (CC 20-23)
-        ccToParameterMap[20 + opIndex] = 
-            parameters.getParameter(ParamID::Op::mul(op));
-        
-        // Detune1 (CC 24-27)
-        ccToParameterMap[24 + opIndex] = 
-            parameters.getParameter(ParamID::Op::dt1(op));
-        
-        // Detune2 (CC 28-31)
-        ccToParameterMap[28 + opIndex] = 
-            parameters.getParameter(ParamID::Op::dt2(op));
-        
-        // Key Scale (CC 39-42)
-        ccToParameterMap[39 + opIndex] = 
-            parameters.getParameter(ParamID::Op::ks(op));
-        
-        // Attack Rate (CC 43-46)
-        ccToParameterMap[43 + opIndex] = 
-            parameters.getParameter(ParamID::Op::ar(op));
-        
-        // Decay1 Rate (CC 47-50)
-        ccToParameterMap[47 + opIndex] = 
-            parameters.getParameter(ParamID::Op::d1r(op));
-        
-        // Sustain Rate (CC 51-54)
-        ccToParameterMap[51 + opIndex] = 
-            parameters.getParameter(ParamID::Op::d2r(op));
-        
-        // Release Rate (CC 55-58)
-        ccToParameterMap[55 + opIndex] = 
-            parameters.getParameter(ParamID::Op::rr(op));
-        
-        // Sustain Level (CC 59-62)
-        ccToParameterMap[59 + opIndex] = 
-            parameters.getParameter(ParamID::Op::d1l(op));
-    }
-    
-    // Note: Channel pan parameters are handled separately in handleMidiCC() 
-    // since they are AudioParameterFloat, not AudioParameterInt
+    // DEPRECATED: This is now handled by MidiProcessor, but kept for backward compatibility
+    // The MidiProcessor setupCCMapping is called during its construction
+    CS_DBG("setupCCMapping called (deprecated - now handled by MidiProcessor)");
 }
 
 void YMulatorSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
 {
-    // Assert valid CC number and value ranges
-    CS_ASSERT_PARAMETER_RANGE(ccNumber, 0, 127);
-    CS_ASSERT_PARAMETER_RANGE(value, 0, 127);
-    
-    // Handle channel pan CCs (32-39)
-    if (ccNumber >= ParamID::MIDI_CC::Ch0_Pan && ccNumber <= ParamID::MIDI_CC::Ch7_Pan)
-    {
-        int channel = ccNumber - ParamID::MIDI_CC::Ch0_Pan;
-        if (auto* param = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter(ParamID::Channel::pan(channel))))
-        {
-            // Normalize CC value (0-127) to parameter range (0.0-1.0)
-            float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
-            param->setValueNotifyingHost(normalizedValue);
-            
-            CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
-                " -> Channel " + juce::String(channel) + " Pan = " + juce::String(normalizedValue, 3));
-        }
-        return;
-    }
-    
-    auto it = ccToParameterMap.find(ccNumber);
-    if (it != ccToParameterMap.end() && it->second != nullptr)
-    {
-        // Normalize CC value (0-127) to parameter range (0.0-1.0)
-        float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
-        
-        // Update parameter (thread-safe)
-        it->second->setValueNotifyingHost(normalizedValue);
-        
-        CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
-            " -> " + it->second->name + " = " + juce::String(it->second->getValue()));
+    // DEPRECATED: Delegate to MidiProcessor
+    if (midiProcessor) {
+        midiProcessor->handleMidiCC(ccNumber, value);
     }
 }
 
 void YMulatorSynthAudioProcessor::handlePitchBend(int pitchBendValue)
+{
+    // DEPRECATED: Delegate to MidiProcessor
+    if (midiProcessor) {
+        midiProcessor->handlePitchBend(pitchBendValue);
+    }
+}
+
+void YMulatorSynthAudioProcessor::OLD_handlePitchBend(int pitchBendValue)
 {
     // Assert valid pitch bend range (14-bit value)
     CS_ASSERT_PARAMETER_RANGE(pitchBendValue, 0, 16383);
@@ -1228,23 +1142,10 @@ void YMulatorSynthAudioProcessor::setChannelRandomPan(int channel)
 
 void YMulatorSynthAudioProcessor::processMidiMessages(juce::MidiBuffer& midiMessages)
 {
-    // Debug MIDI events
-    if (!midiMessages.isEmpty()) {
-        CS_DBG(" Received " + juce::String(midiMessages.getNumEvents()) + " MIDI events");
-    }
-    
-    // Process MIDI events
-    for (const auto metadata : midiMessages) {
-        const auto message = metadata.getMessage();
-        
-        if (message.isNoteOn()) {
-            processMidiNoteOn(message);
-        } else if (message.isNoteOff()) {
-            processMidiNoteOff(message);
-        } else if (message.isController()) {
-            CS_DBG(" MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
-                ", Value: " + juce::String(message.getControllerValue()));
-            handleMidiCC(message.getControllerNumber(), message.getControllerValue());
+    // DEPRECATED: Now handled by MidiProcessor directly in processBlock
+    // This method is kept for backward compatibility but should not be called
+    CS_DBG("DEPRECATED processMidiMessages called - should use midiProcessor directly");
+}
         } else if (message.isPitchWheel()) {
             CS_DBG(" Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
             handlePitchBend(message.getPitchWheelValue());

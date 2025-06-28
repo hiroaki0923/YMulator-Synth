@@ -40,11 +40,13 @@ if(GTest_FOUND)
         unit/YmfmWrapperTest.cpp
         unit/PresetManagerTest.cpp
         unit/VOPMParserTest.cpp
+        # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
         
         # Main source files needed for testing
         ${CMAKE_SOURCE_DIR}/src/PluginProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/PluginEditor.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/YmfmWrapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/MidiProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp

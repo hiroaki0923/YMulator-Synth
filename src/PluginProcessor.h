@@ -5,6 +5,8 @@
 #include "dsp/YmfmWrapperInterface.h"
 #include "core/VoiceManager.h"
 #include "core/VoiceManagerInterface.h"
+#include "core/MidiProcessor.h"
+#include "core/MidiProcessorInterface.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
 #include <unordered_map>
@@ -21,6 +23,7 @@ public:
     // Dependency injection constructor (for testing)
     YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapper,
                                std::unique_ptr<VoiceManagerInterface> voiceManager,
+                               std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor,
                                std::unique_ptr<PresetManagerInterface> presetManager);
     
     ~YMulatorSynthAudioProcessor() override;
@@ -70,11 +73,11 @@ private:
     // Dependency injection - use interfaces for testability
     std::unique_ptr<YmfmWrapperInterface> ymfmWrapper;
     std::unique_ptr<VoiceManagerInterface> voiceManager;
+    std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor;
     std::unique_ptr<PresetManagerInterface> presetManager;
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
-    std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     std::atomic<int> parameterUpdateCounter{0};
     static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     int currentPreset = 0;
@@ -83,11 +86,10 @@ private:
     juce::String customPresetName = "Custom";
     bool userGestureInProgress = false;
     
-    // Pitch bend state
-    int currentPitchBend = 8192; // MIDI pitch bend center (0-16383)
-    
-    // Random pan state for each channel (used in RANDOM mode)
-    uint8_t channelRandomPanBits[8] = {0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0}; // Default to CENTER
+    // Legacy MIDI state (deprecated - TODO: remove after full migration)
+    std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
+    int currentPitchBend = 8192;
+    uint8_t channelRandomPanBits[8] = {0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0};
     
     // Methods
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -99,7 +101,7 @@ private:
     void loadPreset(const ymulatorsynth::Preset* preset);
     void applyGlobalPan(int channel);
     void applyGlobalPanToAllChannels();
-    void setChannelRandomPan(int channel); // Set new random pan for specific channel
+    void setChannelRandomPan(int channel);
     
     // Audio processing helper methods
     void processMidiMessages(juce::MidiBuffer& midiMessages);
