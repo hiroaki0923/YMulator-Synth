@@ -37,19 +37,9 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF
-    
-    - name: Build main project first (generates JUCE dependencies)
-      run: |
-        cd build
-        cmake --build . --parallel --config Debug
-    
-    - name: Reconfigure with testing enabled
-      run: |
-        cd build
         cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
     
-    - name: Build tests
+    - name: Build project and tests
       run: |
         cd build
         cmake --build . --parallel --config Debug

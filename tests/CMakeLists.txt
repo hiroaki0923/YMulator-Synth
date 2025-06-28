@@ -25,8 +25,11 @@ if(NOT GTest_FOUND AND APPLE)
 endif()
 
 if(GTest_FOUND)
-    # Test executable
-    add_executable(YMulatorSynthAU_Tests
+    # Check if JUCE binary data has been generated
+    set(JUCE_BINARY_DATA_FILE "${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode/BinaryData1.cpp")
+    
+    # Define test sources
+    set(TEST_SOURCES
         test_main.cpp
         mocks/MockAudioProcessorHost.cpp
         unit/PluginBasicTest.cpp
@@ -52,9 +55,6 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/AlgorithmDisplay.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/RotaryKnob.cpp
         
-        # Binary data
-        ${CMAKE_SOURCE_DIR}/build/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode/BinaryData1.cpp
-        
         # ymfm source files
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opn.cpp
@@ -65,13 +65,25 @@ if(GTest_FOUND)
         # Additional test files will be added here
     )
     
+    # Add JUCE binary data if it exists
+    if(EXISTS "${JUCE_BINARY_DATA_FILE}")
+        target_sources(YMulatorSynthAU_Tests PRIVATE "${JUCE_BINARY_DATA_FILE}")
+        message(STATUS "Added JUCE binary data file: ${JUCE_BINARY_DATA_FILE}")
+    else()
+        message(WARNING "JUCE binary data file not found: ${JUCE_BINARY_DATA_FILE}")
+        message(STATUS "Tests will be built without binary data - some UI tests may fail")
+    endif()
+    
+    # Test executable
+    add_executable(YMulatorSynthAU_Tests ${TEST_SOURCES})
+    
     target_include_directories(YMulatorSynthAU_Tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_SOURCE_DIR}/src
             ${CMAKE_SOURCE_DIR}/third_party/ymfm/src
-            ${CMAKE_SOURCE_DIR}/build/_deps/juce-src/modules
-            ${CMAKE_SOURCE_DIR}/build/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode
+            ${CMAKE_BINARY_DIR}/_deps/juce-src/modules
+            ${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulatorSynthAU_Resources/JuceLibraryCode
     )
     
     # Handle different GTest linking scenarios
