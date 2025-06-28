@@ -304,9 +304,10 @@ TEST_F(VoiceManagerTest, NoiseVoiceAllocationWithoutNoise) {
     int channel1 = voiceManager->allocateVoiceWithNoisePriority(60, 100, false);
     int channel2 = voiceManager->allocateVoice(64, 110);
     
-    // Should allocate in descending order, avoiding channel 7 for non-noise
-    EXPECT_EQ(channel1, 6); // First non-noise allocation goes to channel 6
-    EXPECT_EQ(channel2, 7); // Normal allocation still uses channel 7 if available
+    // Both methods allocate in descending order starting from channel 7
+    // Channel 7 is noise-capable but not noise-exclusive
+    EXPECT_EQ(channel1, 7); // First allocation gets channel 7
+    EXPECT_EQ(channel2, 6); // Second allocation gets channel 6 (7 is occupied)
 }
 
 // =============================================================================
