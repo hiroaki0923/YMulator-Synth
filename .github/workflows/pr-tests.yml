@@ -1,0 +1,79 @@
+name: Pull Request Tests
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'third_party/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/pr-tests.yml'
+  
+  # Allow manual triggering for testing workflow changes
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.22'
+    
+    - name: Install Google Test
+      run: |
+        brew install googletest
+    
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+    
+    - name: Build project and tests
+      run: |
+        cd build
+        cmake --build . --parallel --config Debug
+    
+    - name: Run unit tests
+      run: |
+        cd build
+        ctest --output-on-failure --timeout 300 --parallel 4
+      env:
+        CTEST_OUTPUT_ON_FAILURE: 1
+    
+    - name: Validate Audio Unit
+      run: |
+        cd build
+        # Kill any existing AudioComponentRegistrar processes
+        sudo killall -9 AudioComponentRegistrar 2>/dev/null || true
+        
+        # Wait a moment for cleanup
+        sleep 2
+        
+        # Run auval with timeout (macOS specific validation)
+        timeout 60 auval -v aumu YMul Hrki > auval_output.txt 2>&1 && echo "✅ auval PASSED" || echo "❌ auval FAILED"
+        
+        # Show auval results (first 50 lines to avoid spam)
+        echo "=== auval output (first 50 lines) ==="
+        head -50 auval_output.txt || true
+      continue-on-error: true  # Don't fail the workflow if auval has issues
+    
+    - name: Upload test results on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          build/Testing/
+          build/auval_output.txt
+        retention-days: 7
