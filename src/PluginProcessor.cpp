@@ -9,10 +9,11 @@ using namespace ymulatorsynth;
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-       parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout()),
+       parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), ymulatorsynth::ParameterManager::createParameterLayout()),
        ymfmWrapper(std::make_unique<YmfmWrapper>()),
        voiceManager(std::make_unique<VoiceManager>()),
        midiProcessor(nullptr), // Will be initialized after other components
+       parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this)),
        presetManager(std::make_unique<ymulatorsynth::PresetManager>())
 {
     // Clear debug log file on startup and test file creation
@@ -32,23 +33,20 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     
     CS_DBG(" Constructor called");
     
+    // Initialize ParameterManager with parameters
+    parameterManager->initializeParameters(parameters);
+    
     // Initialize MidiProcessor after other components are ready
-    midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters);
+    midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
     
     // Initialize preset manager
     presetManager->initialize();
     
-    // Load default preset (Init) before adding listener
+    // Load default preset (Init) 
     setCurrentPreset(7); // Init preset
     
     // Add parameter change listener through ValueTree after initial setup
     parameters.state.addListener(this);
-    
-    // Add parameter listeners for user-initiated changes
-    const auto& allParams = AudioProcessor::getParameters();
-    for (auto* param : allParams) {
-        param->addListener(this);
-    }
     
     CS_DBG(" Constructor completed - default preset: " + juce::String(currentPreset));
 }
@@ -56,16 +54,23 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWrapperInterface> ymfmWrapperPtr,
                                                         std::unique_ptr<VoiceManagerInterface> voiceManagerPtr,
                                                         std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessorPtr,
+                                                        std::unique_ptr<ymulatorsynth::ParameterManager> parameterManagerPtr,
                                                         std::unique_ptr<PresetManagerInterface> presetManagerPtr)
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-       parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), createParameterLayout()),
+       parameters(*this, nullptr, juce::Identifier("YMulatorSynth"), ymulatorsynth::ParameterManager::createParameterLayout()),
        ymfmWrapper(std::move(ymfmWrapperPtr)),
        voiceManager(std::move(voiceManagerPtr)),
        midiProcessor(std::move(midiProcessorPtr)),
+       parameterManager(std::move(parameterManagerPtr)),
        presetManager(std::move(presetManagerPtr))
 {
     CS_DBG(" Dependency injection constructor called");
+    
+    // Initialize ParameterManager with parameters
+    if (parameterManager) {
+        parameterManager->initializeParameters(parameters);
+    }
     
     // Initialize preset manager
     presetManager->initialize();
@@ -75,12 +80,6 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     
     // Add parameter change listener through ValueTree after initial setup
     parameters.state.addListener(this);
-    
-    // Add parameter listeners for user-initiated changes
-    const auto& allParams = AudioProcessor::getParameters();
-    for (auto* param : allParams) {
-        param->addListener(this);
-    }
     
     CS_DBG(" Dependency injection constructor completed - default preset: " + juce::String(currentPreset));
 }
@@ -125,12 +124,12 @@ double YMulatorSynthAudioProcessor::getTailLengthSeconds() const
 int YMulatorSynthAudioProcessor::getNumPrograms()
 {
     // Add 1 for custom preset if active
-    return presetManager->getNumPresets() + (isCustomPreset ? 1 : 0);
+    return presetManager->getNumPresets() + (isInCustomMode() ? 1 : 0);
 }
 
 int YMulatorSynthAudioProcessor::getCurrentProgram()
 {
-    if (isCustomPreset) {
+    if (isInCustomMode()) {
         return presetManager->getNumPresets(); // Custom preset index
     }
     return currentPreset;
@@ -139,17 +138,19 @@ int YMulatorSynthAudioProcessor::getCurrentProgram()
 void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
 {
     CS_DBG(" setCurrentProgram called with index: " + juce::String(index) + 
-        ", current isCustomPreset: " + juce::String(isCustomPreset ? "true" : "false"));
+        ", current isCustomPreset: " + juce::String(isInCustomMode() ? "true" : "false"));
     
     // Check if this is the custom preset index
-    if (index == presetManager->getNumPresets() && isCustomPreset) {
+    if (index == presetManager->getNumPresets() && isInCustomMode()) {
         // Stay in custom mode, don't change anything
         CS_DBG(" Staying in custom preset mode");
         return;
     }
     
     // Reset custom state and load factory preset
-    isCustomPreset = false;
+    if (parameterManager) {
+        parameterManager->setCustomMode(false);
+    }
     
     // Notify UI components of custom mode change
     parameters.state.setProperty("isCustomMode", false, nullptr);
@@ -187,8 +188,8 @@ void YMulatorSynthAudioProcessor::setCurrentProgram(int index)
 const juce::String YMulatorSynthAudioProcessor::getProgramName(int index)
 {
     // Handle custom preset case
-    if (index == presetManager->getNumPresets() && isCustomPreset) {
-        return customPresetName;
+    if (index == presetManager->getNumPresets() && isInCustomMode()) {
+        return getCustomPresetName();
     }
     
     if (index >= 0 && index < presetManager->getNumPresets())
@@ -285,12 +286,8 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Process all MIDI events through MidiProcessor
     midiProcessor->processMidiMessages(midiMessages);
     
-    // Update parameters periodically
-    if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER)
-    {
-        parameterUpdateCounter = 0;
-        updateYmfmParameters();
-    }
+    // Update parameters periodically (rate limiting handled by ParameterManager)
+    updateYmfmParameters();
     
     // Generate audio samples
     generateAudioSamples(buffer);
@@ -312,14 +309,14 @@ void YMulatorSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destDat
     
     // Add current preset number and custom state to state
     state.setProperty("currentPreset", currentPreset, nullptr);
-    state.setProperty("isCustomPreset", isCustomPreset, nullptr);
-    state.setProperty("customPresetName", customPresetName, nullptr);
+    state.setProperty("isCustomPreset", parameterManager->isInCustomMode(), nullptr);
+    state.setProperty("customPresetName", parameterManager->getCustomPresetName(), nullptr);
     
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
     
     CS_DBG(" State saved - preset: " + juce::String(currentPreset) + 
-        ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
+        ", custom: " + juce::String(isInCustomMode() ? "true" : "false"));
 }
 
 void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -338,21 +335,22 @@ void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int size
             
             // Restore preset number and custom state
             currentPreset = newState.getProperty("currentPreset", 0);
-            isCustomPreset = newState.getProperty("isCustomPreset", false);
-            customPresetName = newState.getProperty("customPresetName", "Custom");
+            bool customMode = newState.getProperty("isCustomPreset", false);
+            juce::String customName = newState.getProperty("customPresetName", "Custom");
+            parameterManager->setCustomMode(customMode, customName);
             
             CS_DBG(" State loaded - preset: " + juce::String(currentPreset) + 
-                ", custom: " + juce::String(isCustomPreset ? "true" : "false"));
+                ", custom: " + juce::String(customMode ? "true" : "false"));
             
             // Restore user data (imported OMP files and user presets) FIRST
             int restoredItems = presetManager->loadUserData();
             CS_DBG(" User data restored: " + juce::String(restoredItems) + " items, notifying UI of bank list changes");
             
             // THEN apply the preset (after banks are loaded)
-            if (!isCustomPreset && ymfmWrapper->isInitialized()) {
+            if (!isInCustomMode() && ymfmWrapper->isInitialized()) {
                 CS_DBG(" Applying preset after state restore");
                 setCurrentPreset(currentPreset);
-            } else if (!isCustomPreset) {
+            } else if (!isInCustomMode()) {
                 CS_DBG(" Deferring preset application until ymfm init");
                 needsPresetReapply = true;
             } else {
@@ -374,8 +372,14 @@ void YMulatorSynthAudioProcessor::setStateInformation(const void* data, int size
     }
 }
 
+// DEPRECATED: Moved to ParameterManager::createParameterLayout()
 juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor::createParameterLayout()
 {
+    // This method is deprecated - ParameterManager::createParameterLayout() should be used instead
+    return ymulatorsynth::ParameterManager::createParameterLayout();
+    
+    // OLD IMPLEMENTATION BELOW (to be removed):
+    /*
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
     // Global parameters
@@ -497,30 +501,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor:
     }
     
     return { params.begin(), params.end() };
+    */
 }
 
-void YMulatorSynthAudioProcessor::setupCCMapping()
-{
-    // DEPRECATED: This is now handled by MidiProcessor, but kept for backward compatibility
-    // The MidiProcessor setupCCMapping is called during its construction
-    CS_DBG("setupCCMapping called (deprecated - now handled by MidiProcessor)");
-}
-
-void YMulatorSynthAudioProcessor::handleMidiCC(int ccNumber, int value)
-{
-    // DEPRECATED: Delegate to MidiProcessor
-    if (midiProcessor) {
-        midiProcessor->handleMidiCC(ccNumber, value);
-    }
-}
-
-void YMulatorSynthAudioProcessor::handlePitchBend(int pitchBendValue)
-{
-    // DEPRECATED: Delegate to MidiProcessor
-    if (midiProcessor) {
-        midiProcessor->handlePitchBend(pitchBendValue);
-    }
-}
 
 
 void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
@@ -531,7 +514,7 @@ void YMulatorSynthAudioProcessor::setCurrentPreset(int index)
     if (index >= 0 && index < presetManager->getNumPresets())
     {
         currentPreset = index;
-        isCustomPreset = false; // Reset custom state when loading factory preset
+        if (parameterManager) parameterManager->setCustomMode(false); // Reset custom state when loading factory preset
         
         if (ymfmWrapper->isInitialized()) {
             loadPreset(index);
@@ -784,7 +767,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String
         CS_DBG("Successfully saved preset '" + presetName + "' to User bank");
         
         // Switch out of custom mode and to the newly saved preset
-        isCustomPreset = false;
+        if (parameterManager) parameterManager->setCustomMode(false);
         
         // Notify that preset list has been updated
         parameters.state.setProperty("presetListUpdated", juce::Random::getSystemRandom().nextInt(), nullptr);
@@ -831,7 +814,7 @@ void YMulatorSynthAudioProcessor::loadPreset(const ymulatorsynth::Preset* preset
         globalPanParam->setValueNotifyingHost(preservedGlobalPan);
         CS_DBG(" Restored global pan value: " + juce::String(preservedGlobalPan));
         // Skip applying pan if RANDOM mode - MidiProcessor will handle per-note random pan
-        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM)) {
             applyGlobalPanToAllChannels();
         }
     }
@@ -858,7 +841,7 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, floa
         // Apply to ALL channels, not just active ones
         // This is necessary because YM2151 mixes all channels, not just active ones
         // BUT: Skip if switching TO RANDOM mode - MidiProcessor will handle per-note random pan
-        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
+        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM)) {
             applyGlobalPanToAllChannels();
         }
         
@@ -868,9 +851,11 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, floa
     
     // Only switch to custom if not already in custom mode and gesture is in progress
     // Global pan changes are excluded from this logic
-    if (!isCustomPreset && userGestureInProgress) {
+    bool isInCustomMode = parameterManager ? parameterManager->isInCustomMode() : false;
+    bool userGestureInProgress = parameterManager ? parameterManager->isUserGestureInProgress() : false;
+    if (!isInCustomMode && userGestureInProgress) {
         CS_DBG(" Parameter changed by user gesture, switching to custom preset");
-        isCustomPreset = true;
+        if (parameterManager) parameterManager->setCustomMode(true);
         
         // Notify UI components of custom mode change
         parameters.state.setProperty("isCustomMode", true, nullptr);
@@ -886,7 +871,7 @@ void YMulatorSynthAudioProcessor::parameterGestureChanged(int parameterIndex, bo
 {
     juce::ignoreUnused(parameterIndex);
     
-    userGestureInProgress = gestureIsStarting;
+    if (parameterManager) parameterManager->setUserGestureInProgress(gestureIsStarting);
     CS_DBG(" User gesture " + juce::String(gestureIsStarting ? "started" : "ended"));
 }
 
@@ -900,120 +885,7 @@ void YMulatorSynthAudioProcessor::valueTreePropertyChanged(juce::ValueTree& tree
     CS_DBG(" ValueTree property changed: " + property.toString() + " (no custom state change)");
 }
 
-void YMulatorSynthAudioProcessor::updateYmfmParameters()
-{
-    // Check if ymfm is initialized
-    if (!ymfmWrapper->isInitialized()) {
-        CS_DBG(" updateYmfmParameters called before ymfm initialization");
-        return;
-    }
-    
-    // Get current parameter values
-    int algorithm = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Algorithm));
-    int feedback = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::Feedback));
-    
-    static int updateCounter = 0;
-    if (updateCounter++ % 100 == 0) {
-        CS_DBG(" updateYmfmParameters - Algorithm: " + juce::String(algorithm) + 
-            ", Feedback: " + juce::String(feedback));
-    }
-    
-    // Update parameters for all 8 channels to keep them in sync
-    for (int channel = 0; channel < 8; ++channel)
-    {
-        // Assert valid channel index
-        CS_ASSERT_CHANNEL(channel);
-        
-        // Update global parameters for each channel
-        ymfmWrapper->setAlgorithm(channel, algorithm);
-        ymfmWrapper->setFeedback(channel, feedback);
-        
-        // Update operator parameters
-        for (int op = 0; op < 4; ++op)
-        {
-            // Assert valid operator index
-            CS_ASSERT_OPERATOR(op);
-            
-            juce::String opId = "op" + juce::String(op + 1);
-            
-            int tl = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::tl(op + 1).c_str()));
-            int ar = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ar(op + 1).c_str()));
-            int d1r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1r(op + 1).c_str()));
-            int d2r = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d2r(op + 1).c_str()));
-            int rr = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::rr(op + 1).c_str()));
-            int d1l = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::d1l(op + 1).c_str()));
-            int ks = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::ks(op + 1).c_str()));
-            int mul = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::mul(op + 1).c_str()));
-            int dt1 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt1(op + 1).c_str()));
-            int dt2 = static_cast<int>(*parameters.getRawParameterValue(ParamID::Op::dt2(op + 1).c_str()));
-            
-            // Use optimized envelope setting for envelope parameters only
-            ymfmWrapper->setOperatorEnvelope(channel, op, ar, d1r, d2r, rr, d1l);
-            
-            // Set TL considering SLOT enable/disable state
-            bool slotEnabled = *parameters.getRawParameterValue(ParamID::Op::slot_en(op + 1).c_str()) >= 0.5f;
-            int effectiveTL = slotEnabled ? tl : 127; // Mute if slot disabled
-            ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::TotalLevel, effectiveTL);
-            ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::KeyScale, ks);
-            ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::Multiple, mul);
-            ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::Detune1, dt1);
-            ymfmWrapper->setOperatorParameter(channel, op, YmfmWrapperInterface::OperatorParameter::Detune2, dt2);
-        }
-        
-        // Update channel pan - BUT skip if GlobalPan is RANDOM (MidiProcessor handles it)
-        auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-        if (!globalPanParam || globalPanParam->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
-            float pan = *parameters.getRawParameterValue(ParamID::Channel::pan(channel).c_str());
-            CS_ASSERT_PAN_RANGE(pan);
-            ymfmWrapper->setChannelPan(channel, pan);
-            CS_FILE_DBG("updateYmfmParameters - Setting individual channel " + juce::String(channel) + " pan to " + juce::String(pan));
-        } else {
-            CS_FILE_DBG("updateYmfmParameters - SKIPPING individual channel pan (RANDOM mode active)");
-        }
-        
-        // Update channel AMS/PMS settings
-        int ams = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::ams(channel).c_str()));
-        int pms = static_cast<int>(*parameters.getRawParameterValue(ParamID::Channel::pms(channel).c_str()));
-        CS_ASSERT_PARAMETER_RANGE(ams, 0, 3);
-        CS_ASSERT_PARAMETER_RANGE(pms, 0, 7);
-        ymfmWrapper->setChannelAmsPms(channel, static_cast<uint8_t>(ams), static_cast<uint8_t>(pms));
-        
-    }
-    
-    // Update global LFO settings
-    int lfoRate = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoRate));
-    int lfoAmd = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoAmd));
-    int lfoPmd = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoPmd));
-    int lfoWaveform = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::LfoWaveform));
-    
-    CS_ASSERT_PARAMETER_RANGE(lfoRate, 0, 255);
-    CS_ASSERT_PARAMETER_RANGE(lfoAmd, 0, 127);
-    CS_ASSERT_PARAMETER_RANGE(lfoPmd, 0, 127);
-    CS_ASSERT_PARAMETER_RANGE(lfoWaveform, 0, 3);
-    
-    ymfmWrapper->setLfoParameters(static_cast<uint8_t>(lfoRate), static_cast<uint8_t>(lfoAmd), 
-                                  static_cast<uint8_t>(lfoPmd), static_cast<uint8_t>(lfoWaveform));
-    
-    // Update noise parameters
-    bool noiseEnable = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
-    int noiseFrequency = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::NoiseFrequency));
-    
-    CS_ASSERT_PARAMETER_RANGE(noiseFrequency, 0, 31);
-    
-    ymfmWrapper->setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFrequency));
-    
-    // CRITICAL: Apply global pan AFTER all other parameter updates
-    // This ensures global pan overrides individual channel pan settings
-    // BUT: Skip if GlobalPan is RANDOM - MidiProcessor handles per-note random pan
-    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    if (!panParam || panParam->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
-        CS_FILE_DBG("PluginProcessor::updateYmfmParameters - calling applyGlobalPanToAllChannels (pan mode: " + 
-                   juce::String(panParam ? panParam->getIndex() : -1) + ")");
-        applyGlobalPanToAllChannels();
-    } else {
-        CS_FILE_DBG("PluginProcessor::updateYmfmParameters - SKIPPING applyGlobalPanToAllChannels (RANDOM mode active)");
-    }
-}
+// updateYmfmParameters method moved to ParameterManager
 
 juce::StringArray YMulatorSynthAudioProcessor::getBankNames() const
 {
@@ -1044,90 +916,7 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
     }
 }
 
-void YMulatorSynthAudioProcessor::applyGlobalPan(int channel)
-{
-    CS_ASSERT_CHANNEL(channel);
-    
-    // LIGHTWEIGHT DEBUG - only for important info
-    // CS_DBG("=== applyGlobalPan called for channel " + juce::String(channel) + " ===");
-    
-    // 現在のレジスタ値を読み取り（他のビットを保持）
-    uint8_t currentReg = ymfmWrapper->readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
-    uint8_t otherBits = currentReg & YM2151Regs::PRESERVE_ALG_FB;  // パン以外のビット
-    
-    // CS_DBG("Current register value: 0x" + juce::String::toHexString(currentReg) + 
-    //             ", other bits: 0x" + juce::String::toHexString(otherBits));
-    
-    // グローバルパン設定を取得
-    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    int panIndex = panParam ? panParam->getIndex() : 1; // デフォルトはCenter
-    auto panChoice = static_cast<GlobalPanPosition>(panIndex);
-    uint8_t panBits;
-    
-    // CS_DBG("Pan parameter index: " + juce::String(panIndex) + 
-    //             ", pan choice: " + juce::String(static_cast<int>(panChoice)));
-    
-    switch(panChoice) {
-        case GlobalPanPosition::LEFT:   
-            panBits = YM2151Regs::PAN_LEFT_ONLY;
-            CS_DBG("Setting LEFT pan (0x" + juce::String::toHexString(panBits) + ")");
-            break;
-        case GlobalPanPosition::CENTER: 
-            panBits = YM2151Regs::PAN_CENTER;
-            CS_DBG("Setting CENTER pan (0x" + juce::String::toHexString(panBits) + ")");
-            break;
-        case GlobalPanPosition::RIGHT:  
-            panBits = YM2151Regs::PAN_RIGHT_ONLY;
-            CS_DBG("Setting RIGHT pan (0x" + juce::String::toHexString(panBits) + ")");
-            break;
-        case GlobalPanPosition::RANDOM:
-            // Use the stored random pan value for this channel
-            panBits = channelRandomPanBits[channel];
-            break;
-    }
-    
-    uint8_t finalRegValue = otherBits | panBits;
-    // CS_DBG("Writing to register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
-    //             " value: 0x" + juce::String::toHexString(finalRegValue));
-    
-    // YM2151に書き込み
-    ymfmWrapper->writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, finalRegValue);
-    
-    // IMMEDIATE VERIFICATION: Read back the register to confirm it was written correctly
-    // DISABLED FOR PERFORMANCE
-    // uint8_t verifyReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
-    // CS_FILE_DBG("VERIFY: Register 0x" + juce::String::toHexString(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel) + 
-    //             " now reads: 0x" + juce::String::toHexString(verifyReg));
-    // if ((verifyReg & YM2151Regs::MASK_PAN_LR) != panBits) {
-    //     CS_FILE_DBG("ERROR: Pan bits verification failed! Expected: 0x" + juce::String::toHexString(panBits) + 
-    //                 ", Got: 0x" + juce::String::toHexString(verifyReg & YM2151Regs::MASK_PAN_LR));
-    // }
-    
-    // CS_FILE_DBG("Applied global pan to channel " + juce::String(channel) + 
-    //             ", pan bits: 0x" + juce::String::toHexString(panBits));
-}
-
-void YMulatorSynthAudioProcessor::applyGlobalPanToAllChannels()
-{
-    // CS_FILE_DBG("=== Applying global pan to ALL 8 channels ===");
-    
-    // Apply global pan to all 8 YM2151 channels
-    for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
-        applyGlobalPan(channel);
-    }
-    
-    // CS_FILE_DBG("Global pan applied to all channels");
-}
-
-void YMulatorSynthAudioProcessor::setChannelRandomPan(int channel)
-{
-    CS_ASSERT_CHANNEL(channel);
-    
-    // Generate new random pan value for this channel
-    int r = juce::Random::getSystemRandom().nextInt(3);
-    channelRandomPanBits[channel] = (r == 0) ? YM2151Regs::PAN_LEFT_ONLY : 
-                                   (r == 1) ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_CENTER;
-}
+// applyGlobalPan, applyGlobalPanToAllChannels, setChannelRandomPan methods moved to ParameterManager
 
 void YMulatorSynthAudioProcessor::processMidiMessages(juce::MidiBuffer& midiMessages)
 {
@@ -1211,152 +1000,11 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
     }
 }
 
-void YMulatorSynthAudioProcessor::setupParameterListeners(bool enable)
-{
-    if (enable) {
-        // Re-add all listeners
-        parameters.state.addListener(this);
-        const auto& allParams = AudioProcessor::getParameters();
-        for (auto* param : allParams) {
-            param->addListener(this);
-        }
-    } else {
-        // Remove all listeners
-        parameters.state.removeListener(this);
-        const auto& allParams = AudioProcessor::getParameters();
-        for (auto* param : allParams) {
-            param->removeListener(this);
-        }
-    }
-}
+// setupParameterListeners method moved to ParameterManager
 
-void YMulatorSynthAudioProcessor::loadPresetParameters(const ymulatorsynth::Preset* preset, float& preservedGlobalPan)
-{
-    // Preserve current global pan setting before loading preset
-    if (auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan)) {
-        preservedGlobalPan = globalPanParam->getValue();
-        CS_DBG(" Preserving global pan value: " + juce::String(preservedGlobalPan));
-    }
-    
-    // Set global parameters with UI notification
-    if (auto* algorithmParam = parameters.getParameter(ParamID::Global::Algorithm)) {
-        algorithmParam->setValueNotifyingHost(algorithmParam->convertTo0to1(preset->algorithm));
-    }
-    if (auto* feedbackParam = parameters.getParameter(ParamID::Global::Feedback)) {
-        feedbackParam->setValueNotifyingHost(feedbackParam->convertTo0to1(preset->feedback));
-    }
-    
-    // Set LFO parameters with UI notification
-    if (auto* lfoRateParam = parameters.getParameter(ParamID::Global::LfoRate)) {
-        lfoRateParam->setValueNotifyingHost(lfoRateParam->convertTo0to1(preset->lfo.rate));
-    }
-    if (auto* lfoAmdParam = parameters.getParameter(ParamID::Global::LfoAmd)) {
-        lfoAmdParam->setValueNotifyingHost(lfoAmdParam->convertTo0to1(preset->lfo.amd));
-    }
-    if (auto* lfoPmdParam = parameters.getParameter(ParamID::Global::LfoPmd)) {
-        lfoPmdParam->setValueNotifyingHost(lfoPmdParam->convertTo0to1(preset->lfo.pmd));
-    }
-    if (auto* lfoWaveformParam = parameters.getParameter(ParamID::Global::LfoWaveform)) {
-        lfoWaveformParam->setValueNotifyingHost(lfoWaveformParam->convertTo0to1(preset->lfo.waveform));
-    }
-    
-    // Set noise parameters with UI notification
-    if (auto* noiseEnableParam = parameters.getParameter(ParamID::Global::NoiseEnable)) {
-        noiseEnableParam->setValueNotifyingHost(preset->channels[0].noiseEnable > 0 ? 1.0f : 0.0f);
-    }
-    if (auto* noiseFreqParam = parameters.getParameter(ParamID::Global::NoiseFrequency)) {
-        noiseFreqParam->setValueNotifyingHost(noiseFreqParam->convertTo0to1(preset->lfo.noiseFreq));
-    }
-    
-    // Set channel AMS/PMS parameters with UI notification
-    for (int ch = 0; ch < 8; ++ch) {
-        if (auto* amsParam = parameters.getParameter(ParamID::Channel::ams(ch))) {
-            amsParam->setValueNotifyingHost(amsParam->convertTo0to1(preset->channels[ch].ams));
-        }
-        if (auto* pmsParam = parameters.getParameter(ParamID::Channel::pms(ch))) {
-            pmsParam->setValueNotifyingHost(pmsParam->convertTo0to1(preset->channels[ch].pms));
-        }
-    }
-    
-    // Set operator parameters with UI notification
-    for (int op = 0; op < 4; ++op)
-    {
-        const auto& opData = preset->operators[op];
-        
-        if (auto* param = parameters.getParameter(ParamID::Op::ar(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.attackRate)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::d1r(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay1Rate)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::d2r(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.decay2Rate)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::rr(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.releaseRate)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::d1l(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.sustainLevel)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::tl(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.totalLevel)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::ks(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.keyScale)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::mul(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.multiple)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::dt1(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune1)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::dt2(op + 1))) {
-            param->setValueNotifyingHost(param->convertTo0to1(static_cast<int>(opData.detune2)));
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::ams_en(op + 1))) {
-            param->setValueNotifyingHost(preset->operators[op].amsEnable ? 1.0f : 0.0f);
-        }
-        if (auto* param = parameters.getParameter(ParamID::Op::slot_en(op + 1))) {
-            param->setValueNotifyingHost(preset->operators[op].slotEnable ? 1.0f : 0.0f);
-        }
-    }
-}
+// loadPresetParameters method moved to ParameterManager
 
-void YMulatorSynthAudioProcessor::applyPresetToYmfm(const ymulatorsynth::Preset* preset)
-{
-    // Use optimized batch update for preset loading (more efficient than updateYmfmParameters)
-    if (ymfmWrapper->isInitialized()) {
-        // Prepare batch parameter data for all channels
-        for (int channel = 0; channel < 8; ++channel) {
-            std::array<std::array<uint8_t, 10>, 4> operatorParams;
-            
-            for (int op = 0; op < 4; ++op) {
-                operatorParams[op][0] = static_cast<uint8_t>(preset->operators[op].totalLevel);
-                operatorParams[op][1] = static_cast<uint8_t>(preset->operators[op].attackRate);
-                operatorParams[op][2] = static_cast<uint8_t>(preset->operators[op].decay1Rate);
-                operatorParams[op][3] = static_cast<uint8_t>(preset->operators[op].decay2Rate);
-                operatorParams[op][4] = static_cast<uint8_t>(preset->operators[op].releaseRate);
-                operatorParams[op][5] = static_cast<uint8_t>(preset->operators[op].sustainLevel);
-                operatorParams[op][6] = static_cast<uint8_t>(preset->operators[op].keyScale);
-                operatorParams[op][7] = static_cast<uint8_t>(preset->operators[op].multiple);
-                operatorParams[op][8] = static_cast<uint8_t>(preset->operators[op].detune1);
-                operatorParams[op][9] = static_cast<uint8_t>(preset->operators[op].detune2);
-            }
-            
-            // Batch update entire channel at once
-            ymfmWrapper->batchUpdateChannelParameters(channel, preset->algorithm, preset->feedback, operatorParams);
-        }
-        
-        // Update LFO and other global settings
-        updateYmfmParameters();
-        
-        CS_DBG(" Optimized batch preset loading complete");
-    } else {
-        // Fallback to standard update if ymfm not initialized
-        updateYmfmParameters();
-        CS_DBG(" Standard preset loading complete (ymfm not initialized)");
-    }
-}
+// applyPresetToYmfm method moved to ParameterManager
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {

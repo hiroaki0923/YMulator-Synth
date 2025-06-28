@@ -1,14 +1,17 @@
 #include "MidiProcessor.h"
-#include "dsp/YM2151Registers.h"
+#include "ParameterManager.h"
+#include "../dsp/YM2151Registers.h"
 
 namespace ymulatorsynth {
 
 MidiProcessor::MidiProcessor(VoiceManagerInterface& voiceManager,
                            YmfmWrapperInterface& ymfmWrapper,
-                           juce::AudioProcessorValueTreeState& parameters)
+                           juce::AudioProcessorValueTreeState& parameters,
+                           ParameterManager& parameterManager)
     : voiceManager(voiceManager)
     , ymfmWrapper(ymfmWrapper)
     , parameters(parameters)
+    , parameterManager(parameterManager)
 {
     setupCCMapping();
 }
@@ -206,87 +209,14 @@ void MidiProcessor::setupCCMapping()
 
 void MidiProcessor::setChannelRandomPan(int channel)
 {
-    CS_ASSERT_CHANNEL(channel);
-    
-    // Generate random pan bits for this channel (0=Left, 1=Center, 2=Right)
-    channelRandomPanBits[channel] = static_cast<uint8_t>(juce::Random::getSystemRandom().nextInt(3));
-    
-    CS_FILE_DBG(" Channel " + juce::String(channel) + " random pan set to: " + 
-        juce::String(channelRandomPanBits[channel]));
+    // Delegate to ParameterManager for consistent random pan handling
+    parameterManager.setChannelRandomPan(channel);
 }
 
 void MidiProcessor::applyGlobalPan(int channel)
 {
-    CS_ASSERT_CHANNEL(channel);
-    
-    CS_FILE_DBG("MidiProcessor::applyGlobalPan called for channel " + juce::String(channel));
-    
-    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    if (!panParam) {
-        // CS_FILE_DBG("ERROR: GlobalPan parameter not found!");
-        return;
-    }
-    
-    int globalPanIndex = panParam->getIndex();
-    uint8_t panValue = 0xC0; // Default: both L and R enabled (center)
-    
-    CS_FILE_DBG("Global pan index: " + juce::String(globalPanIndex));
-    
-    switch (static_cast<GlobalPanPosition>(globalPanIndex)) {
-        case GlobalPanPosition::LEFT:
-            panValue = YM2151Regs::PAN_LEFT_ONLY;  // 0x40: Only left channel (L=1, R=0)
-            // CS_FILE_DBG("Setting LEFT pan: 0x" + juce::String::toHexString(panValue));
-            break;
-        case GlobalPanPosition::CENTER:
-            panValue = YM2151Regs::PAN_CENTER;     // 0xC0: Both channels (L=1, R=1)
-            // CS_FILE_DBG("Setting CENTER pan: 0x" + juce::String::toHexString(panValue));
-            break;
-        case GlobalPanPosition::RIGHT:
-            panValue = YM2151Regs::PAN_RIGHT_ONLY; // 0x80: Only right channel (L=0, R=1)
-            // CS_FILE_DBG("Setting RIGHT pan: 0x" + juce::String::toHexString(panValue));
-            break;
-        case GlobalPanPosition::RANDOM:
-            // Use the pre-generated random pan bits for this channel
-            CS_FILE_DBG("RANDOM: Channel " + juce::String(channel) + " using stored value " + juce::String(channelRandomPanBits[channel]));
-            switch (channelRandomPanBits[channel]) {
-                case 0: 
-                    panValue = YM2151Regs::PAN_LEFT_ONLY; 
-                    CS_FILE_DBG("RANDOM: Setting LEFT (0x40)");
-                    break;  // Left: 0x40
-                case 1: 
-                    panValue = YM2151Regs::PAN_CENTER; 
-                    CS_FILE_DBG("RANDOM: Setting CENTER (0xC0)");
-                    break;     // Center: 0xC0
-                case 2: 
-                    panValue = YM2151Regs::PAN_RIGHT_ONLY; 
-                    CS_FILE_DBG("RANDOM: Setting RIGHT (0x80)");
-                    break; // Right: 0x80
-                default:
-                    panValue = YM2151Regs::PAN_CENTER;
-                    CS_FILE_DBG("RANDOM: Invalid value " + juce::String(channelRandomPanBits[channel]) + ", defaulting to CENTER");
-                    break;
-            }
-            break;
-    }
-    
-    // Apply pan to the YM2151 channel
-    // Convert register bits to normalized float (0.0-1.0) for YmfmWrapper interface
-    float normalizedPan;
-    if (panValue == YM2151Regs::PAN_LEFT_ONLY) {
-        normalizedPan = 0.0f;  // Left
-    } else if (panValue == YM2151Regs::PAN_RIGHT_ONLY) {
-        normalizedPan = 1.0f;  // Right  
-    } else {
-        normalizedPan = 0.5f;  // Center
-    }
-    
-    CS_FILE_DBG("MidiProcessor::applyGlobalPan - Converting pan bits 0x" + juce::String::toHexString(panValue) + 
-        " to normalized value " + juce::String(normalizedPan));
-    CS_FILE_DBG("MidiProcessor::applyGlobalPan - Calling ymfmWrapper.setChannelPan(" + juce::String(channel) + ", " + juce::String(normalizedPan) + ")");
-    ymfmWrapper.setChannelPan(channel, normalizedPan);
-    
-    // CS_FILE_DBG(" Applied global pan to channel " + juce::String(channel) + 
-    //     ": 0x" + juce::String::toHexString(panValue));
+    // Delegate to ParameterManager for consistent pan handling
+    parameterManager.applyGlobalPan(channel);
 }
 
 bool MidiProcessor::currentPresetNeedsNoise() const

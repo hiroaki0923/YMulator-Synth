@@ -12,6 +12,9 @@
 
 namespace ymulatorsynth {
 
+// Forward declaration
+class ParameterManager;
+
 /**
  * Handles MIDI message processing and routing for YMulator-Synth.
  * 
@@ -31,10 +34,12 @@ public:
      * @param voiceManager Voice management interface for note allocation
      * @param ymfmWrapper FM synthesis interface for sound generation
      * @param parameters JUCE parameter tree for CC mapping
+     * @param parameterManager Parameter management for pan operations
      */
     MidiProcessor(VoiceManagerInterface& voiceManager,
                  YmfmWrapperInterface& ymfmWrapper,
-                 juce::AudioProcessorValueTreeState& parameters);
+                 juce::AudioProcessorValueTreeState& parameters,
+                 ParameterManager& parameterManager);
     
     virtual ~MidiProcessor() = default;
     
@@ -63,15 +68,13 @@ private:
     VoiceManagerInterface& voiceManager;
     YmfmWrapperInterface& ymfmWrapper;
     juce::AudioProcessorValueTreeState& parameters;
+    ParameterManager& parameterManager;
     
     // MIDI CC to parameter mapping (VOPMex compatibility)
     std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     
     // Current pitch bend value (0-16383, center=8192)
     std::atomic<int> currentPitchBend{8192};
-    
-    // Channel random pan bits for randomization
-    uint8_t channelRandomPanBits[8] = {0};
     
     /**
      * Check if current preset requires noise for voice allocation priority.
