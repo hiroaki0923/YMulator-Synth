@@ -154,27 +154,39 @@ TEST_F(MainComponentTest, PresetUIInitialState) {
 // Global Controls Tests
 // =============================================================================
 
-TEST_F(MainComponentTest, GlobalControlsExist) {
+// Helper function to recursively count UI components
+std::pair<int, int> countUIComponents(juce::Component* component) {
     int comboBoxCount = 0;
     int sliderCount = 0;
     
-    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
-        auto* child = mainComponent->getChildComponent(i);
-        
-        if (dynamic_cast<juce::ComboBox*>(child) != nullptr) {
-            comboBoxCount++;
-        }
-        
-        if (dynamic_cast<juce::Slider*>(child) != nullptr) {
-            sliderCount++;
-        }
+    // Check if this component itself is a ComboBox or Slider
+    if (dynamic_cast<juce::ComboBox*>(component) != nullptr) {
+        comboBoxCount++;
+    }
+    if (dynamic_cast<juce::Slider*>(component) != nullptr) {
+        sliderCount++;
     }
     
+    // Recursively check child components
+    for (int i = 0; i < component->getNumChildComponents(); ++i) {
+        auto childCounts = countUIComponents(component->getChildComponent(i));
+        comboBoxCount += childCounts.first;
+        sliderCount += childCounts.second;
+    }
+    
+    return {comboBoxCount, sliderCount};
+}
+
+TEST_F(MainComponentTest, GlobalControlsExist) {
+    auto counts = countUIComponents(mainComponent.get());
+    int comboBoxCount = counts.first;
+    int sliderCount = counts.second;
+    
     // Should have multiple ComboBoxes (algorithm, global pan, LFO waveform, bank, preset)
-    EXPECT_GE(comboBoxCount, 4) << "Should have multiple ComboBoxes";
+    EXPECT_GE(comboBoxCount, 4) << "Should have multiple ComboBoxes, found: " << comboBoxCount;
     
     // Should have multiple sliders/knobs
-    EXPECT_GT(sliderCount, 0) << "Should have sliders/knobs for controls";
+    EXPECT_GT(sliderCount, 0) << "Should have sliders/knobs for controls, found: " << sliderCount;
 }
 
 // =============================================================================

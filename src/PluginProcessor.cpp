@@ -129,25 +129,30 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     juce::ignoreUnused(samplesPerBlock);
     
+    CS_DBG("prepareToPlay called - sampleRate: " + juce::String(sampleRate) + 
+           ", samplesPerBlock: " + juce::String(samplesPerBlock));
+    
     // Initialize ymfm wrapper with OPM for now (only if needed)
     uint32_t currentSampleRate = static_cast<uint32_t>(sampleRate);
     if (!g_ymfmInitialized || g_lastSampleRate != currentSampleRate) {
+        CS_DBG("Initializing ymfm - sampleRate: " + juce::String(currentSampleRate));
         ymfmWrapper->initialize(YmfmWrapperInterface::ChipType::OPM, currentSampleRate);
         g_ymfmInitialized = true;
         g_lastSampleRate = currentSampleRate;
         
         // Apply initial parameters only when truly initializing
         updateYmfmParameters();
+        CS_DBG("Initial parameters applied");
     }
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
         loadPreset(getCurrentProgram());
         needsPresetReapply = false;
-        CS_DBG(" Applied deferred preset " + juce::String(getCurrentProgram()));
+        CS_DBG("Applied deferred preset " + juce::String(getCurrentProgram()));
     }
     
-    CS_DBG(" ymfm initialization complete");
+    CS_DBG("ymfm initialization complete");
 }
 
 void YMulatorSynthAudioProcessor::releaseResources()
