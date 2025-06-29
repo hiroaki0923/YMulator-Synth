@@ -7,32 +7,74 @@
 MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     : audioProcessor(processor)
 {
+    CS_FILE_DBG("MainComponent constructor started");
+    
     setupLfoControls();
+    CS_FILE_DBG("MainComponent: LFO controls setup complete");
+    
     setupOperatorPanels();
+    CS_FILE_DBG("MainComponent: Operator panels setup complete");
+    
     setupDisplayComponents();
+    CS_FILE_DBG("MainComponent: Display components setup complete");
     
     // Setup global controls panel
     globalControlsPanel = std::make_unique<GlobalControlsPanel>(processor);
     addAndMakeVisible(*globalControlsPanel);
+    CS_FILE_DBG("MainComponent: Global controls panel setup complete");
     
     // Setup preset UI manager
     presetUIManager = std::make_unique<PresetUIManager>(processor);
     addAndMakeVisible(*presetUIManager);
+    CS_FILE_DBG("MainComponent: Preset UI manager setup complete");
     
     // PresetUIManager handles its own ValueTree listening
     
     setSize(1000, 635);  // Original height + menu bar
+    
+    CS_FILE_DBG("MainComponent constructor completed successfully");
 }
 
 MainComponent::~MainComponent()
 {
+    CS_FILE_DBG("MainComponent destructor started");
+    
     // Explicitly reset child components to ensure proper cleanup order
+    CS_FILE_DBG("MainComponent: Resetting preset UI manager...");
     presetUIManager.reset();
+    
+    CS_FILE_DBG("MainComponent: Resetting global controls panel...");
     globalControlsPanel.reset();
+    
+    CS_FILE_DBG("MainComponent destructor completed");
 }
 
 void MainComponent::paint(juce::Graphics& g)
 {
+    CS_FILE_DBG("MainComponent::paint called - bounds: " + getLocalBounds().toString() + 
+                ", isVisible: " + juce::String(isVisible() ? "true" : "false") + 
+                ", isShowing: " + juce::String(isShowing() ? "true" : "false"));
+    
+    // Debug: Check if key child components are visible
+    int visibleChildren = 0;
+    int totalChildren = getNumChildComponents();
+    for (int i = 0; i < totalChildren; ++i) {
+        if (getChildComponent(i) && getChildComponent(i)->isVisible()) {
+            visibleChildren++;
+        }
+    }
+    CS_FILE_DBG("MainComponent child components - total: " + juce::String(totalChildren) + ", visible: " + juce::String(visibleChildren));
+    
+    // Debug: Check specific key components
+    if (presetUIManager) {
+        CS_FILE_DBG("PresetUIManager - visible: " + juce::String(presetUIManager->isVisible() ? "true" : "false") + 
+                    ", bounds: " + presetUIManager->getBounds().toString());
+    }
+    if (globalControlsPanel) {
+        CS_FILE_DBG("GlobalControlsPanel - visible: " + juce::String(globalControlsPanel->isVisible() ? "true" : "false") + 
+                    ", bounds: " + globalControlsPanel->getBounds().toString());
+    }
+    
     // Dark blue-gray background similar to VOPM
     g.fillAll(juce::Colour(0xff2d3748));
     
@@ -40,11 +82,15 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff4a5568));
     g.drawHorizontalLine(60, 0.0f, static_cast<float>(getWidth()));  // After global controls  
     g.drawHorizontalLine(135, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section
+    
+    CS_FILE_DBG("MainComponent::paint completed");
 }
 
 void MainComponent::resized()
 {
+    CS_FILE_DBG("MainComponent::resized called");
     auto bounds = getLocalBounds();
+    CS_FILE_DBG("MainComponent::resized bounds: " + bounds.toString());
     // Top area for global controls (compact layout without menu space)
     auto topArea = bounds.removeFromTop(60);
     
@@ -142,6 +188,8 @@ void MainComponent::resized()
                                     panelWidth, 
                                     panelHeight);
     }
+    
+    CS_FILE_DBG("MainComponent::resized completed");
 }
 
 

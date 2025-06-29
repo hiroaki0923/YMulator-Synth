@@ -145,11 +145,19 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     CS_FILE_DBG("samplesPerBlock: " + juce::String(samplesPerBlock));
     CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
     
-    // Initialize ymfm wrapper with OPM for now
-    ymfmWrapper->initialize(YmfmWrapperInterface::ChipType::OPM, static_cast<uint32_t>(sampleRate));
+    // Initialize ymfm wrapper with OPM for now (only if needed)
+    static bool ymfmInitialized = false;
+    static uint32_t lastSampleRate = 0;
     
-    // Apply initial parameters from current preset
-    updateYmfmParameters();
+    uint32_t currentSampleRate = static_cast<uint32_t>(sampleRate);
+    if (!ymfmInitialized || lastSampleRate != currentSampleRate) {
+        ymfmWrapper->initialize(YmfmWrapperInterface::ChipType::OPM, currentSampleRate);
+        ymfmInitialized = true;
+        lastSampleRate = currentSampleRate;
+        
+        // Apply initial parameters only when truly initializing
+        updateYmfmParameters();
+    }
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
@@ -521,13 +529,8 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, floa
         CS_DBG(" Parameter changed by user gesture, switching to custom preset");
         if (parameterManager) parameterManager->setCustomMode(true);
         
-        // Notify UI components of custom mode change
-        parameters.state.setProperty("isCustomMode", true, nullptr);
-        
-        // Update host display on message thread
-        juce::MessageManager::callAsync([this]() {
-            updateHostDisplay();
-        });
+        // Note: UI notifications removed to prevent audio thread → Message Thread violations
+        // Custom mode changes will be detected by UI through parameter listening
     }
 }
 

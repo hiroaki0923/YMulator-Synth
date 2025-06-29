@@ -46,14 +46,14 @@ void PanProcessor::applyGlobalPan(int channel, float globalPanValue)
     
     ymfmWrapper.setChannelPan(channel, panValue);
     
-    CS_FILE_DBG("applyGlobalPan - Channel " + juce::String(channel) + 
-                " pan mode " + juce::String(static_cast<int>(position)) + 
-                " value " + juce::String(panValue, 3));
+    // CS_FILE_DBG("applyGlobalPan - Channel " + juce::String(channel) + 
+    //            " pan mode " + juce::String(static_cast<int>(position)) + 
+    //            " value " + juce::String(panValue, 3));
 }
 
 void PanProcessor::applyGlobalPanToAllChannels(float globalPanValue)
 {
-    CS_FILE_DBG("applyGlobalPanToAllChannels - Applying to all 8 channels");
+    // CS_FILE_DBG("applyGlobalPanToAllChannels - Applying to all 8 channels");
     
     for (int channel = 0; channel < 8; ++channel) {
         applyGlobalPan(channel, globalPanValue);

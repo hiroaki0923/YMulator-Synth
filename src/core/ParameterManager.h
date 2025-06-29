@@ -187,11 +187,6 @@ public:
     juce::AudioProcessorValueTreeState& getParameters() { return *parametersPtr; }
     const juce::AudioProcessorValueTreeState& getParameters() const { return *parametersPtr; }
     
-    /**
-     * Get parameter update counter for debugging
-     * @return Current parameter update counter value
-     */
-    int getParameterUpdateCounter() const { return parameterUpdateCounter.load(); }
     
 private:
     // =========================================================================
@@ -207,9 +202,6 @@ private:
     // Parameter Management State
     // =========================================================================
     
-    /// Rate limiting for parameter updates in audio thread
-    std::atomic<int> parameterUpdateCounter{0};
-    static constexpr int PARAMETER_UPDATE_RATE_DIVIDER = 8;
     
     /// Custom preset detection and management
     bool isCustomPreset = false;

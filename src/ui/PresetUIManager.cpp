@@ -12,13 +12,12 @@ PresetUIManager::PresetUIManager(YMulatorSynthAudioProcessor& processor)
     // Listen for parameter state changes relevant to presets
     audioProcessor.getParameters().state.addListener(this);
     
-    // Initialize bank and preset displays
-    juce::MessageManager::callAsync([this]() {
-        updateBankComboBox();
-        updatePresetComboBox();
-    });
+    // Initialize bank and preset displays immediately (synchronous)
+    // No need for async since this is construction time
+    updateBankComboBox();
+    updatePresetComboBox();
     
-    CS_DBG("PresetUIManager created");
+    CS_FILE_DBG("PresetUIManager created");
 }
 
 PresetUIManager::~PresetUIManager()
@@ -29,7 +28,7 @@ PresetUIManager::~PresetUIManager()
     } catch (...) {
         // Ignore exceptions during destruction
     }
-    CS_DBG("PresetUIManager destroyed");
+    CS_FILE_DBG("PresetUIManager destroyed");
 }
 
 void PresetUIManager::paint(juce::Graphics& g)
@@ -81,33 +80,15 @@ void PresetUIManager::valueTreePropertyChanged(juce::ValueTree& treeWhosePropert
     
     const auto propertyName = property.toString();
     
-    // Special handling for preset index changes from DAW
-    if (propertyName == "presetIndexChanged") {
-        juce::MessageManager::callAsync([this]() {
-            updateBankComboBox();
-            updatePresetComboBox();
-        });
-        return;
-    }
-    
-    // Special handling for bank list changes (after DAW project load)
-    if (propertyName == "bankListUpdated") {
-        CS_DBG("PresetUIManager received bankListUpdated notification");
-        juce::MessageManager::callAsync([this]() {
-            updateBankComboBox();
-            updatePresetComboBox();
-        });
-        return;
-    }
-    
     // Define preset-relevant properties that should trigger UI updates
     static const std::set<std::string> presetRelevantProperties = {
         "presetIndex",
-        "isCustomMode",
+        "isCustomMode", 
         "currentBankIndex",
         "currentPresetInBank",
         "presetListUpdated",
-        "bankListUpdated"
+        "bankListUpdated",
+        "presetIndexChanged"
     };
     
     // Filter out properties that don't affect preset display
@@ -115,11 +96,39 @@ void PresetUIManager::valueTreePropertyChanged(juce::ValueTree& treeWhosePropert
         return;
     }
     
-    // This is a preset-relevant property change - update the preset UI
-    juce::MessageManager::callAsync([this]() {
+    // Special handling for bank list changes
+    if (propertyName == "bankListUpdated") {
+        CS_FILE_DBG("PresetUIManager received bankListUpdated notification");
+    }
+    
+    // Prevent multiple UI updates from being scheduled simultaneously
+    bool expectedValue = false;
+    if (!uiUpdateScheduled.compare_exchange_strong(expectedValue, true)) {
+        CS_FILE_DBG("PresetUIManager: UI update already scheduled, skipping duplicate");
+        return;
+    }
+    
+    CS_FILE_DBG("PresetUIManager: Scheduling UI update for property: " + propertyName);
+    
+    // Check if we're on the Message Thread before scheduling UI updates
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread()) {
+        CS_FILE_DBG("PresetUIManager: Executing immediate UI update (already on Message Thread)");
         updateBankComboBox();
         updatePresetComboBox();
-    });
+        uiUpdateScheduled.store(false);
+    } else {
+        CS_FILE_DBG("PresetUIManager: Scheduling UI update from background thread");
+        // Schedule UI update with deduplication
+        juce::MessageManager::callAsync([this]() {
+            CS_FILE_DBG("PresetUIManager: Executing scheduled UI update");
+            updateBankComboBox();
+            updatePresetComboBox();
+            
+            // Reset the flag to allow future updates
+            uiUpdateScheduled.store(false);
+            CS_FILE_DBG("PresetUIManager: UI update completed, flag reset");
+        });
+    }
 }
 
 void PresetUIManager::updateBankComboBox()
@@ -346,17 +355,8 @@ void PresetUIManager::onBankChanged()
     // Save bank selection to ValueTreeState for DAW persistence
     int bankIndex = selectedId - 1; // Convert to 0-based index
     
-    // Save to state property (more reliable for persistence)
-    auto& state = audioProcessor.getParameters().state;
-    state.setProperty(ParamID::Global::CurrentBankIndex, bankIndex, nullptr);
-    CS_DBG("PresetUIManager saved bank index to state property: " + juce::String(bankIndex));
-    
-    // Also save to parameter for host automation
-    auto bankParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentBankIndex);
-    if (bankParam) {
-        float normalizedValue = bankParam->convertTo0to1(static_cast<float>(bankIndex));
-        bankParam->setValueNotifyingHost(normalizedValue);
-    }
+    // Note: Parameter setting delegated to PluginProcessor to avoid circular dependencies
+    // PluginProcessor.setCurrentPresetInBank() will handle all parameter and state updates
     
     // Normal bank selection - defer update to avoid blocking the dropdown
     juce::MessageManager::callAsync([this]() {
@@ -379,17 +379,8 @@ void PresetUIManager::onPresetChanged()
         int bankIndex = selectedBankId - 1;
         int presetIndex = selectedPresetId - 1;
         
-        // Save preset selection to ValueTreeState for DAW persistence
-        auto& state = audioProcessor.getParameters().state;
-        state.setProperty(ParamID::Global::CurrentPresetInBank, presetIndex, nullptr);
-        CS_DBG("PresetUIManager saved preset index to state property: " + juce::String(presetIndex));
-        
-        // Also save to parameter for host automation
-        auto presetParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentPresetInBank);
-        if (presetParam) {
-            float normalizedValue = presetParam->convertTo0to1(static_cast<float>(presetIndex));
-            presetParam->setValueNotifyingHost(normalizedValue);
-        }
+        // Note: Parameter setting delegated to PluginProcessor to avoid circular dependencies
+        // PluginProcessor.setCurrentPresetInBank() will handle all parameter and state updates
         
         // Defer the actual change to avoid blocking the dropdown
         juce::MessageManager::callAsync([this, bankIndex, presetIndex]() {

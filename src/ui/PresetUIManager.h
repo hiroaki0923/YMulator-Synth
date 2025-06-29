@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <atomic>
 
 class YMulatorSynthAudioProcessor;
 
@@ -57,6 +58,9 @@ private:
     void loadOpmFileDialog();
     void savePresetDialog();
     void savePresetToFile(const juce::File& file, const juce::String& presetName);
+    
+    // UI update scheduling
+    std::atomic<bool> uiUpdateScheduled { false };
     
     // Unused ValueTree::Listener methods
     void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override {}

@@ -134,6 +134,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     // Noise Frequency (0-31)
     layout.add(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::NoiseFrequency, "Noise Frequency", 0, 31, 0));
+        
+    // Pitch Bend Range (1-12 semitones)
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2));
     
     CS_DBG("Created parameter layout successfully");
     return layout;
@@ -181,12 +185,7 @@ void ParameterManager::updateYmfmParameters()
         return;
     }
     
-    // Rate limiting: only update every N audio blocks to reduce CPU load
-    if (parameterUpdateCounter.fetch_add(1) % PARAMETER_UPDATE_RATE_DIVIDER != 0) {
-        return;
-    }
-    
-    CS_FILE_DBG("updateYmfmParameters - Updating all parameters");
+    // CS_FILE_DBG("updateYmfmParameters - Updating all parameters");
     
     // Update global parameters first
     updateGlobalParameters();
@@ -196,8 +195,7 @@ void ParameterManager::updateYmfmParameters()
         updateChannelParameters(channel);
     }
     
-    // Apply global pan to all channels
-    applyGlobalPanToAllChannels();
+    // Note: applyGlobalPanToAllChannels() removed - handled by parameterValueChanged() listener
 }
 
 void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
@@ -205,6 +203,15 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     if (!parametersPtr) {
         return;
     }
+    
+    // Recursion guard to prevent infinite loops
+    static thread_local bool isProcessingParameterChange = false;
+    if (isProcessingParameterChange) {
+        CS_FILE_DBG("parameterValueChanged - Recursion detected, skipping to prevent infinite loop");
+        return;
+    }
+    
+    isProcessingParameterChange = true;
     
     // Check if this is the GlobalPan parameter change
     auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
@@ -217,6 +224,7 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     
     // Custom preset detection logic
     if (!userGestureInProgress) {
+        isProcessingParameterChange = false; // Reset guard before early return
         return; // Only switch to custom mode during user gestures
     }
     
@@ -224,6 +232,9 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
         setCustomMode(true);
         CS_DBG("Switched to custom preset mode due to parameter change");
     }
+    
+    // Reset recursion guard
+    isProcessingParameterChange = false;
 }
 
 void ParameterManager::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
@@ -247,6 +258,8 @@ void ParameterManager::loadPresetParameters(const Preset* preset, float& preserv
     
     // Temporarily disable listeners to prevent feedback during batch loading
     setupParameterListeners(false);
+    
+    CS_FILE_DBG("loadPresetParameters - Loading preset: " + preset->name);
     
     // Preserve global pan setting
     auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
