@@ -430,6 +430,148 @@ auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval F
 
 **🔒 These rules are derived from proven improvements that enhanced code quality, reduced bugs, and improved maintainability. Deviation requires explicit justification and documentation.**
 
+## 🏗️ Refactoring Guidelines and Architecture Principles
+
+### **⚠️ CRITICAL LESSON: Always Maintain Test Coverage During Refactoring**
+
+Based on the successful Phase 1 refactoring experience (PanProcessor extraction), the following principles MUST be followed:
+
+#### **The Right Approach for Safe Refactoring:**
+
+**✅ CORRECT Process:**
+1. **Run full test suite** → Establish baseline (all tests must pass)
+2. **Extract small components** → One responsibility at a time (e.g., PanProcessor)
+3. **Test immediately** → After each extraction, verify no regressions
+4. **Fix issues incrementally** → Address test failures before proceeding
+5. **Commit frequently** → Small, atomic commits with clear descriptions
+6. **Document architectural changes** → Update design documents
+
+**❌ WRONG Process:**
+1. **Extract multiple components** → Risk of complex, intertwined failures
+2. **Skip intermediate testing** → Difficult to isolate issues
+3. **Large, monolithic commits** → Hard to review and debug
+4. **Ignore test instability** → "It'll work eventually" mentality
+
+#### **Component Extraction Best Practices:**
+
+```cpp
+// ✅ GOOD - Clear single responsibility
+class PanProcessor {
+public:
+    PanProcessor(YmfmWrapperInterface& ymfm);  // Dependency injection
+    void applyGlobalPan(int channel, float panValue);
+    void setChannelRandomPan(int channel);
+private:
+    YmfmWrapperInterface& ymfmWrapper;  // Interface, not concrete
+    uint8_t channelRandomPanBits[8];    // Component-specific state
+};
+```
+
+```cpp
+// ❌ BAD - Mixed responsibilities
+class AudioManager {
+public:
+    void handleMIDI(const MidiMessage& msg);     // MIDI responsibility
+    void applyPan(int channel, float pan);       // Pan responsibility  
+    void loadPreset(const Preset& preset);       // Preset responsibility
+    void processAudio(AudioBuffer& buffer);      // Audio responsibility
+    // TOO MANY RESPONSIBILITIES!
+};
+```
+
+#### **Dependency Injection Patterns:**
+
+**✅ CORRECT - Interface-based injection:**
+```cpp
+// In header
+class ParameterManager {
+public:
+    ParameterManager(YmfmWrapperInterface& ymfm, 
+                    std::shared_ptr<PanProcessor> panProcessor);
+private:
+    std::shared_ptr<PanProcessor> panProcessor;  // Shared ownership
+};
+
+// In implementation
+ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm,
+                                 std::shared_ptr<PanProcessor> panProc)
+    : ymfmWrapper(ymfm), panProcessor(panProc) {}
+```
+
+**❌ WRONG - Concrete dependencies:**
+```cpp
+class ParameterManager {
+public:
+    ParameterManager() {
+        panProcessor = new PanProcessor();  // Hard-coded dependency
+        ymfmWrapper = new YmfmWrapper();    // Not testable
+    }
+};
+```
+
+#### **Test Stability Guidelines:**
+
+**🎯 Random/Non-Deterministic Tests:**
+When dealing with randomized functionality (like RANDOM pan mode):
+
+```cpp
+// ✅ GOOD - Ensure variation while maintaining determinism
+void PanProcessor::setChannelRandomPan(int channel) {
+    uint8_t currentValue = channelRandomPanBits[channel];
+    uint8_t newValue;
+    
+    // Force different value 80% of the time to ensure variation
+    do {
+        newValue = generateRandomPanValue();
+    } while (newValue == currentValue && shouldForceChange());
+    
+    channelRandomPanBits[channel] = newValue;
+}
+```
+
+**❌ BAD - Pure randomness without variation guarantee:**
+```cpp
+void setChannelRandomPan(int channel) {
+    // May generate same value repeatedly, causing test flakiness
+    channelRandomPanBits[channel] = Random::getSystemRandom().nextInt(3);
+}
+```
+
+#### **Refactoring Metrics and Success Criteria:**
+
+**Measure refactoring success:**
+- **Line count reduction**: Target 10-20% reduction in main classes
+- **Test coverage**: Must maintain 100% pass rate
+- **Component count**: Each component should have <1000 lines
+- **Dependency depth**: Max 3 levels of injection
+- **Build time**: Should not increase significantly
+
+**Example from Phase 1 success:**
+- ✅ **PluginProcessor.cpp**: 804 → 675 lines (16% reduction)
+- ✅ **Test coverage**: 235/235 tests passing (100%)
+- ✅ **New components**: PanProcessor (122 lines, focused responsibility)
+- ✅ **Build time**: Unchanged (~30 seconds)
+
+#### **Critical Testing Strategy:**
+
+**Split Test Binaries for CI Optimization:**
+```bash
+# ✅ GOOD - Parallel execution, faster CI
+./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+./bin/YMulatorSynthAU_PanTests --gtest_brief &
+./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+wait  # Total time: ~2.5 seconds
+
+# ❌ BAD - Monolithic, slow CI
+./bin/YMulatorSynthAU_Tests  # Total time: 4+ seconds, timeout risk
+```
+
+**Always test refactoring with:**
+1. **Unit tests** - Individual component functionality
+2. **Integration tests** - Component interaction
+3. **Regression tests** - Ensure no behavioral changes
+4. **Performance tests** - Verify no significant slowdown
+
 ## 🧪 Testing Best Practices and Critical Lessons
 
 ### **⚠️ CRITICAL LESSON: Never Modify Tests to Hide Implementation Issues**
