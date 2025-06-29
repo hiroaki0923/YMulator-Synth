@@ -40,6 +40,7 @@ protected:
         if (processor) {
             processor->releaseResources();
             processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
         }
         processor.reset();
         host.reset();

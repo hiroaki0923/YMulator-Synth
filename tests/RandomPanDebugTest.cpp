@@ -19,7 +19,10 @@ protected:
     void TearDown() override {
         if (processor) {
             processor->releaseResources();
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
         }
+        processor.reset();
         CS_FILE_DBG("=== RandomPanDebugTest TearDown Complete ===");
     }
     

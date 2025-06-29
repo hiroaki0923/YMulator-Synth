@@ -38,6 +38,10 @@ protected:
     
     void TearDown() override {
         mainComponent.reset();
+        if (processor) {
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
+        }
         processor.reset();
     }
     

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "../src/PluginProcessor.h"
 #include "../src/core/MidiProcessor.h"
+#include "../src/core/ParameterManager.h"
 #include "../src/utils/ParameterIDs.h"
 #include "../src/utils/Debug.h"
 #include "TestHelpers/MockAudioProcessorHost.h"
@@ -38,7 +39,10 @@ protected:
     void TearDown() override {
         if (processor) {
             processor->releaseResources();
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
         }
+        processor.reset();
         CS_FILE_DBG("=== RandomPanModeTest TearDown Complete ===");
     }
     

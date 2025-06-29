@@ -20,7 +20,10 @@ protected:
     void TearDown() override {
         if (processor) {
             processor->releaseResources();
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
         }
+        processor.reset();
     }
     
     juce::AudioParameterChoice* getGlobalPanParameter() {

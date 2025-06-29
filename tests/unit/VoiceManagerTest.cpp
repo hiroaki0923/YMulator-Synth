@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "core/VoiceManager.h"
+#include "core/ParameterManager.h"
 #include "utils/Debug.h"
 
 class VoiceManagerTest : public ::testing::Test {
@@ -10,6 +11,7 @@ protected:
     
     void TearDown() override {
         voiceManager.reset();
+        ymulatorsynth::ParameterManager::resetStaticState();
     }
     
     std::unique_ptr<VoiceManager> voiceManager;

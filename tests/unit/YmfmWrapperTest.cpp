@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "dsp/YmfmWrapper.h"
+#include "core/ParameterManager.h"
 #include "utils/Debug.h"
 #include <vector>
 #include <cmath>
@@ -30,6 +31,7 @@ protected:
     
     void TearDown() override {
         wrapper.reset();
+        ymulatorsynth::ParameterManager::resetStaticState();
     }
     
     std::unique_ptr<YmfmWrapper> wrapper;
