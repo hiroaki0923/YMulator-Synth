@@ -49,6 +49,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/EnvelopeDisplay.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/AlgorithmDisplay.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/RotaryKnob.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/PresetUIManager.cpp
         
         # ymfm source files
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp

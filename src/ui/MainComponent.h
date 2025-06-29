@@ -5,6 +5,7 @@
 #include "OperatorPanel.h"
 #include "RotaryKnob.h"
 #include "AlgorithmDisplay.h"
+#include "PresetUIManager.h"
 
 class YMulatorSynthAudioProcessor;
 
@@ -35,12 +36,8 @@ private:
     std::unique_ptr<juce::ComboBox> globalPanComboBox;
     std::unique_ptr<juce::Label> globalPanLabel;
     
-    // Bank and Preset selectors
-    std::unique_ptr<juce::ComboBox> bankComboBox;
-    std::unique_ptr<juce::Label> bankLabel;
-    std::unique_ptr<juce::ComboBox> presetComboBox;
-    std::unique_ptr<juce::Label> presetLabel;
-    std::unique_ptr<juce::TextButton> savePresetButton;
+    // Preset UI Manager
+    std::unique_ptr<PresetUIManager> presetUIManager;
     
     // LFO controls
     std::unique_ptr<RotaryKnob> lfoRateKnob;
@@ -91,16 +88,8 @@ private:
     void setupGlobalControls();
     void setupLfoControls();
     void setupOperatorPanels();
-    void setupPresetSelector();
     void setupDisplayComponents();
-    void updateBankComboBox();
-    void updatePresetComboBox();
-    void onBankChanged();
-    void onPresetChanged();
     void updateAlgorithmDisplay();
-    void loadOpmFileDialog();
-    void savePresetDialog();
-    void savePresetToFile(const juce::File& file, const juce::String& presetName);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
