@@ -6,6 +6,7 @@
 #include "RotaryKnob.h"
 #include "AlgorithmDisplay.h"
 #include "PresetUIManager.h"
+#include "GlobalControlsPanel.h"
 
 class YMulatorSynthAudioProcessor;
 
@@ -29,12 +30,8 @@ private:
     // Menu bar
     std::unique_ptr<juce::PopupMenu> fileMenu;
     
-    // Global controls
-    std::unique_ptr<juce::ComboBox> algorithmComboBox;
-    std::unique_ptr<juce::Label> algorithmLabel;
-    std::unique_ptr<RotaryKnob> feedbackKnob;
-    std::unique_ptr<juce::ComboBox> globalPanComboBox;
-    std::unique_ptr<juce::Label> globalPanLabel;
+    // Global Controls Panel
+    std::unique_ptr<GlobalControlsPanel> globalControlsPanel;
     
     // Preset UI Manager
     std::unique_ptr<PresetUIManager> presetUIManager;
@@ -68,16 +65,12 @@ private:
     // UI update flags
     bool isUpdatingFromState = false;
     
-    // Parameter attachments
-    std::unique_ptr<juce::Slider> feedbackHiddenSlider;
+    // Parameter attachments (for LFO and Noise controls remaining in MainComponent)
     std::unique_ptr<juce::Slider> lfoRateHiddenSlider;
     std::unique_ptr<juce::Slider> lfoAmdHiddenSlider;
     std::unique_ptr<juce::Slider> lfoPmdHiddenSlider;
     std::unique_ptr<juce::Slider> noiseFrequencyHiddenSlider;
     
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> globalPanAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoRateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoPmdAttachment;
@@ -85,7 +78,6 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> noiseEnableAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> noiseFrequencyAttachment;
     
-    void setupGlobalControls();
     void setupLfoControls();
     void setupOperatorPanels();
     void setupDisplayComponents();

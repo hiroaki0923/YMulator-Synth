@@ -7,10 +7,13 @@
 MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     : audioProcessor(processor)
 {
-    setupGlobalControls();
     setupLfoControls();
     setupOperatorPanels();
     setupDisplayComponents();
+    
+    // Setup global controls panel
+    globalControlsPanel = std::make_unique<GlobalControlsPanel>(processor);
+    addAndMakeVisible(*globalControlsPanel);
     
     // Setup preset UI manager
     presetUIManager = std::make_unique<PresetUIManager>(processor);
@@ -47,40 +50,11 @@ void MainComponent::resized()
     // Top area for global controls (compact layout without menu space)
     auto topArea = bounds.removeFromTop(60);
     
-    // Left side: Algorithm ComboBox, Feedback Knob, and Global Pan
+    // Left side: Global Controls Panel
     auto controlsArea = topArea.removeFromLeft(380);
-    auto algorithmArea = controlsArea.removeFromLeft(175).reduced(5);
-    auto feedbackArea = controlsArea.removeFromLeft(105);
-    auto globalPanArea = controlsArea.removeFromLeft(100);
-    
-    // Algorithm ComboBox (label on left, combo on right) - standardized height
-    if (algorithmComboBox && algorithmLabel) {
-        auto algLabelArea = algorithmArea.removeFromLeft(30);
-        algorithmLabel->setBounds(algLabelArea);
-        // Center combo box vertically with standardized height
-        auto centeredComboArea = algorithmArea.withHeight(30).withCentre(algorithmArea.getCentre());
-        algorithmComboBox->setBounds(centeredComboArea);
+    if (globalControlsPanel) {
+        globalControlsPanel->setBounds(controlsArea);
     }
-    
-    // Feedback Knob
-    if (feedbackKnob) {
-        feedbackKnob->setBounds(feedbackArea);
-    }
-    
-    // Global Pan ComboBox (label on left, combo on right)
-    if (globalPanComboBox && globalPanLabel) {
-        auto panLabelArea = globalPanArea.removeFromLeft(30);
-        globalPanLabel->setBounds(panLabelArea);
-        // Center combo box vertically with standardized height
-        auto centeredPanArea = globalPanArea.withHeight(30).withCentre(globalPanArea.getCentre());
-        globalPanComboBox->setBounds(centeredPanArea);
-    }
-    
-    // Algorithm display
-    // Algorithm display - temporarily disabled
-    // if (algorithmDisplay) {
-    //     algorithmDisplay->setBounds(algorithmDisplayArea);
-    // }
     
     // Right side: Preset UI Manager - use remaining space (after left side is allocated)
     auto presetArea = topArea.reduced(5);
@@ -173,94 +147,6 @@ void MainComponent::resized()
 }
 
 
-void MainComponent::setupGlobalControls()
-{
-    // Algorithm ComboBox
-    algorithmComboBox = std::make_unique<juce::ComboBox>();
-    for (int i = 0; i <= 7; ++i) {
-        algorithmComboBox->addItem("Algorithm " + juce::String(i), i + 1);
-    }
-    algorithmComboBox->setSelectedId(1, juce::dontSendNotification);
-    algorithmComboBox->onChange = [this]() {
-        updateAlgorithmDisplay();
-    };
-    addAndMakeVisible(*algorithmComboBox);
-    
-    algorithmLabel = std::make_unique<juce::Label>("", "AL");
-    algorithmLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    algorithmLabel->setJustificationType(juce::Justification::centredRight);
-    algorithmLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*algorithmLabel);
-    
-    // Attach to parameters
-    algorithmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), "algorithm", *algorithmComboBox);
-    
-    // Feedback knob
-    feedbackKnob = std::make_unique<RotaryKnob>("FB");
-    feedbackKnob->setRange(0, 7, 1);
-    feedbackKnob->setValue(0);
-    feedbackKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
-    feedbackKnob->onValueChange = [this](double /*value*/) {
-        updateAlgorithmDisplay();
-    };
-    addAndMakeVisible(*feedbackKnob);
-    
-    // Create hidden slider for feedback parameter
-    feedbackHiddenSlider = std::make_unique<juce::Slider>();
-    feedbackHiddenSlider->setRange(0, 7, 1);
-    feedbackHiddenSlider->setValue(0, juce::dontSendNotification);
-    feedbackHiddenSlider->setVisible(false);
-    addAndMakeVisible(*feedbackHiddenSlider);
-    
-    // Connect knob and slider bidirectionally
-    feedbackHiddenSlider->onValueChange = [this]() {
-        if (feedbackKnob) {
-            feedbackKnob->setValue(feedbackHiddenSlider->getValue(), juce::dontSendNotification);
-            updateAlgorithmDisplay();
-        }
-    };
-    
-    feedbackKnob->onValueChange = [this](double value) {
-        if (feedbackHiddenSlider) {
-            feedbackHiddenSlider->setValue(value, juce::sendNotificationSync);
-        }
-        updateAlgorithmDisplay();
-    };
-    
-    // Add gesture support for custom preset detection
-    feedbackKnob->onGestureStart = [this]() {
-        if (auto* param = audioProcessor.getParameters().getParameter("feedback")) {
-            param->beginChangeGesture();
-        }
-    };
-    
-    feedbackKnob->onGestureEnd = [this]() {
-        if (auto* param = audioProcessor.getParameters().getParameter("feedback")) {
-            param->endChangeGesture();
-        }
-    };
-    
-    // Attach to parameters
-    feedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getParameters(), "feedback", *feedbackHiddenSlider);
-    
-    // Global Pan ComboBox
-    globalPanComboBox = std::make_unique<juce::ComboBox>();
-    globalPanComboBox->addItemList({"Left", "Center", "Right", "Random"}, 1);
-    globalPanComboBox->setSelectedId(2, juce::dontSendNotification); // Default: Center
-    addAndMakeVisible(*globalPanComboBox);
-    
-    globalPanLabel = std::make_unique<juce::Label>("", "PAN");
-    globalPanLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    globalPanLabel->setJustificationType(juce::Justification::centredRight);
-    globalPanLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*globalPanLabel);
-    
-    // Attach global pan to parameters
-    globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), "global_pan", *globalPanComboBox);
-}
 
 void MainComponent::setupLfoControls()
 {
@@ -550,20 +436,8 @@ void MainComponent::setupDisplayComponents()
 
 void MainComponent::updateAlgorithmDisplay()
 {
-    if (!algorithmDisplay) return;
-    
-    // Get current values from ComboBox and Knob (if they exist)
-    int algorithm = 0;
-    int feedback = 0;
-    
-    if (algorithmComboBox) {
-        algorithm = algorithmComboBox->getSelectedId() - 1;
-    }
-    if (feedbackKnob) {
-        feedback = static_cast<int>(feedbackKnob->getValue());
-    }
-    
-    // algorithmDisplay->setAlgorithm(algorithm);
-    // algorithmDisplay->setFeedbackLevel(feedback);
+    // Algorithm display is temporarily disabled
+    // GlobalControlsPanel now handles algorithm and feedback controls
+    // This method is kept for future algorithm display implementation
 }
 

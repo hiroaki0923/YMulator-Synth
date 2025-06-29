@@ -52,6 +52,7 @@ target_sources(YMulator-Synth
         ui/EnvelopeDisplay.cpp
         ui/AlgorithmDisplay.cpp
         ui/PresetUIManager.cpp
+        ui/GlobalControlsPanel.cpp
         utils/PresetManager.cpp
         utils/VOPMParser.cpp
         # ymfm library sources
