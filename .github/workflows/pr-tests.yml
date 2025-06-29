@@ -51,24 +51,41 @@ jobs:
       run: |
         # Use split test binaries for faster parallel execution
         cd build
-        ./bin/YMulatorSynthAU_BasicTests --gtest_brief &
-        ./bin/YMulatorSynthAU_PresetTests --gtest_brief &
-        ./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
-        ./bin/YMulatorSynthAU_PanTests --gtest_brief &
-        ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
-        ./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+        echo "Available test binaries:"
+        ls -la bin/YMulatorSynthAU_*Tests || echo "No test binaries found"
+        
+        # Run tests that exist
+        [ -f "./bin/YMulatorSynthAU_BasicTests" ] && ./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_PresetTests" ] && ./bin/YMulatorSynthAU_PresetTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_ParameterTests" ] && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_PanTests" ] && ./bin/YMulatorSynthAU_PanTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_IntegrationTests" ] && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_QualityTests" ] && ./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_UITests" ] && ./bin/YMulatorSynthAU_UITests --gtest_brief &
         wait
     
     - name: Run specific test categories (verification)
       run: |
-        echo "=== Basic Tests ==="
-        cd build && ./bin/YMulatorSynthAU_BasicTests --gtest_brief
+        echo "Current directory: $(pwd)"
+        echo "Contents: $(ls -la)"
         
-        echo "=== Integration Tests ==="
-        cd build && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief
+        # Always use absolute paths to avoid directory issues
+        BUILD_DIR="$(pwd)/build"
+        echo "Build directory: $BUILD_DIR"
         
-        echo "=== Parameter Tests ==="
-        cd build && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief
+        if [ -d "$BUILD_DIR" ]; then
+          echo "=== Basic Tests ==="
+          "$BUILD_DIR/bin/YMulatorSynthAU_BasicTests" --gtest_brief
+          
+          echo "=== Integration Tests ==="
+          "$BUILD_DIR/bin/YMulatorSynthAU_IntegrationTests" --gtest_brief
+          
+          echo "=== Parameter Tests ==="
+          "$BUILD_DIR/bin/YMulatorSynthAU_ParameterTests" --gtest_brief
+        else
+          echo "ERROR: Build directory not found at $BUILD_DIR"
+          exit 1
+        fi
     
     - name: Validate Audio Unit
       run: |
