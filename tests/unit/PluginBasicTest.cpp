@@ -17,6 +17,10 @@ protected:
     }
     
     void TearDown() override {
+        // Reset static state before destroying processor to ensure clean test isolation
+        if (processor) {
+            processor->resetProcessBlockStaticState();
+        }
         processor.reset();
         host.reset();
     }

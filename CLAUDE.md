@@ -726,11 +726,44 @@ EXPECT_EQ(value, 0.75f);  // Will fail due to quantization
 # Build tests
 cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --target YMulatorSynthAU_Tests
 
-# Run all tests
-ctest --output-on-failure
+# ⚠️ IMPORTANT: Full test suite (480 tests) takes 2+ minutes - use targeted testing
+# Full test suite (avoid in regular development)
+ctest --output-on-failure                               # All tests with output on failure
+ctest --output-on-failure --quiet                       # All tests, minimal output
 
-# Debug specific failures
+# ===== TARGETED TESTING (RECOMMENDED) =====
+# Run specific test by name
+ctest -R "PluginBasicTest.PolyphonyTest" --output-on-failure
+
+# Run test categories (much faster than full suite)
+ctest -R "PluginBasicTest" --output-on-failure              # Basic plugin tests (~10 tests)
+ctest -R "ParameterManagerTest" --output-on-failure         # Parameter tests (~15 tests)
+ctest -R "PresetManagerTest" --output-on-failure            # Preset tests (~35 tests)
+ctest -R "StateManagerTest" --output-on-failure             # State tests (~25 tests)
+ctest -R "VoiceManagerTest" --output-on-failure             # Voice tests (~20 tests)
+ctest -R "YmfmWrapperTest" --output-on-failure              # DSP tests (~30 tests)
+ctest -R "MainComponentTest" --output-on-failure            # UI tests (~15 tests)
+ctest -R "GlobalPanTest" --output-on-failure                # Pan tests (~15 tests)
+ctest -R "AudioQualityTest" --output-on-failure             # Audio quality tests (~5 tests)
+
+# Run tests by number range (useful for batching)
+ctest --output-on-failure -I 1,50     # Tests 1-50 only
+ctest --output-on-failure -I 51,100   # Tests 51-100 only
+ctest --output-on-failure -I 101,150  # Tests 101-150 only
+
+# List all available tests (480 total)
+ctest -N | grep -E "Test.*#.*|Total Tests:"
+
+# Quick sanity checks (under 30 seconds)
+ctest -R "BasicTest.SanityCheck" --output-on-failure
+ctest -R "PluginBasicTest.InitializationTest" --output-on-failure
+
+# Debug specific failing tests with verbose output
+ctest -R "PluginBasicTest.PolyphonyTest" --output-on-failure --verbose
+
+# Alternative: Direct binary execution for specific test suites
 ./bin/YMulatorSynthAU_Tests --gtest_filter="ParameterDebugTest.*"
+./bin/YMulatorSynthAU_Tests --gtest_filter="PluginBasicTest.PolyphonyTest"
 ```
 
 ### **🔥 Key Takeaway:**

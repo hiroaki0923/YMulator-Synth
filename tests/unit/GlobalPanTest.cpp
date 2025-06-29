@@ -39,6 +39,7 @@ protected:
         // Force complete cleanup and state reset between tests
         if (processor) {
             processor->releaseResources();
+            processor->resetProcessBlockStaticState();
         }
         processor.reset();
         host.reset();
