@@ -13,7 +13,8 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
        ymfmWrapper(std::make_unique<YmfmWrapper>()),
        voiceManager(std::make_unique<VoiceManager>()),
        midiProcessor(nullptr), // Will be initialized after other components
-       parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this)),
+       panProcessor(std::make_shared<ymulatorsynth::PanProcessor>(*ymfmWrapper)),
+       parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this, panProcessor)),
        presetManager(std::make_unique<ymulatorsynth::PresetManager>())
 {
     // Clear debug log file on startup and test file creation
@@ -229,141 +230,12 @@ juce::AudioProcessorEditor* YMulatorSynthAudioProcessor::createEditor()
 
 // setStateInformation moved to StateManager (delegated through header)
 
-// DEPRECATED: Moved to ParameterManager::createParameterLayout()
+// Delegated to ParameterManager::createParameterLayout() for maintainability
 juce::AudioProcessorValueTreeState::ParameterLayout YMulatorSynthAudioProcessor::createParameterLayout()
 {
-    // This method is deprecated - ParameterManager::createParameterLayout() should be used instead
+    // Delegate to ParameterManager for maintainability
     return ymulatorsynth::ParameterManager::createParameterLayout();
-    
-    // OLD IMPLEMENTATION BELOW (to be removed):
-    /*
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    
-    // Global parameters
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::Algorithm, "Algorithm", 0, 7, 0));
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::Feedback, "Feedback", 0, 7, 0));
-    
-    // Pitch bend parameters
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2)); // Default 2 semitones
-    
-    // LFO parameters
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::LfoRate, "LFO Rate", 0, 255, 0)); // 0-255
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::LfoAmd, "LFO AMD", 0, 127, 0)); // 0-127
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::LfoPmd, "LFO PMD", 0, 127, 0)); // 0-127
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::LfoWaveform, "LFO Waveform", 0, 3, 0)); // 0=Saw, 1=Square, 2=Triangle, 3=Noise
-    
-    // Noise parameters
-    params.push_back(std::make_unique<juce::AudioParameterBool>(
-        ParamID::Global::NoiseEnable, "Noise Enable", false)); // Default OFF
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::NoiseFrequency, "Noise Frequency", 0, 31, 16)); // Default medium frequency
-        
-    // Global Pan parameter
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(
-        ParamID::Global::GlobalPan, "Global Pan",
-        juce::StringArray{"Left", "Center", "Right", "Random"},
-        1)); // Default: Center
-    
-    // Bank/Preset state parameters for DAW persistence
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::CurrentBankIndex, "Current Bank Index", 0, 99, 0)); // 0 = Factory bank by default
-    params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParamID::Global::CurrentPresetInBank, "Current Preset In Bank", 0, 127, 7)); // Default to Init preset
-    
-    // Channel pan parameters (channels 0-7)
-    for (int ch = 0; ch < 8; ++ch)
-    {
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            ParamID::Channel::pan(ch), "Channel " + juce::String(ch) + " Pan", 
-            0.0f, 1.0f, 0.5f)); // Default 0.5 (center)
-            
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Channel::ams(ch), "Channel " + juce::String(ch) + " AMS", 
-            0, 3, 0)); // 0-3 AMS sensitivity
-            
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Channel::pms(ch), "Channel " + juce::String(ch) + " PMS", 
-            0, 7, 0)); // 0-7 PMS sensitivity
-    }
-    
-    // Operator parameters (4 operators)
-    for (int op = 1; op <= 4; ++op)
-    {
-        juce::String opId = "op" + juce::String(op);
-        
-        // Total Level (TL) - 0-127, default values for safe volume
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::tl(op).c_str(), "OP" + juce::String(op) + " TL", 
-            0, 127, op == 1 ? 80 : 127)); // OP1=80, others=127 (quiet)
-        
-        // Attack Rate (AR) - 0-31, default 31
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::ar(op).c_str(), "OP" + juce::String(op) + " AR", 
-            0, 31, 31));
-        
-        // Decay Rate (D1R) - 0-31, default 0
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::d1r(op).c_str(), "OP" + juce::String(op) + " D1R", 
-            0, 31, 0));
-        
-        // Sustain Rate (D2R) - 0-31, default 0
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::d2r(op).c_str(), "OP" + juce::String(op) + " D2R", 
-            0, 31, 0));
-        
-        // Release Rate (RR) - 0-15, default 7
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::rr(op).c_str(), "OP" + juce::String(op) + " RR", 
-            0, 15, 7));
-        
-        // Sustain Level (D1L) - 0-15, default 0
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::d1l(op).c_str(), "OP" + juce::String(op) + " D1L", 
-            0, 15, 0));
-        
-        // Multiple (MUL) - 0-15, default 1
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::mul(op).c_str(), "OP" + juce::String(op) + " MUL", 
-            0, 15, 1));
-        
-        // Detune 1 (DT1) - 0-7, default 3 (center)
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::dt1(op).c_str(), "OP" + juce::String(op) + " DT1", 
-            0, 7, 3));
-        
-        // Detune 2 (DT2) - 0-3, default 0
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::dt2(op).c_str(), "OP" + juce::String(op) + " DT2", 
-            0, 3, 0));
-        
-        // Key Scale (KS) - 0-3, default 0
-        params.push_back(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::ks(op).c_str(), "OP" + juce::String(op) + " KS", 
-            0, 3, 0));
-        
-        // AM Enable (AMS-EN) - 0-1, default 0
-        params.push_back(std::make_unique<juce::AudioParameterBool>(
-            ParamID::Op::ams_en(op).c_str(), "OP" + juce::String(op) + " AMS-EN", false));
-        
-        // SLOT Enable - 0-1, default 1 (enabled)
-        params.push_back(std::make_unique<juce::AudioParameterBool>(
-            ParamID::Op::slot_en(op).c_str(), "OP" + juce::String(op) + " SLOT", true));
-    }
-    
-    return { params.begin(), params.end() };
-    */
 }
-
-
-
-// setCurrentPreset moved to StateManager (use setCurrentProgram instead)
 
 int YMulatorSynthAudioProcessor::loadOpmFile(const juce::File& file)
 {

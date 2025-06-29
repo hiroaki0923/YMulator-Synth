@@ -9,6 +9,7 @@
 #include "core/MidiProcessorInterface.h"
 #include "core/ParameterManager.h"
 #include "core/StateManager.h"
+#include "core/PanProcessor.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
 #include <unordered_map>
@@ -77,6 +78,7 @@ private:
     std::unique_ptr<YmfmWrapperInterface> ymfmWrapper;
     std::unique_ptr<VoiceManagerInterface> voiceManager;
     std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor;
+    std::shared_ptr<ymulatorsynth::PanProcessor> panProcessor;
     std::unique_ptr<ymulatorsynth::ParameterManager> parameterManager;
     std::unique_ptr<PresetManagerInterface> presetManager;
     std::unique_ptr<ymulatorsynth::StateManager> stateManager;

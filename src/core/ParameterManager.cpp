@@ -10,10 +10,11 @@ using namespace ymulatorsynth;
 // Constructor and Destructor
 // ============================================================================
 
-ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor)
-    : ymfmWrapper(ymfm), audioProcessor(processor)
+ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor, 
+                                 std::shared_ptr<PanProcessor> panProc)
+    : ymfmWrapper(ymfm), audioProcessor(processor), panProcessor(panProc)
 {
-    CS_DBG("ParameterManager created");
+    CS_DBG("ParameterManager created with PanProcessor delegation");
 }
 
 ParameterManager::~ParameterManager()
@@ -401,9 +402,7 @@ void ParameterManager::extractCurrentParameterValues(Preset& preset) const
 
 void ParameterManager::applyGlobalPan(int channel)
 {
-    CS_ASSERT_CHANNEL(channel);
-    
-    if (!parametersPtr) {
+    if (!parametersPtr || !panProcessor) {
         return;
     }
     
@@ -415,64 +414,35 @@ void ParameterManager::applyGlobalPan(int channel)
         return;
     }
     
-    int panMode = globalPanParam->getIndex();
-    float panValue = 0.5f; // Default to center
-    
-    switch (static_cast<GlobalPanPosition>(panMode)) {
-        case GlobalPanPosition::LEFT:
-            panValue = 0.0f;  // Fully left
-            break;
-        case GlobalPanPosition::CENTER:
-            panValue = 0.5f;  // Center
-            break;
-        case GlobalPanPosition::RIGHT:
-            panValue = 1.0f;  // Fully right
-            break;
-        case GlobalPanPosition::RANDOM:
-            // Convert YM2151 register bits to normalized values
-            if (channelRandomPanBits[channel] == YM2151Regs::PAN_LEFT_ONLY) {
-                panValue = 0.0f;
-            } else if (channelRandomPanBits[channel] == YM2151Regs::PAN_RIGHT_ONLY) {
-                panValue = 1.0f;
-            } else {
-                panValue = 0.5f;  // PAN_CENTER
-            }
-            break;
-    }
-    
-    ymfmWrapper.setChannelPan(channel, panValue);
-    
-    CS_FILE_DBG("applyGlobalPan - Channel " + juce::String(channel) + 
-                " pan mode " + juce::String(panMode) + 
-                " value 0x" + juce::String::toHexString(panValue));
+    float panValue = globalPanParam->getIndex() / 3.0f;  // Convert index 0-3 to 0.0-1.0
+    panProcessor->applyGlobalPan(channel, panValue);
 }
 
 void ParameterManager::applyGlobalPanToAllChannels()
 {
-    CS_FILE_DBG("applyGlobalPanToAllChannels - Applying to all 8 channels");
-    
-    for (int channel = 0; channel < 8; ++channel) {
-        applyGlobalPan(channel);
+    if (!parametersPtr || !panProcessor) {
+        return;
     }
+    
+    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
+        parametersPtr->getParameter(ParamID::Global::GlobalPan));
+    
+    if (!globalPanParam) {
+        CS_DBG("GlobalPan parameter not found");
+        return;
+    }
+    
+    float panValue = globalPanParam->getIndex() / 3.0f;  // Convert index 0-3 to 0.0-1.0
+    panProcessor->applyGlobalPanToAllChannels(panValue);
 }
 
 void ParameterManager::setChannelRandomPan(int channel)
 {
-    CS_ASSERT_CHANNEL(channel);
+    if (!panProcessor) {
+        return;
+    }
     
-    // Generate random pan: LEFT (0x40), CENTER (0xC0), or RIGHT (0x80)
-    static const uint8_t panValues[] = {
-        YM2151Regs::PAN_LEFT_ONLY,   // 0x40
-        YM2151Regs::PAN_CENTER,      // 0xC0  
-        YM2151Regs::PAN_RIGHT_ONLY   // 0x80
-    };
-    
-    int randomIndex = juce::Random::getSystemRandom().nextInt(3);
-    channelRandomPanBits[channel] = panValues[randomIndex];
-    
-    CS_FILE_DBG("setChannelRandomPan - Channel " + juce::String(channel) + 
-                " random pan: " + juce::String(randomIndex) + 
-                " (0x" + juce::String::toHexString(channelRandomPanBits[channel]) + ")");
+    panProcessor->setChannelRandomPan(channel);
 }
 
 // ============================================================================
@@ -620,8 +590,4 @@ void ParameterManager::validateParameterRange(float value, float min, float max,
     }
 }
 
-uint8_t ParameterManager::getChannelRandomPanBits(int channel) const
-{
-    CS_ASSERT_CHANNEL(channel);
-    return channelRandomPanBits[channel];
-}
+// getChannelRandomPanBits method removed - functionality moved to PanProcessor

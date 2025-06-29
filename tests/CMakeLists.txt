@@ -37,6 +37,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/PluginEditor.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/YmfmWrapper.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MidiProcessor.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp

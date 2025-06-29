@@ -4,22 +4,15 @@
 #include "../utils/ParameterIDs.h"
 #include "../utils/Debug.h"
 #include "../utils/PresetManager.h"
+#include "../utils/GlobalPanPosition.h"
+#include "PanProcessor.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
 #include <memory>
 
 namespace ymulatorsynth {
 
-/**
- * Global pan position enumeration
- * Matches the parameter choices in createParameterLayout()
- */
-enum class GlobalPanPosition {
-    LEFT = 0,
-    CENTER = 1,
-    RIGHT = 2,
-    RANDOM = 3
-};
+// GlobalPanPosition enum moved to utils/GlobalPanPosition.h
 
 /**
  * ParameterManager - Manages all audio parameter operations for YMulator-Synth
@@ -36,8 +29,10 @@ public:
      * Constructor with dependency injection
      * @param ymfm YmfmWrapper interface for applying parameters to sound engine
      * @param processor AudioProcessor reference for parameter system integration
+     * @param panProcessor PanProcessor for handling pan-related functionality
      */
-    ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor);
+    ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor, 
+                    std::shared_ptr<PanProcessor> panProcessor);
     
     /**
      * Destructor - ensures proper listener cleanup
@@ -125,31 +120,26 @@ public:
     // =========================================================================
     
     /**
-     * Applies global pan setting to a specific channel
+     * Applies global pan setting to a specific channel (delegated to PanProcessor)
      * Handles LEFT/CENTER/RIGHT/RANDOM pan modes with proper register values
      * @param channel Channel number (0-7)
      */
     void applyGlobalPan(int channel);
     
     /**
-     * Applies global pan setting to all 8 channels
+     * Applies global pan setting to all 8 channels (delegated to PanProcessor)
      * Used during parameter updates and global pan changes
      */
     void applyGlobalPanToAllChannels();
     
     /**
-     * Sets random pan value for a specific channel
+     * Sets random pan value for a specific channel (delegated to PanProcessor)
      * Used in RANDOM global pan mode to vary stereo positioning
      * @param channel Channel number (0-7)
      */
     void setChannelRandomPan(int channel);
     
-    /**
-     * Gets random pan bits for a specific channel
-     * @param channel Channel number (0-7)
-     * @return YM2151 register pan bits for the channel
-     */
-    uint8_t getChannelRandomPanBits(int channel) const;
+    // getChannelRandomPanBits moved to PanProcessor
     
     // =========================================================================
     // Custom Preset State Management
@@ -211,6 +201,7 @@ private:
     YmfmWrapperInterface& ymfmWrapper;
     juce::AudioProcessor& audioProcessor;
     juce::AudioProcessorValueTreeState* parametersPtr = nullptr;
+    std::shared_ptr<PanProcessor> panProcessor;
     
     // =========================================================================
     // Parameter Management State
@@ -225,8 +216,7 @@ private:
     juce::String customPresetName = "Custom";
     bool userGestureInProgress = false;
     
-    /// Random pan state per channel (YM2151 register bits)
-    uint8_t channelRandomPanBits[8] = {0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0, 0xC0};
+    // channelRandomPanBits moved to PanProcessor
     
     // =========================================================================
     // Internal Helper Methods
