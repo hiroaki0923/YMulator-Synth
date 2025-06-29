@@ -45,12 +45,11 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         // Calculate the actual internal sample rate like S98Player does
         if (opmChip) {
             uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
-            // IMPORTANT: Always use the DAW's output sample rate for consistency
-            // ymfm internal rate is only used for timing calculations
-            internalSampleRate = outputSampleRate; // Use DAW sample rate, not ymfm rate
+            // Use ymfm's calculated internal rate for proper audio generation
+            internalSampleRate = ymfm_internal_rate;
             CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
             CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
-            CS_FILE_DBG("Final internalSampleRate set to outputSampleRate=" + juce::String(outputSampleRate) + " Hz");
+            CS_FILE_DBG("Final internalSampleRate set to ymfm_internal_rate=" + juce::String(internalSampleRate) + " Hz");
             CS_FILE_DBG("=== YmfmWrapper initialization complete ===");
         }
     } else {

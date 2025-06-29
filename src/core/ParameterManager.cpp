@@ -213,13 +213,15 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     
     isProcessingParameterChange = true;
     
-    // Check if this is the GlobalPan parameter change
+    // Check if this is the GlobalPan parameter change (always apply regardless of gesture state)
     auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
         parametersPtr->getParameter(ParamID::Global::GlobalPan));
     
     if (globalPanParam && audioProcessor.getParameters()[parameterIndex] == globalPanParam) {
         CS_FILE_DBG("parameterValueChanged - GlobalPan changed to " + juce::String(newValue));
         applyGlobalPanToAllChannels();
+        isProcessingParameterChange = false; // Reset guard
+        return; // GlobalPan changes don't affect custom preset mode
     }
     
     // Custom preset detection logic
