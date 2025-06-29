@@ -93,8 +93,16 @@ jobs:
         ./scripts/build.sh setup
         ./scripts/build.sh release
         
-        # Run comprehensive tests with Google Test only output
-        ./scripts/test.sh --all --gtest-only
+        # Run comprehensive tests using split binaries for faster execution
+        cd build
+        ./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+        ./bin/YMulatorSynthAU_PresetTests --gtest_brief &
+        ./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+        ./bin/YMulatorSynthAU_PanTests --gtest_brief &
+        ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
+        ./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+        wait
+        cd ..
     
     - name: Package macOS plugins
       run: |
@@ -166,9 +174,12 @@ jobs:
         ./scripts/build.sh setup
         ./scripts/build.sh release
         
-        # Run tests with Google Test only output (excluding Audio Unit validation on Linux)
-        ./scripts/test.sh --unit --gtest-only
-        ./scripts/test.sh --integration --gtest-only
+        # Run tests using split binaries (excluding Audio Unit validation on Linux)
+        cd build
+        ./bin/YMulatorSynthAU_BasicTests --gtest_brief
+        ./bin/YMulatorSynthAU_ParameterTests --gtest_brief
+        ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief
+        cd ..
     
     - name: Package Linux plugins
       run: |

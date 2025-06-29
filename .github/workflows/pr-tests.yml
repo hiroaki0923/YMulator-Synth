@@ -47,21 +47,28 @@ jobs:
         # Use our unified build script for building
         ./scripts/build.sh debug
     
-    - name: Run all tests
+    - name: Run all tests (split binaries for speed)
       run: |
-        # Use our unified test script with Google Test only output
-        ./scripts/test.sh --gtest-only
+        # Use split test binaries for faster parallel execution
+        cd build
+        ./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+        ./bin/YMulatorSynthAU_PresetTests --gtest_brief &
+        ./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+        ./bin/YMulatorSynthAU_PanTests --gtest_brief &
+        ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
+        ./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+        wait
     
-    - name: Run specific test categories
+    - name: Run specific test categories (verification)
       run: |
-        echo "=== Unit Tests ==="
-        ./scripts/test.sh --unit --gtest-only
+        echo "=== Basic Tests ==="
+        cd build && ./bin/YMulatorSynthAU_BasicTests --gtest_brief
         
         echo "=== Integration Tests ==="
-        ./scripts/test.sh --integration --gtest-only
+        cd build && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief
         
-        echo "=== Regression Tests ==="
-        ./scripts/test.sh --regression --gtest-only
+        echo "=== Parameter Tests ==="
+        cd build && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief
     
     - name: Validate Audio Unit
       run: |

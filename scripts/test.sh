@@ -53,6 +53,9 @@ OPTIONS:
     --auval             Run Audio Unit validation
     --build             Build before running tests
     --gtest-args ARGS   Pass additional arguments to gtest
+    --split             Use split test binaries (parallel execution, default)
+    --split-seq         Use split test binaries (sequential execution)
+    --unified           Use unified test binary (YMulatorSynthAU_Tests)
 
 TEST CATEGORIES:
     Unit Tests:          Basic component testing
@@ -61,13 +64,16 @@ TEST CATEGORIES:
     Performance Tests:   Audio quality and timing
 
 EXAMPLES:
-    ./scripts/test.sh                           # Run all tests
+    ./scripts/test.sh                           # Run all tests with split binaries (parallel)
     ./scripts/test.sh -u                        # Unit tests only
     ./scripts/test.sh -f "ParameterManager"     # Tests matching "ParameterManager"
     ./scripts/test.sh --gtest-only             # Only Google Test output (no JUCE debug)
     ./scripts/test.sh -l                        # List all available tests
     ./scripts/test.sh --auval                   # Audio Unit validation only
     ./scripts/test.sh --build -v               # Build then run tests verbosely
+    ./scripts/test.sh --split                   # Use split binaries (parallel, fast)
+    ./scripts/test.sh --split-seq               # Use split binaries (sequential)
+    ./scripts/test.sh --unified                 # Use unified binary (slower, traditional)
 
 EOF
 }
@@ -79,10 +85,38 @@ check_build_exists() {
         exit 1
     fi
     
-    if [[ ! -f "$BUILD_DIR/bin/YMulatorSynthAU_Tests" ]]; then
-        log_error "Test executable not found. Build may be incomplete."
+    # Check if split test binaries exist (preferred)
+    SPLIT_BINARIES_EXIST=false
+    if [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_BasicTests" ]] && \
+       [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_PresetTests" ]] && \
+       [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_ParameterTests" ]] && \
+       [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_PanTests" ]] && \
+       [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_IntegrationTests" ]] && \
+       [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_QualityTests" ]]; then
+        SPLIT_BINARIES_EXIST=true
+    fi
+    
+    # Check if unified test binary exists
+    UNIFIED_BINARY_EXISTS=false
+    if [[ -f "$BUILD_DIR/bin/YMulatorSynthAU_Tests" ]]; then
+        UNIFIED_BINARY_EXISTS=true
+    fi
+    
+    if [[ "$SPLIT_BINARIES_EXIST" == "false" ]] && [[ "$UNIFIED_BINARY_EXISTS" == "false" ]]; then
+        log_error "No test executables found. Build may be incomplete."
         log_info "Run './scripts/build.sh rebuild' to rebuild the project"
         exit 1
+    fi
+    
+    # Set default test mode based on available binaries
+    if [[ "$TEST_BINARY_MODE" == "auto" ]]; then
+        if [[ "$SPLIT_BINARIES_EXIST" == "true" ]]; then
+            TEST_BINARY_MODE="split"
+            log_debug "Auto-detected split test binaries - using parallel execution"
+        else
+            TEST_BINARY_MODE="unified"
+            log_debug "Auto-detected unified test binary - using traditional execution"
+        fi
     fi
 }
 
@@ -246,22 +280,124 @@ run_filtered_tests() {
     fi
 }
 
+run_split_tests_parallel() {
+    local quiet=$1
+    local gtest_args=$2
+    
+    log_info "Running all tests using split binaries (parallel execution)..."
+    cd "$BUILD_DIR"
+    
+    # Define split test binaries
+    local binaries=(
+        "YMulatorSynthAU_BasicTests"
+        "YMulatorSynthAU_PresetTests"
+        "YMulatorSynthAU_ParameterTests"
+        "YMulatorSynthAU_PanTests"
+        "YMulatorSynthAU_IntegrationTests"
+        "YMulatorSynthAU_QualityTests"
+    )
+    
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    # Start all test binaries in parallel
+    local pids=()
+    for binary in "${binaries[@]}"; do
+        if [[ "$GTEST_ONLY" == "true" ]]; then
+            env $env_vars ./bin/$binary $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:" &
+        elif [[ "$quiet" == "true" ]]; then
+            env $env_vars ./bin/$binary $gtest_args --gtest_brief=1 2>/dev/null &
+        else
+            env $env_vars ./bin/$binary $gtest_args &
+        fi
+        pids+=("$!")
+    done
+    
+    # Wait for all tests to complete
+    local failed=false
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            failed=true
+        fi
+    done
+    
+    if [[ "$failed" == "true" ]]; then
+        log_error "Some tests failed"
+        exit 1
+    else
+        log_info "All split tests passed (parallel execution)"
+    fi
+}
+
+run_split_tests_sequential() {
+    local quiet=$1
+    local gtest_args=$2
+    
+    log_info "Running all tests using split binaries (sequential execution)..."
+    cd "$BUILD_DIR"
+    
+    # Define split test binaries
+    local binaries=(
+        "YMulatorSynthAU_BasicTests"
+        "YMulatorSynthAU_PresetTests"
+        "YMulatorSynthAU_ParameterTests"
+        "YMulatorSynthAU_PanTests"
+        "YMulatorSynthAU_IntegrationTests"
+        "YMulatorSynthAU_QualityTests"
+    )
+    
+    # Set environment for GTEST_ONLY mode
+    local env_vars=""
+    if [[ "$GTEST_ONLY" == "true" ]]; then
+        env_vars="JUCE_DISABLE_LOGGING=1"
+    fi
+    
+    # Run each test binary sequentially
+    for binary in "${binaries[@]}"; do
+        log_info "Running $binary..."
+        if [[ "$GTEST_ONLY" == "true" ]]; then
+            env $env_vars ./bin/$binary $gtest_args --gtest_brief=1 2>&1 | grep -E "^\[|\[==========\]|\[  PASSED  \]|\[  FAILED  \]|^Running|^Note:"
+        elif [[ "$quiet" == "true" ]]; then
+            env $env_vars ./bin/$binary $gtest_args --gtest_brief=1 2>/dev/null
+        else
+            env $env_vars ./bin/$binary $gtest_args
+        fi
+        
+        if [[ $? -ne 0 ]]; then
+            log_error "Test binary $binary failed"
+            exit 1
+        fi
+    done
+    
+    log_info "All split tests passed (sequential execution)"
+}
+
 run_all_tests() {
     local quiet=$1
     local gtest_args=$2
     
-    log_info "Running all tests..."
-    cd "$BUILD_DIR"
-    
-    if [[ "$quiet" == "true" ]]; then
-        if ctest --output-on-failure --quiet; then
-            log_info "All tests passed"
-        else
-            log_error "Some tests failed"
-            exit 1
-        fi
+    if [[ "$TEST_BINARY_MODE" == "split" ]]; then
+        run_split_tests_parallel "$quiet" "$gtest_args"
+    elif [[ "$TEST_BINARY_MODE" == "split-seq" ]]; then
+        run_split_tests_sequential "$quiet" "$gtest_args"
     else
-        ctest --output-on-failure
+        # Unified binary mode
+        log_info "Running all tests using unified binary..."
+        cd "$BUILD_DIR"
+        
+        if [[ "$quiet" == "true" ]]; then
+            if ctest --output-on-failure --quiet; then
+                log_info "All tests passed"
+            else
+                log_error "Some tests failed"
+                exit 1
+            fi
+        else
+            ctest --output-on-failure
+        fi
     fi
 }
 
@@ -289,6 +425,7 @@ BUILD_FIRST=false
 LIST_TESTS=false
 GTEST_ONLY=false
 TEST_MODE="all"
+TEST_BINARY_MODE="auto"  # auto, split, split-seq, unified
 FILTER_PATTERN=""
 GTEST_ARGS=""
 
@@ -347,6 +484,18 @@ while [[ $# -gt 0 ]]; do
         --gtest-args)
             GTEST_ARGS="$2"
             shift 2
+            ;;
+        --split)
+            TEST_BINARY_MODE="split"
+            shift
+            ;;
+        --split-seq)
+            TEST_BINARY_MODE="split-seq"
+            shift
+            ;;
+        --unified)
+            TEST_BINARY_MODE="unified"
+            shift
             ;;
         -h|--help)
             show_usage

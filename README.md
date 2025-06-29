@@ -264,8 +264,13 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 #### Quick Testing
 ```bash
-# Run all tests
+# Run all tests (uses split binaries for speed)
 ./scripts/test.sh
+
+# Test execution modes
+./scripts/test.sh --split           # Split binaries, parallel (default)
+./scripts/test.sh --split-seq       # Split binaries, sequential
+./scripts/test.sh --unified         # Unified binary (traditional)
 
 # Run specific test categories
 ./scripts/test.sh --unit           # Unit tests only
@@ -303,12 +308,29 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 #### Manual Testing (if scripts don't work)
 ```bash
-# Run unit tests
+# Run all tests using split binaries (fast parallel execution)
 cd build
-ctest --output-on-failure
+./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+./bin/YMulatorSynthAU_PresetTests --gtest_brief &
+./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+./bin/YMulatorSynthAU_PanTests --gtest_brief &
+./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
+./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+wait
 
-# Run specific test executable
+# Run specific test categories
+./bin/YMulatorSynthAU_BasicTests         # Basic functionality tests
+./bin/YMulatorSynthAU_PresetTests        # Preset management tests
+./bin/YMulatorSynthAU_ParameterTests     # Parameter system tests
+./bin/YMulatorSynthAU_PanTests           # Pan functionality tests
+./bin/YMulatorSynthAU_IntegrationTests   # Component integration tests
+./bin/YMulatorSynthAU_QualityTests       # Audio quality tests
+
+# Unified test executable (traditional, slower)
 ./bin/YMulatorSynthAU_Tests
+
+# Using ctest (runs all test executables)
+ctest --output-on-failure
 
 # Audio Unit validation (macOS only)
 auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
