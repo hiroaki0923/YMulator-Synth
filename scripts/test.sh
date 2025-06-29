@@ -294,6 +294,7 @@ run_split_tests_parallel() {
         "YMulatorSynthAU_ParameterTests"
         "YMulatorSynthAU_PanTests"
         "YMulatorSynthAU_IntegrationTests"
+        "YMulatorSynthAU_UITests"
         "YMulatorSynthAU_QualityTests"
     )
     
@@ -346,6 +347,7 @@ run_split_tests_sequential() {
         "YMulatorSynthAU_ParameterTests"
         "YMulatorSynthAU_PanTests"
         "YMulatorSynthAU_IntegrationTests"
+        "YMulatorSynthAU_UITests"
         "YMulatorSynthAU_QualityTests"
     )
     

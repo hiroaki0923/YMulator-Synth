@@ -103,7 +103,14 @@ if(GTest_FOUND)
         ${COMMON_SOURCES}
     )
     
-    # ============ Test Group 6: Quality Tests ============
+    # ============ Test Group 6: UI Tests ============
+    add_executable(YMulatorSynthAU_UITests
+        test_main.cpp
+        ui/MainComponentTest.cpp
+        ${COMMON_SOURCES}
+    )
+    
+    # ============ Test Group 7: Quality Tests ============
     add_executable(YMulatorSynthAU_QualityTests
         test_main.cpp
         AudioQualityTest.cpp
@@ -117,6 +124,7 @@ if(GTest_FOUND)
         YMulatorSynthAU_ParameterTests
         YMulatorSynthAU_PanTests
         YMulatorSynthAU_IntegrationTests
+        YMulatorSynthAU_UITests
         YMulatorSynthAU_QualityTests
     )
     
