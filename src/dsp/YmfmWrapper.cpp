@@ -627,9 +627,9 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
     
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
     
-    CS_DBG("Setting operator " + juce::String((int)operator_num) + 
-           " on channel " + juce::String((int)channel) + 
-           " AMS enable=" + juce::String(enable ? "true" : "false"));
+    //CS_DBG("Setting operator " + juce::String((int)operator_num) + 
+    //       " on channel " + juce::String((int)channel) + 
+    //       " AMS enable=" + juce::String(enable ? "true" : "false"));
     
     if (chipType == ChipType::OPM) {
         uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
@@ -644,9 +644,9 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
         
         writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, newValue);
         
-        CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
-               ", channel=" + juce::String((int)channel) +
-               ", value=0x" + juce::String::toHexString(newValue));
+        //CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
+        //       ", channel=" + juce::String((int)channel) +
+        //       ", value=0x" + juce::String::toHexString(newValue));
     }
 }
 
