@@ -23,20 +23,6 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
        parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this, panProcessor)),
        presetManager(std::make_unique<ymulatorsynth::PresetManager>())
 {
-    // Clear debug log file on startup and test file creation
-    auto logFile1 = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("ymulator_debug.txt");
-    auto logFile2 = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("ymulator_debug.txt");
-    
-    CS_DBG("Desktop path: " + logFile1.getFullPathName());
-    CS_DBG("Temp path: " + logFile2.getFullPathName());
-    
-    if (logFile1.getParentDirectory().exists()) {
-        logFile1.deleteFile();
-        CS_DBG("Deleted desktop log file");
-    } else {
-        logFile2.deleteFile();
-        CS_DBG("Deleted temp log file");
-    }
     
     CS_DBG(" Constructor called");
     
@@ -143,14 +129,6 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     juce::ignoreUnused(samplesPerBlock);
     
-    // File debug output for sample rate analysis
-    static int callCount = 0;
-    callCount++;
-    CS_FILE_DBG("=== prepareToPlay called (call #" + juce::String(callCount) + ") ===");
-    CS_FILE_DBG("DAW provided sampleRate: " + juce::String(sampleRate, 2));
-    CS_FILE_DBG("samplesPerBlock: " + juce::String(samplesPerBlock));
-    CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
-    
     // Initialize ymfm wrapper with OPM for now (only if needed)
     uint32_t currentSampleRate = static_cast<uint32_t>(sampleRate);
     if (!g_ymfmInitialized || g_lastSampleRate != currentSampleRate) {
@@ -174,8 +152,6 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
 
 void YMulatorSynthAudioProcessor::releaseResources()
 {
-    CS_FILE_DBG("=== releaseResources called ===");
-    
     // Clear all voices to prevent audio after stop
     voiceManager->releaseAllVoices();
     
@@ -184,8 +160,6 @@ void YMulatorSynthAudioProcessor::releaseResources()
     
     // Reset static variables for test isolation
     resetProcessBlockStaticState();
-    
-    CS_FILE_DBG("=== releaseResources complete ===");
 }
 
 bool YMulatorSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -683,8 +657,6 @@ void YMulatorSynthAudioProcessor::resetProcessBlockStaticState()
     g_processBlockCallCounter = 0;
     g_ymfmInitialized = false;
     g_lastSampleRate = 0;
-    
-    CS_FILE_DBG("resetProcessBlockStaticState called - static state reset for test isolation");
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
