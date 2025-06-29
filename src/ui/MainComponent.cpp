@@ -19,18 +19,16 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     presetUIManager = std::make_unique<PresetUIManager>(processor);
     addAndMakeVisible(*presetUIManager);
     
-    // Listen for parameter state changes
-    audioProcessor.getParameters().state.addListener(this);
-    
-    // PresetUIManager handles its own initialization
+    // PresetUIManager handles its own ValueTree listening
     
     setSize(1000, 635);  // Original height + menu bar
 }
 
 MainComponent::~MainComponent()
 {
-    // Remove listener to avoid dangling pointer
-    audioProcessor.getParameters().state.removeListener(this);
+    // Explicitly reset child components to ensure proper cleanup order
+    presetUIManager.reset();
+    globalControlsPanel.reset();
 }
 
 void MainComponent::paint(juce::Graphics& g)
@@ -409,18 +407,6 @@ void MainComponent::setupOperatorPanels()
 }
 
 
-void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
-                                           const juce::Identifier& property)
-{
-    juce::ignoreUnused(treeWhosePropertyHasChanged, property);
-    
-    // MainComponent now delegates preset-related property changes to PresetUIManager
-    // PresetUIManager handles its own ValueTree listening for preset updates
-    // MainComponent only needs to handle non-preset related property changes
-    
-    // Currently no MainComponent-specific properties to handle
-    // Algorithm display updates happen through parameter attachments
-}
 
 
 void MainComponent::setupDisplayComponents()

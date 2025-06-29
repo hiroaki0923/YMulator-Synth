@@ -10,8 +10,7 @@
 
 class YMulatorSynthAudioProcessor;
 
-class MainComponent : public juce::Component,
-                      public juce::ValueTree::Listener
+class MainComponent : public juce::Component
 {
 public:
     explicit MainComponent(YMulatorSynthAudioProcessor& processor);
@@ -19,10 +18,6 @@ public:
     
     void paint(juce::Graphics& g) override;
     void resized() override;
-    
-    // ValueTree::Listener overrides
-    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
-                                 const juce::Identifier& property) override;
 
 private:
     YMulatorSynthAudioProcessor& audioProcessor;

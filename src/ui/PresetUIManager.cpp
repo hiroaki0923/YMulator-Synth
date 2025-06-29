@@ -23,8 +23,12 @@ PresetUIManager::PresetUIManager(YMulatorSynthAudioProcessor& processor)
 
 PresetUIManager::~PresetUIManager()
 {
-    // Remove listener to avoid dangling pointer
-    audioProcessor.getParameters().state.removeListener(this);
+    // Remove listener to avoid dangling pointer - check if state is still valid
+    try {
+        audioProcessor.getParameters().state.removeListener(this);
+    } catch (...) {
+        // Ignore exceptions during destruction
+    }
     CS_DBG("PresetUIManager destroyed");
 }
 
