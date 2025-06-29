@@ -6,6 +6,12 @@
 
 using namespace ymulatorsynth;
 
+// Global thread_local variables for test isolation
+thread_local bool g_hasLoggedFirstCall = false;
+thread_local int g_processBlockCallCounter = 0;
+thread_local bool g_ymfmInitialized = false;
+thread_local uint32_t g_lastSampleRate = 0;
+
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
@@ -146,14 +152,11 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     CS_FILE_DBG("sampleRate as uint32_t: " + juce::String(static_cast<uint32_t>(sampleRate)));
     
     // Initialize ymfm wrapper with OPM for now (only if needed)
-    static bool ymfmInitialized = false;
-    static uint32_t lastSampleRate = 0;
-    
     uint32_t currentSampleRate = static_cast<uint32_t>(sampleRate);
-    if (!ymfmInitialized || lastSampleRate != currentSampleRate) {
+    if (!g_ymfmInitialized || g_lastSampleRate != currentSampleRate) {
         ymfmWrapper->initialize(YmfmWrapperInterface::ChipType::OPM, currentSampleRate);
-        ymfmInitialized = true;
-        lastSampleRate = currentSampleRate;
+        g_ymfmInitialized = true;
+        g_lastSampleRate = currentSampleRate;
         
         // Apply initial parameters only when truly initializing
         updateYmfmParameters();
@@ -179,6 +182,9 @@ void YMulatorSynthAudioProcessor::releaseResources()
     // Reset ymfm to clear any lingering audio
     ymfmWrapper->reset();
     
+    // Reset static variables for test isolation
+    resetProcessBlockStaticState();
+    
     CS_FILE_DBG("=== releaseResources complete ===");
 }
 
@@ -200,15 +206,12 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     juce::ScopedNoDenormals noDenormals;
     
-    static int processBlockCallCounter = 0;
-    static bool hasLoggedFirstCall = false;
+    g_processBlockCallCounter++;
     
-    processBlockCallCounter++;
-    
-    if (!hasLoggedFirstCall) {
+    if (!g_hasLoggedFirstCall) {
         CS_DBG(" processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
             ", samples: " + juce::String(buffer.getNumSamples()));
-        hasLoggedFirstCall = true;
+        g_hasLoggedFirstCall = true;
     }
     
     // Clear output buffer
@@ -672,6 +675,17 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
 // loadPresetParameters method moved to ParameterManager
 
 // applyPresetToYmfm method moved to ParameterManager
+
+void YMulatorSynthAudioProcessor::resetProcessBlockStaticState()
+{
+    // Reset thread_local variables for test isolation
+    g_hasLoggedFirstCall = false;
+    g_processBlockCallCounter = 0;
+    g_ymfmInitialized = false;
+    g_lastSampleRate = 0;
+    
+    CS_FILE_DBG("resetProcessBlockStaticState called - static state reset for test isolation");
+}
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {

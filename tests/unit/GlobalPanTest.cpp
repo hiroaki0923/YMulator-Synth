@@ -4,6 +4,8 @@
 #include "utils/ParameterIDs.h"
 #include "utils/Debug.h"
 #include "core/ParameterManager.h"
+#include <thread>
+#include <chrono>
 
 using namespace YMulatorSynth;
 
@@ -16,16 +18,39 @@ protected:
         // Initialize processor with standard settings
         host->initializeProcessor(*processor, 44100.0, 512, 2);
         
-        // Let processor stabilize
+        // Ensure fresh state by resetting global pan to default CENTER
+        host->setParameterValueWithGesture(*processor, ParamID::Global::GlobalPan, 1.0f/3.0f);
+        
+        // Let processor stabilize with multiple process blocks
         host->processBlock(*processor, 128);
+        host->processBlock(*processor, 128);
+        
+        // Wait a bit longer for full initialization
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        
+        // Process a few more blocks to ensure ymfm is fully initialized
+        host->processBlock(*processor, 256);
+        
+        // Clear any residual audio
+        host->clearProcessedBuffer();
     }
     
     void TearDown() override {
+        // Force complete cleanup and state reset between tests
+        if (processor) {
+            processor->releaseResources();
+        }
         processor.reset();
         host.reset();
+        
+        // Small delay to ensure cleanup is complete
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     
     void playNoteAndProcess(int note = 60, int velocity = 100) {
+        // Ensure audio processing is active by doing a warm-up processBlock
+        host->processBlock(*processor, 128);
+        
         // CS_FILE_DBG("=== playNoteAndProcess: Sending MIDI note " + juce::String(note) + " with velocity " + juce::String(velocity) + " ===");
         host->sendMidiNoteOn(*processor, 1, note, velocity);
         // CS_FILE_DBG("=== processBlock called ===");
@@ -36,6 +61,9 @@ protected:
     void stopNote(int note = 60) {
         host->sendMidiNoteOff(*processor, 1, note);
         host->processBlock(*processor, 128);
+        
+        // Clear buffer after stopping note to ensure clean state
+        host->clearProcessedBuffer();
     }
     
     void setGlobalPan(ymulatorsynth::GlobalPanPosition position) {
@@ -50,7 +78,7 @@ protected:
         
         CS_FILE_DBG("Setting GlobalPan to position " + juce::String(choiceIndex) + 
             " (normalized: " + juce::String(normalizedValue, 3) + ")");
-        host->setParameterValue(*processor, ParamID::Global::GlobalPan, normalizedValue);
+        host->setParameterValueWithGesture(*processor, ParamID::Global::GlobalPan, normalizedValue);
         host->processBlock(*processor, 128);  // Let changes apply
     }
     
@@ -117,14 +145,14 @@ TEST_F(GlobalPanTest, CenterPanTest) {
     auto [leftRMS, rightRMS] = getChannelLevels();
     CS_DBG("CENTER Pan - Left RMS: " + juce::String(leftRMS) + ", Right RMS: " + juce::String(rightRMS));
     
-    // CENTER pan should have balanced output
+    // CENTER pan should have balanced output on both channels
     EXPECT_GT(leftRMS, 0.001f);   // Left channel should have output
     EXPECT_GT(rightRMS, 0.001f);  // Right channel should have output
     
-    // Channels should be relatively balanced (within 2:1 ratio)
+    // Both channels should be roughly equal for CENTER pan
     if (leftRMS > 0.001f && rightRMS > 0.001f) {
         float ratio = std::max(leftRMS, rightRMS) / std::min(leftRMS, rightRMS);
-        EXPECT_LT(ratio, 2.0f);  // Channels should be within 2:1 ratio
+        EXPECT_LT(ratio, 1.2f);  // Ratio should be close to 1.0 (within 20%)
     }
     
     stopNote();

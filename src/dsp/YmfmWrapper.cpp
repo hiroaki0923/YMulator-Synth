@@ -160,6 +160,7 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
         // The library handles internal timing, no need for clock calculation
         
         // Generate samples one at a time (ymfm output is per-sample, not batched)
+        static int debugCounter = 0;
         for (int i = 0; i < numSamples; i++) {
             // CORRECT: ymfm::generate(output*, samples_to_generate)
             opmChip->generate(&opmOutput, 1);
@@ -273,9 +274,10 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
     if (chipType == ChipType::OPM) {
         // Setting up sine wave timbre for OPM channel (debug output disabled)
         
-        // Algorithm 0 (simple FM), FB=0, ensure output enabled
-        // Always enable both L/R outputs (PAN_CENTER = 0xC0)
-        uint8_t algFbLr = 0x00 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+        // Algorithm 0 (simple FM), FB=0, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t algFbLr = 0x00 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
         
         // setupBasicPianoVoice debug output disabled
@@ -547,7 +549,7 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
         
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, newValue);
         
-        // CS_FILE_DBG("YmfmWrapper::setChannelPan - Pan register updated - channel=" + juce::String((int)channel) + 
+        // CS_FILE_DBG("YmfmWrapper::setChannelPan - channel=" + juce::String((int)channel) + 
         //            ", pan=" + juce::String(panValue, 3) + 
         //            ", panBits=0x" + juce::String::toHexString(panBits) + 
         //            ", reg=0x" + juce::String::toHexString(newValue));
@@ -939,7 +941,9 @@ void YmfmWrapper::testNoiseChannel()
     
     // Set up channel 7 for noise output using algorithm 7 (all operators parallel)
     // Note: Noise works with any algorithm, but algorithm 7 makes it easiest to hear
-    uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+    uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel);
+    uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+    uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
     writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, algFbLr);
     
     // Configure operators 1-3 to be silent (high TL values)

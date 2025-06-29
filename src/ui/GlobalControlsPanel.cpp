@@ -134,5 +134,5 @@ void GlobalControlsPanel::setupParameterAttachments()
     
     // Global Pan attachment
     globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), ParamID::Global::MasterPan, *globalPanComboBox);
+        audioProcessor.getParameters(), ParamID::Global::GlobalPan, *globalPanComboBox);
 }

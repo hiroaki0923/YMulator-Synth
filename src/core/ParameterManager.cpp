@@ -218,7 +218,9 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
         parametersPtr->getParameter(ParamID::Global::GlobalPan));
     
     if (globalPanParam && audioProcessor.getParameters()[parameterIndex] == globalPanParam) {
-        CS_FILE_DBG("parameterValueChanged - GlobalPan changed to " + juce::String(newValue));
+        int panIndex = globalPanParam->getIndex();
+        CS_FILE_DBG("parameterValueChanged - GlobalPan changed to index " + juce::String(panIndex) + 
+                   " (value=" + juce::String(newValue) + ")");
         applyGlobalPanToAllChannels();
         isProcessingParameterChange = false; // Reset guard
         return; // GlobalPan changes don't affect custom preset mode
@@ -435,7 +437,8 @@ void ParameterManager::applyGlobalPan(int channel)
 
 void ParameterManager::applyGlobalPanToAllChannels()
 {
-    if (!parametersPtr || !panProcessor) {
+    if (!parametersPtr) {
+        CS_DBG("ParameterManager::applyGlobalPanToAllChannels - Missing parametersPtr");
         return;
     }
     
@@ -447,8 +450,55 @@ void ParameterManager::applyGlobalPanToAllChannels()
         return;
     }
     
-    float panValue = globalPanParam->getIndex() / 3.0f;  // Convert index 0-3 to 0.0-1.0
-    panProcessor->applyGlobalPanToAllChannels(panValue);
+    int panIndex = globalPanParam->getIndex();
+    CS_FILE_DBG("ParameterManager::applyGlobalPanToAllChannels - Pan index: " + juce::String(panIndex));
+    
+    // Apply to all 8 YM2151 channels directly (restore working logic)
+    for (int channel = 0; channel < 8; ++channel) {
+        // Read current register value to preserve algorithm/feedback bits
+        uint8_t currentReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t otherBits = currentReg & YM2151Regs::PRESERVE_ALG_FB;  // Preserve non-pan bits
+        
+        uint8_t panBits;
+        switch(panIndex) {
+            case 0: // LEFT
+                panBits = YM2151Regs::PAN_LEFT_ONLY;
+                break;
+            case 1: // CENTER
+                panBits = YM2151Regs::PAN_CENTER;
+                break;
+            case 2: // RIGHT
+                panBits = YM2151Regs::PAN_RIGHT_ONLY;
+                break;
+            case 3: // RANDOM
+                // Use PanProcessor for random logic
+                if (panProcessor) {
+                    panProcessor->setChannelRandomPan(channel);
+                    panBits = panProcessor->getChannelRandomPanBits(channel);
+                } else {
+                    panBits = YM2151Regs::PAN_CENTER; // Fallback
+                }
+                break;
+            default:
+                panBits = YM2151Regs::PAN_CENTER;
+        }
+        
+        uint8_t finalRegValue = otherBits | panBits;
+        CS_FILE_DBG("Channel " + juce::String(channel) + " - Current reg: 0x" + juce::String::toHexString(currentReg) + 
+                   ", Other bits: 0x" + juce::String::toHexString(otherBits) +
+                   ", Pan bits: 0x" + juce::String::toHexString(panBits) + 
+                   ", Final reg: 0x" + juce::String::toHexString(finalRegValue));
+        
+        // Write directly to YM2151 register (restore working logic)
+        ymfmWrapper.writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, finalRegValue);
+        
+        // Verify the write was successful
+        uint8_t verifyReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        CS_FILE_DBG("VERIFY Channel " + juce::String(channel) + " - Written: 0x" + juce::String::toHexString(finalRegValue) + 
+                   ", Read back: 0x" + juce::String::toHexString(verifyReg));
+    }
+    
+    CS_FILE_DBG("ParameterManager::applyGlobalPanToAllChannels - Applied pan index " + juce::String(panIndex) + " to all channels");
 }
 
 void ParameterManager::setChannelRandomPan(int channel)
@@ -538,16 +588,11 @@ void ParameterManager::updateChannelParameters(int channel)
         ymfmWrapper.setOperatorAmsEnable(channel, opIndex, ams > 0.5f);
     }
     
-    // Skip individual channel pan if in RANDOM mode (handled by applyGlobalPan)
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::GlobalPan));
-    if (!globalPanParam || globalPanParam->getIndex() != static_cast<int>(GlobalPanPosition::RANDOM)) {
-        float pan = parametersPtr->getParameter(ParamID::Channel::pan(channel))->getValue();
-        CS_ASSERT_PAN_RANGE(pan);
-        ymfmWrapper.setChannelPan(channel, pan);
-    } else {
-        CS_FILE_DBG("updateChannelParameters - SKIPPING individual channel pan (RANDOM mode active)");
-    }
+    // Skip individual channel pan when global pan is active
+    // Individual channel pan is only used when global pan is set to a "disabled" state
+    // For now, since all global pan modes (LEFT/CENTER/RIGHT/RANDOM) should override individual channel pan,
+    // we skip applying individual channel pan entirely
+    // Individual channel pan is disabled while global pan system is active
 }
 
 void ParameterManager::updateGlobalParameters()

@@ -123,6 +123,9 @@ private:
     void processMidiNoteOff(const juce::MidiMessage& message);
     void generateAudioSamples(juce::AudioBuffer<float>& buffer);
     
+    // Test isolation helper
+    void resetProcessBlockStaticState();
+    
     
 public:
     // Preset access for UI
