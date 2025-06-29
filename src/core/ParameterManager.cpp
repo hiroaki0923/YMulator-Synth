@@ -6,6 +6,9 @@
 
 using namespace ymulatorsynth;
 
+// Static thread_local variable for test isolation
+static thread_local bool s_isProcessingParameterChange = false;
+
 // ============================================================================
 // Constructor and Destructor
 // ============================================================================
@@ -205,13 +208,12 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     }
     
     // Recursion guard to prevent infinite loops
-    static thread_local bool isProcessingParameterChange = false;
-    if (isProcessingParameterChange) {
+    if (s_isProcessingParameterChange) {
         CS_FILE_DBG("parameterValueChanged - Recursion detected, skipping to prevent infinite loop");
         return;
     }
     
-    isProcessingParameterChange = true;
+    s_isProcessingParameterChange = true;
     
     // Check if this is the GlobalPan parameter change (always apply regardless of gesture state)
     auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
@@ -222,13 +224,13 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
         CS_FILE_DBG("parameterValueChanged - GlobalPan changed to index " + juce::String(panIndex) + 
                    " (value=" + juce::String(newValue) + ")");
         applyGlobalPanToAllChannels();
-        isProcessingParameterChange = false; // Reset guard
+        s_isProcessingParameterChange = false; // Reset guard
         return; // GlobalPan changes don't affect custom preset mode
     }
     
     // Custom preset detection logic
     if (!userGestureInProgress) {
-        isProcessingParameterChange = false; // Reset guard before early return
+        s_isProcessingParameterChange = false; // Reset guard before early return
         return; // Only switch to custom mode during user gestures
     }
     
@@ -238,7 +240,7 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     }
     
     // Reset recursion guard
-    isProcessingParameterChange = false;
+    s_isProcessingParameterChange = false;
 }
 
 void ParameterManager::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
@@ -651,3 +653,10 @@ void ParameterManager::validateParameterRange(float value, float min, float max,
 }
 
 // getChannelRandomPanBits method removed - functionality moved to PanProcessor
+
+void ParameterManager::resetStaticState()
+{
+    // Reset thread_local variable for test isolation
+    s_isProcessingParameterChange = false;
+    CS_DBG("ParameterManager::resetStaticState called - reset s_isProcessingParameterChange");
+}

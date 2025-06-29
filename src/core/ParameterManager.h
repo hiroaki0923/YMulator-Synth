@@ -187,6 +187,11 @@ public:
     juce::AudioProcessorValueTreeState& getParameters() { return *parametersPtr; }
     const juce::AudioProcessorValueTreeState& getParameters() const { return *parametersPtr; }
     
+    /**
+     * Reset static state for test isolation
+     * Clears all thread_local variables to ensure clean test environment
+     */
+    static void resetStaticState();
     
 private:
     // =========================================================================

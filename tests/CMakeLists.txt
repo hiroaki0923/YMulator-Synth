@@ -102,6 +102,7 @@ if(GTest_FOUND)
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp
+        integration/ComprehensiveIntegrationTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -119,6 +120,13 @@ if(GTest_FOUND)
         ${COMMON_SOURCES}
     )
     
+    # ============ Test Group 8: Performance Tests ============
+    add_executable(YMulatorSynthAU_PerformanceTests
+        test_main.cpp
+        performance/PerformanceRegressionTest.cpp
+        ${COMMON_SOURCES}
+    )
+    
     
     # List of all test executables
     set(TEST_EXECUTABLES
@@ -129,6 +137,7 @@ if(GTest_FOUND)
         YMulatorSynthAU_IntegrationTests
         YMulatorSynthAU_UITests
         YMulatorSynthAU_QualityTests
+        YMulatorSynthAU_PerformanceTests
     )
     
     # Unified Test Executable (for backward compatibility)
@@ -150,6 +159,8 @@ if(GTest_FOUND)
         RandomPanOutputTest.cpp
         PanModeRegressionTest.cpp
         AudioQualityTest.cpp
+        integration/ComprehensiveIntegrationTest.cpp
+        performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
         ${COMMON_SOURCES}
     )

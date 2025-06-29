@@ -20,6 +20,7 @@ protected:
         // Reset static state before destroying processor to ensure clean test isolation
         if (processor) {
             processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
         }
         processor.reset();
         host.reset();
