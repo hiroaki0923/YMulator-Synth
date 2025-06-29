@@ -46,6 +46,9 @@ target_sources(YMulator-Synth
         core/StateManager.cpp
         core/AudioProcessor.cpp
         dsp/YmfmWrapper.cpp
+        dsp/RegisterManager.cpp
+        dsp/NoteConverter.cpp
+        dsp/ParameterConverter.cpp
         dsp/EnvelopeGenerator.cpp
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
