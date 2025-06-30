@@ -21,8 +21,8 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
     int existingChannel = getChannelForNote(note);
     if (existingChannel >= 0) {
         // Update the existing voice
-        voices[existingChannel].velocity = velocity;
-        voices[existingChannel].timestamp = ++currentTimestamp;
+        voices[static_cast<size_t>(existingChannel)].velocity = velocity;
+        voices[static_cast<size_t>(existingChannel)].timestamp = ++currentTimestamp;
         CS_FILE_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
         CS_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel));
         return existingChannel;
@@ -32,10 +32,10 @@ int VoiceManager::allocateVoice(uint8_t note, uint8_t velocity)
     int channel = findAvailableVoice();
     
     // Allocate the voice
-    voices[channel].active = true;
-    voices[channel].note = note;
-    voices[channel].velocity = velocity;
-    voices[channel].timestamp = ++currentTimestamp;
+    voices[static_cast<size_t>(channel)].active = true;
+    voices[static_cast<size_t>(channel)].note = note;
+    voices[static_cast<size_t>(channel)].velocity = velocity;
+    voices[static_cast<size_t>(channel)].timestamp = ++currentTimestamp;
     
     CS_FILE_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
     CS_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel));
@@ -51,8 +51,8 @@ int VoiceManager::allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity,
     int existingChannel = getChannelForNote(note);
     if (existingChannel >= 0) {
         // Update the existing voice
-        voices[existingChannel].velocity = velocity;
-        voices[existingChannel].timestamp = ++currentTimestamp;
+        voices[static_cast<size_t>(existingChannel)].velocity = velocity;
+        voices[static_cast<size_t>(existingChannel)].timestamp = ++currentTimestamp;
         CS_DBG(" Retriggering note " + juce::String(note) + " on channel " + juce::String(existingChannel) + 
                (needsNoise ? " (noise-enabled)" : ""));
         return existingChannel;
@@ -62,10 +62,10 @@ int VoiceManager::allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity,
     int channel = findAvailableVoiceWithNoisePriority(needsNoise);
     
     // Allocate the voice
-    voices[channel].active = true;
-    voices[channel].note = note;
-    voices[channel].velocity = velocity;
-    voices[channel].timestamp = ++currentTimestamp;
+    voices[static_cast<size_t>(channel)].active = true;
+    voices[static_cast<size_t>(channel)].note = note;
+    voices[static_cast<size_t>(channel)].velocity = velocity;
+    voices[static_cast<size_t>(channel)].timestamp = ++currentTimestamp;
     
     CS_FILE_DBG(" Allocated note " + juce::String(note) + " to channel " + juce::String(channel) + 
            (needsNoise ? " (noise-enabled preset)" : ""));
@@ -78,8 +78,8 @@ void VoiceManager::releaseVoice(uint8_t note)
 {
     CS_ASSERT_NOTE(note);
     for (int i = 0; i < MAX_VOICES; ++i) {
-        if (voices[i].active && voices[i].note == note) {
-            voices[i].active = false;
+        if (voices[static_cast<size_t>(i)].active && voices[static_cast<size_t>(i)].note == note) {
+            voices[static_cast<size_t>(i)].active = false;
             CS_FILE_DBG(" Released note " + juce::String(note) + " from channel " + juce::String(i));
             CS_DBG(" Released note " + juce::String(note) + " from channel " + juce::String(i));
             return;
@@ -99,26 +99,26 @@ void VoiceManager::releaseAllVoices()
 bool VoiceManager::isVoiceActive(int channel) const
 {
     if (channel < 0 || channel >= MAX_VOICES) return false;
-    return voices[channel].active;
+    return voices[static_cast<size_t>(channel)].active;
 }
 
 uint8_t VoiceManager::getNoteForChannel(int channel) const
 {
     if (channel < 0 || channel >= MAX_VOICES) return 0;
-    return voices[channel].note;
+    return voices[static_cast<size_t>(channel)].note;
 }
 
 uint8_t VoiceManager::getVelocityForChannel(int channel) const
 {
     if (channel < 0 || channel >= MAX_VOICES) return 0;
-    return voices[channel].velocity;
+    return voices[static_cast<size_t>(channel)].velocity;
 }
 
 int VoiceManager::getChannelForNote(uint8_t note) const
 {
     CS_ASSERT_NOTE(note);
     for (int i = 0; i < MAX_VOICES; ++i) {
-        if (voices[i].active && voices[i].note == note) {
+        if (voices[static_cast<size_t>(i)].active && voices[static_cast<size_t>(i)].note == note) {
             return i;
         }
     }
@@ -130,8 +130,8 @@ int VoiceManager::findAvailableVoice()
     // First, look for an inactive voice, starting from channel 7 (noise-capable)
     // This prioritizes noise-capable channel 7 for rhythm instruments
     for (int i = MAX_VOICES - 1; i >= 0; --i) {
-        CS_FILE_DBG("Checking voice " + juce::String(i) + " - active: " + juce::String(voices[i].active ? "true" : "false"));
-        if (!voices[i].active) {
+        CS_FILE_DBG("Checking voice " + juce::String(i) + " - active: " + juce::String(voices[static_cast<size_t>(i)].active ? "true" : "false"));
+        if (!voices[static_cast<size_t>(i)].active) {
             CS_FILE_DBG("Found available voice: " + juce::String(i));
             return i;
         }
@@ -144,7 +144,7 @@ int VoiceManager::findAvailableVoice()
         case StealingPolicy::OLDEST:
             // Find the voice with the smallest timestamp
             for (int i = 1; i < MAX_VOICES; ++i) {
-                if (voices[i].timestamp < voices[victimChannel].timestamp) {
+                if (voices[static_cast<size_t>(i)].timestamp < voices[victimChannel].timestamp) {
                     victimChannel = i;
                 }
             }
@@ -154,7 +154,7 @@ int VoiceManager::findAvailableVoice()
         case StealingPolicy::QUIETEST:
             // Find the voice with the lowest velocity
             for (int i = 1; i < MAX_VOICES; ++i) {
-                if (voices[i].velocity < voices[victimChannel].velocity) {
+                if (voices[static_cast<size_t>(i)].velocity < voices[victimChannel].velocity) {
                     victimChannel = i;
                 }
             }
@@ -164,7 +164,7 @@ int VoiceManager::findAvailableVoice()
         case StealingPolicy::LOWEST:
             // Find the voice with the lowest note
             for (int i = 1; i < MAX_VOICES; ++i) {
-                if (voices[i].note < voices[victimChannel].note) {
+                if (voices[static_cast<size_t>(i)].note < voices[victimChannel].note) {
                     victimChannel = i;
                 }
             }
@@ -181,9 +181,9 @@ int VoiceManager::findAvailableVoiceWithNoisePriority(bool needsNoise)
     
     if (needsNoise) {
         // For noise-enabled presets, ONLY use channel 7
-        CS_FILE_DBG("Noise preset: checking only channel 7 - active: " + juce::String(voices[7].active ? "true" : "false"));
+        CS_FILE_DBG("Noise preset: checking only channel 7 - active: " + juce::String(voices[7U].active ? "true" : "false"));
         
-        if (!voices[7].active) {
+        if (!voices[7U].active) {
             CS_FILE_DBG("Allocating channel 7 for noise preset");
             CS_DBG(" Allocating channel 7 for noise preset");
             return 7;
@@ -197,8 +197,8 @@ int VoiceManager::findAvailableVoiceWithNoisePriority(bool needsNoise)
         // For non-noise presets, start from channel 7 and work downward (7→6→5→4→3→2→1→0)
         CS_FILE_DBG("Non-noise preset: checking channels 7-0 in order");
         for (int i = MAX_VOICES - 1; i >= 0; --i) {  // Start from 7, go down to 0
-            CS_FILE_DBG("Checking channel " + juce::String(i) + " for non-noise preset - active: " + juce::String(voices[i].active ? "true" : "false"));
-            if (!voices[i].active) {
+            CS_FILE_DBG("Checking channel " + juce::String(i) + " for non-noise preset - active: " + juce::String(voices[static_cast<size_t>(i)].active ? "true" : "false"));
+            if (!voices[static_cast<size_t>(i)].active) {
                 CS_FILE_DBG("Found available channel " + juce::String(i) + " for non-noise preset");
                 return i;
             }

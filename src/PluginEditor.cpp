@@ -23,7 +23,7 @@ YMulatorSynthAudioProcessorEditor::~YMulatorSynthAudioProcessorEditor()
     CS_FILE_DBG("PluginEditor destructor completed");
 }
 
-void YMulatorSynthAudioProcessorEditor::paint(juce::Graphics& g)
+void YMulatorSynthAudioProcessorEditor::paint([[maybe_unused]] juce::Graphics& g)
 {
     CS_FILE_DBG("PluginEditor::paint called - bounds: " + getLocalBounds().toString());
     // MainComponent handles all painting
