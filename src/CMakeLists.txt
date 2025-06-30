@@ -40,13 +40,23 @@ target_sources(YMulator-Synth
         PluginProcessor.cpp
         PluginEditor.cpp
         core/VoiceManager.cpp
+        core/MidiProcessor.cpp
+        core/PanProcessor.cpp
+        core/ParameterManager.cpp
+        core/StateManager.cpp
+        core/AudioProcessor.cpp
         dsp/YmfmWrapper.cpp
+        dsp/RegisterManager.cpp
+        dsp/NoteConverter.cpp
+        dsp/ParameterConverter.cpp
         dsp/EnvelopeGenerator.cpp
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
         ui/RotaryKnob.cpp
         ui/EnvelopeDisplay.cpp
         ui/AlgorithmDisplay.cpp
+        ui/PresetUIManager.cpp
+        ui/GlobalControlsPanel.cpp
         utils/PresetManager.cpp
         utils/VOPMParser.cpp
         # ymfm library sources

@@ -47,7 +47,7 @@ void OperatorPanel::paint(juce::Graphics& g)
     textArea.removeFromLeft(30); // Space for SLOT checkbox
     textArea.removeFromRight(60); // Space for AMS Enable
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(14.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(14.0f).withStyle("bold")));
     g.drawText("Operator " + juce::String(operatorNum), textArea, juce::Justification::centredLeft);
 }
 

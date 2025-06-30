@@ -7,33 +7,74 @@
 MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     : audioProcessor(processor)
 {
-    setupGlobalControls();
+    CS_FILE_DBG("MainComponent constructor started");
+    
     setupLfoControls();
+    CS_FILE_DBG("MainComponent: LFO controls setup complete");
+    
     setupOperatorPanels();
-    setupPresetSelector();
+    CS_FILE_DBG("MainComponent: Operator panels setup complete");
+    
     setupDisplayComponents();
+    CS_FILE_DBG("MainComponent: Display components setup complete");
     
-    // Listen for parameter state changes
-    audioProcessor.getParameters().state.addListener(this);
+    // Setup global controls panel
+    globalControlsPanel = std::make_unique<GlobalControlsPanel>(processor);
+    addAndMakeVisible(*globalControlsPanel);
+    CS_FILE_DBG("MainComponent: Global controls panel setup complete");
     
-    // Ensure preset selectors are up to date when UI is opened
-    // Note: setupPresetSelector() already calls these, so defer to avoid double initialization
-    juce::MessageManager::callAsync([this]() {
-        updateBankComboBox();
-        updatePresetComboBox();
-    });
+    // Setup preset UI manager
+    presetUIManager = std::make_unique<PresetUIManager>(processor);
+    addAndMakeVisible(*presetUIManager);
+    CS_FILE_DBG("MainComponent: Preset UI manager setup complete");
+    
+    // PresetUIManager handles its own ValueTree listening
     
     setSize(1000, 635);  // Original height + menu bar
+    
+    CS_FILE_DBG("MainComponent constructor completed successfully");
 }
 
 MainComponent::~MainComponent()
 {
-    // Remove listener to avoid dangling pointer
-    audioProcessor.getParameters().state.removeListener(this);
+    CS_FILE_DBG("MainComponent destructor started");
+    
+    // Explicitly reset child components to ensure proper cleanup order
+    CS_FILE_DBG("MainComponent: Resetting preset UI manager...");
+    presetUIManager.reset();
+    
+    CS_FILE_DBG("MainComponent: Resetting global controls panel...");
+    globalControlsPanel.reset();
+    
+    CS_FILE_DBG("MainComponent destructor completed");
 }
 
 void MainComponent::paint(juce::Graphics& g)
 {
+    CS_FILE_DBG("MainComponent::paint called - bounds: " + getLocalBounds().toString() + 
+                ", isVisible: " + juce::String(isVisible() ? "true" : "false") + 
+                ", isShowing: " + juce::String(isShowing() ? "true" : "false"));
+    
+    // Debug: Check if key child components are visible
+    int visibleChildren = 0;
+    int totalChildren = getNumChildComponents();
+    for (int i = 0; i < totalChildren; ++i) {
+        if (getChildComponent(i) && getChildComponent(i)->isVisible()) {
+            visibleChildren++;
+        }
+    }
+    CS_FILE_DBG("MainComponent child components - total: " + juce::String(totalChildren) + ", visible: " + juce::String(visibleChildren));
+    
+    // Debug: Check specific key components
+    if (presetUIManager) {
+        CS_FILE_DBG("PresetUIManager - visible: " + juce::String(presetUIManager->isVisible() ? "true" : "false") + 
+                    ", bounds: " + presetUIManager->getBounds().toString());
+    }
+    if (globalControlsPanel) {
+        CS_FILE_DBG("GlobalControlsPanel - visible: " + juce::String(globalControlsPanel->isVisible() ? "true" : "false") + 
+                    ", bounds: " + globalControlsPanel->getBounds().toString());
+    }
+    
     // Dark blue-gray background similar to VOPM
     g.fillAll(juce::Colour(0xff2d3748));
     
@@ -41,81 +82,28 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xff4a5568));
     g.drawHorizontalLine(60, 0.0f, static_cast<float>(getWidth()));  // After global controls  
     g.drawHorizontalLine(135, 0.0f, static_cast<float>(getWidth())); // After LFO/Noise section
+    
+    CS_FILE_DBG("MainComponent::paint completed");
 }
 
 void MainComponent::resized()
 {
+    CS_FILE_DBG("MainComponent::resized called");
     auto bounds = getLocalBounds();
+    CS_FILE_DBG("MainComponent::resized bounds: " + bounds.toString());
     // Top area for global controls (compact layout without menu space)
     auto topArea = bounds.removeFromTop(60);
     
-    // Left side: Algorithm ComboBox, Feedback Knob, and Global Pan
+    // Left side: Global Controls Panel
     auto controlsArea = topArea.removeFromLeft(380);
-    auto algorithmArea = controlsArea.removeFromLeft(175).reduced(5);
-    auto feedbackArea = controlsArea.removeFromLeft(105);
-    auto globalPanArea = controlsArea.removeFromLeft(100);
-    
-    // Algorithm ComboBox (label on left, combo on right) - standardized height
-    if (algorithmComboBox && algorithmLabel) {
-        auto algLabelArea = algorithmArea.removeFromLeft(30);
-        algorithmLabel->setBounds(algLabelArea);
-        // Center combo box vertically with standardized height
-        auto centeredComboArea = algorithmArea.withHeight(30).withCentre(algorithmArea.getCentre());
-        algorithmComboBox->setBounds(centeredComboArea);
+    if (globalControlsPanel) {
+        globalControlsPanel->setBounds(controlsArea);
     }
     
-    // Feedback Knob
-    if (feedbackKnob) {
-        feedbackKnob->setBounds(feedbackArea);
-    }
-    
-    // Global Pan ComboBox (label on left, combo on right)
-    if (globalPanComboBox && globalPanLabel) {
-        auto panLabelArea = globalPanArea.removeFromLeft(30);
-        globalPanLabel->setBounds(panLabelArea);
-        // Center combo box vertically with standardized height
-        auto centeredPanArea = globalPanArea.withHeight(30).withCentre(globalPanArea.getCentre());
-        globalPanComboBox->setBounds(centeredPanArea);
-    }
-    
-    // Algorithm display
-    // Algorithm display - temporarily disabled
-    // if (algorithmDisplay) {
-    //     algorithmDisplay->setBounds(algorithmDisplayArea);
-    // }
-    
-    // Right side: Bank/Preset selectors - use remaining space (after left side is allocated)
+    // Right side: Preset UI Manager - use remaining space (after left side is allocated)
     auto presetArea = topArea.reduced(5);
-    
-    // Save button on the right first
-    auto saveButtonArea = presetArea.removeFromRight(50);
-    if (savePresetButton) {
-        auto centeredButtonArea = saveButtonArea.withHeight(25).withCentre(saveButtonArea.getCentre());
-        savePresetButton->setBounds(centeredButtonArea);
-    }
-    
-    // Bank label and ComboBox
-    auto bankLabelArea = presetArea.removeFromLeft(40);
-    if (bankLabel) {
-        bankLabel->setBounds(bankLabelArea);
-    }
-    
-    auto bankComboArea = presetArea.removeFromLeft(100);
-    if (bankComboBox) {
-        auto centeredBankArea = bankComboArea.withHeight(30).withCentre(bankComboArea.getCentre());
-        bankComboBox->setBounds(centeredBankArea);
-    }
-    
-    // Preset label and ComboBox
-    auto presetLabelArea = presetArea.removeFromLeft(50);
-    if (presetLabel) {
-        presetLabel->setBounds(presetLabelArea);
-    }
-    
-    // Preset ComboBox takes remaining space
-    if (presetComboBox) {
-        auto centeredPresetArea = presetArea.withHeight(30).withCentre(presetArea.getCentre()).reduced(5, 0);
-        presetComboBox->setBounds(centeredPresetArea);
+    if (presetUIManager) {
+        presetUIManager->setBounds(presetArea);
     }
     
     // LFO and Noise controls area
@@ -200,97 +188,11 @@ void MainComponent::resized()
                                     panelWidth, 
                                     panelHeight);
     }
+    
+    CS_FILE_DBG("MainComponent::resized completed");
 }
 
 
-void MainComponent::setupGlobalControls()
-{
-    // Algorithm ComboBox
-    algorithmComboBox = std::make_unique<juce::ComboBox>();
-    for (int i = 0; i <= 7; ++i) {
-        algorithmComboBox->addItem("Algorithm " + juce::String(i), i + 1);
-    }
-    algorithmComboBox->setSelectedId(1, juce::dontSendNotification);
-    algorithmComboBox->onChange = [this]() {
-        updateAlgorithmDisplay();
-    };
-    addAndMakeVisible(*algorithmComboBox);
-    
-    algorithmLabel = std::make_unique<juce::Label>("", "AL");
-    algorithmLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    algorithmLabel->setJustificationType(juce::Justification::centredRight);
-    algorithmLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*algorithmLabel);
-    
-    // Attach to parameters
-    algorithmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), "algorithm", *algorithmComboBox);
-    
-    // Feedback knob
-    feedbackKnob = std::make_unique<RotaryKnob>("FB");
-    feedbackKnob->setRange(0, 7, 1);
-    feedbackKnob->setValue(0);
-    feedbackKnob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
-    feedbackKnob->onValueChange = [this](double /*value*/) {
-        updateAlgorithmDisplay();
-    };
-    addAndMakeVisible(*feedbackKnob);
-    
-    // Create hidden slider for feedback parameter
-    feedbackHiddenSlider = std::make_unique<juce::Slider>();
-    feedbackHiddenSlider->setRange(0, 7, 1);
-    feedbackHiddenSlider->setValue(0, juce::dontSendNotification);
-    feedbackHiddenSlider->setVisible(false);
-    addAndMakeVisible(*feedbackHiddenSlider);
-    
-    // Connect knob and slider bidirectionally
-    feedbackHiddenSlider->onValueChange = [this]() {
-        if (feedbackKnob) {
-            feedbackKnob->setValue(feedbackHiddenSlider->getValue(), juce::dontSendNotification);
-            updateAlgorithmDisplay();
-        }
-    };
-    
-    feedbackKnob->onValueChange = [this](double value) {
-        if (feedbackHiddenSlider) {
-            feedbackHiddenSlider->setValue(value, juce::sendNotificationSync);
-        }
-        updateAlgorithmDisplay();
-    };
-    
-    // Add gesture support for custom preset detection
-    feedbackKnob->onGestureStart = [this]() {
-        if (auto* param = audioProcessor.getParameters().getParameter("feedback")) {
-            param->beginChangeGesture();
-        }
-    };
-    
-    feedbackKnob->onGestureEnd = [this]() {
-        if (auto* param = audioProcessor.getParameters().getParameter("feedback")) {
-            param->endChangeGesture();
-        }
-    };
-    
-    // Attach to parameters
-    feedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getParameters(), "feedback", *feedbackHiddenSlider);
-    
-    // Global Pan ComboBox
-    globalPanComboBox = std::make_unique<juce::ComboBox>();
-    globalPanComboBox->addItemList({"Left", "Center", "Right", "Random"}, 1);
-    globalPanComboBox->setSelectedId(2, juce::dontSendNotification); // Default: Center
-    addAndMakeVisible(*globalPanComboBox);
-    
-    globalPanLabel = std::make_unique<juce::Label>("", "PAN");
-    globalPanLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    globalPanLabel->setJustificationType(juce::Justification::centredRight);
-    globalPanLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*globalPanLabel);
-    
-    // Attach global pan to parameters
-    globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), "global_pan", *globalPanComboBox);
-}
 
 void MainComponent::setupLfoControls()
 {
@@ -298,7 +200,7 @@ void MainComponent::setupLfoControls()
     lfoSectionLabel = std::make_unique<juce::Label>("", "LFO");
     lfoSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    lfoSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    lfoSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle("bold")));
     addAndMakeVisible(*lfoSectionLabel);
     
     // LFO Rate knob (without label - will be added separately)
@@ -312,7 +214,7 @@ void MainComponent::setupLfoControls()
     lfoRateLabel = std::make_unique<juce::Label>("", "Rate");
     lfoRateLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoRateLabel->setJustificationType(juce::Justification::centred);
-    lfoRateLabel->setFont(juce::Font(12.0f));
+    lfoRateLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoRateLabel);
     
     // Create hidden slider for LFO Rate parameter
@@ -362,7 +264,7 @@ void MainComponent::setupLfoControls()
     lfoAmdLabel = std::make_unique<juce::Label>("", "AMD");
     lfoAmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoAmdLabel->setJustificationType(juce::Justification::centred);
-    lfoAmdLabel->setFont(juce::Font(12.0f));
+    lfoAmdLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoAmdLabel);
     
     // Create hidden slider for LFO AMD parameter
@@ -412,7 +314,7 @@ void MainComponent::setupLfoControls()
     lfoPmdLabel = std::make_unique<juce::Label>("", "PMD");
     lfoPmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoPmdLabel->setJustificationType(juce::Justification::centred);
-    lfoPmdLabel->setFont(juce::Font(12.0f));
+    lfoPmdLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoPmdLabel);
     
     // Create hidden slider for LFO PMD parameter
@@ -463,7 +365,7 @@ void MainComponent::setupLfoControls()
     lfoWaveformLabel = std::make_unique<juce::Label>("", "Wave");
     lfoWaveformLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoWaveformLabel->setJustificationType(juce::Justification::centred);
-    lfoWaveformLabel->setFont(juce::Font(12.0f));
+    lfoWaveformLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoWaveformLabel);
     
     lfoWaveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
@@ -473,7 +375,7 @@ void MainComponent::setupLfoControls()
     noiseSectionLabel = std::make_unique<juce::Label>("", "Noise");
     noiseSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    noiseSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    noiseSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle("bold")));
     addAndMakeVisible(*noiseSectionLabel);
     
     // Noise Enable toggle button (without text - will be labeled separately)
@@ -486,7 +388,7 @@ void MainComponent::setupLfoControls()
     noiseEnableLabel = std::make_unique<juce::Label>("", "Enable");
     noiseEnableLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseEnableLabel->setJustificationType(juce::Justification::centred);
-    noiseEnableLabel->setFont(juce::Font(12.0f));
+    noiseEnableLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*noiseEnableLabel);
     
     noiseEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
@@ -502,7 +404,7 @@ void MainComponent::setupLfoControls()
     noiseFreqLabel = std::make_unique<juce::Label>("", "Freq");
     noiseFreqLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseFreqLabel->setJustificationType(juce::Justification::centred);
-    noiseFreqLabel->setFont(juce::Font(12.0f));
+    noiseFreqLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*noiseFreqLabel);
     
     // Create hidden slider for Noise Frequency parameter
@@ -552,377 +454,8 @@ void MainComponent::setupOperatorPanels()
     }
 }
 
-void MainComponent::setupPresetSelector()
-{
-    // Bank selector
-    bankComboBox = std::make_unique<juce::ComboBox>();
-    bankComboBox->addItem("Factory", 1);
-    // Don't set initial selection here - let updateBankComboBox handle it
-    bankComboBox->onChange = [this]() { onBankChanged(); };
-    addAndMakeVisible(*bankComboBox);
-    
-    bankLabel = std::make_unique<juce::Label>("", "Bank");
-    bankLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    bankLabel->setJustificationType(juce::Justification::centredRight);
-    bankLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*bankLabel);
-    
-    // Preset selector
-    presetComboBox = std::make_unique<juce::ComboBox>();
-    presetComboBox->onChange = [this]() { onPresetChanged(); };
-    addAndMakeVisible(*presetComboBox);
-    
-    presetLabel = std::make_unique<juce::Label>("", "Preset");
-    presetLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    presetLabel->setJustificationType(juce::Justification::centredRight);
-    presetLabel->setFont(juce::Font(12.0f));
-    addAndMakeVisible(*presetLabel);
-    
-    savePresetButton = std::make_unique<juce::TextButton>("Save");
-    savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
-    savePresetButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    savePresetButton->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    savePresetButton->setTooltip("Save current settings as new preset");
-    savePresetButton->onClick = [this]() { savePresetDialog(); };
-    // Initially disabled - will be enabled when in custom mode
-    savePresetButton->setEnabled(false);
-    addAndMakeVisible(*savePresetButton);
-    
-    // Initialize will be done later to avoid blocking UI
-}
 
-void MainComponent::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
-                                           const juce::Identifier& property)
-{
-    juce::ignoreUnused(treeWhosePropertyHasChanged);
-    
-    const auto propertyName = property.toString();
-    
-    // Special handling for preset index changes from DAW
-    if (propertyName == "presetIndexChanged") {
-        // Add debug output to see if this is being called
-        // Only update the preset selectors, not the entire list
-        juce::MessageManager::callAsync([this]() {
-            updateBankComboBox();
-            updatePresetComboBox();
-        });
-        return;
-    }
-    
-    
-    // Special handling for bank list changes (after DAW project load)
-    if (propertyName == "bankListUpdated") {
-        CS_DBG("Received bankListUpdated notification, refreshing UI");
-        juce::MessageManager::callAsync([this]() {
-            updateBankComboBox();
-            updatePresetComboBox();
-        });
-        return;
-    }
-    
-    // Define preset-relevant properties that should trigger UI updates
-    static const std::set<std::string> presetRelevantProperties = {
-        "presetIndex",
-        "isCustomMode",
-        "currentBankIndex",
-        "currentPresetInBank",
-        "presetListUpdated",
-        "bankListUpdated",
-        // Add any other preset management related properties here
-        // Note: We deliberately exclude operator parameters, global synthesis params, and channel params
-    };
-    
-    // Filter out properties that don't affect preset display
-    if (presetRelevantProperties.find(propertyName.toStdString()) == presetRelevantProperties.end()) {
-        // Check if it's an operator parameter (op1_*, op2_*, op3_*, op4_*)
-        if (propertyName.startsWith("op") && propertyName.length() >= 3) {
-            char opChar = propertyName[2];
-            if (opChar >= '1' && opChar <= '4') {
-                return;
-            }
-        }
-        
-        // Check if it's a global synthesis parameter
-        if (propertyName == "algorithm" || propertyName == "feedback" || 
-            propertyName == "pitch_bend_range" || propertyName == "master_pan") {
-            return;
-        }
-        
-        // Check if it's a channel parameter (ch*_*)
-        if (propertyName.startsWith("ch") && propertyName.contains("_")) {
-            return;
-        }
-        
-        // If we reach here, it's an unknown parameter - log it but don't update UI
-        return;
-    }
-    
-    // This is a preset-relevant property change - update the preset button
-    
-    // Use MessageManager to ensure UI updates happen on the main thread
-    juce::MessageManager::callAsync([this]() {
-        updateBankComboBox();
-        updatePresetComboBox();
-    });
-}
 
-void MainComponent::updateBankComboBox()
-{
-    if (!bankComboBox) return;
-    
-    // Get current bank names
-    auto bankNames = audioProcessor.getBankNames();
-    
-    // Check if we need to update (including the Import item)
-    int expectedItems = bankNames.size() + 1; // +1 for "Import OPM File..."
-    bool needsUpdate = (bankComboBox->getNumItems() != expectedItems);
-    if (!needsUpdate) {
-        for (int i = 0; i < bankNames.size(); ++i) {
-            if (bankComboBox->getItemText(i) != bankNames[i]) {
-                needsUpdate = true;
-                break;
-            }
-        }
-        // Check if last item is still the import option
-        if (bankComboBox->getItemText(bankComboBox->getNumItems() - 1) != "Import OPM File...") {
-            needsUpdate = true;
-        }
-    }
-    
-    if (!needsUpdate) {
-        return; // Already up to date
-    }
-    
-    bankComboBox->clear();
-    
-    // Add all banks
-    for (int i = 0; i < bankNames.size(); ++i) {
-        bankComboBox->addItem(bankNames[i], i + 1);
-    }
-    
-    // Add separator and import option
-    bankComboBox->addSeparator();
-    bankComboBox->addItem("Import OPM File...", 9999); // Use high ID to distinguish
-    
-    // Select bank from ValueTreeState (for DAW persistence)
-    int savedBankIndex = 0; // Default to Factory bank
-    
-    // Try state property first
-    auto& state = audioProcessor.getParameters().state;
-    if (state.hasProperty(ParamID::Global::CurrentBankIndex)) {
-        savedBankIndex = state.getProperty(ParamID::Global::CurrentBankIndex, 0);
-        CS_FILE_DBG("Restored bank index from state property: " + juce::String(savedBankIndex));
-    } else {
-        // Fallback to parameter approach
-        auto bankParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentBankIndex);
-        if (bankParam) {
-            savedBankIndex = static_cast<int>(bankParam->getValue() * (bankParam->getNumSteps() - 1));
-            CS_DBG("Restored bank index from parameter: " + juce::String(savedBankIndex) + 
-                   " (raw value: " + juce::String(bankParam->getValue()) + ")");
-        } else {
-            CS_DBG("Bank parameter not found in ValueTreeState");
-        }
-    }
-    
-    // Debug: Show all available banks
-    CS_DBG("Available banks (" + juce::String(bankNames.size()) + "):");
-    for (int i = 0; i < bankNames.size(); ++i) {
-        CS_DBG("  [" + juce::String(i) + "] " + bankNames[i]);
-    }
-    
-    // Ensure the bank index is valid
-    isUpdatingFromState = true;
-    if (savedBankIndex >= 0 && savedBankIndex < bankNames.size()) {
-        CS_DBG("Setting bank combo to ID: " + juce::String(savedBankIndex + 1) + " (bank: " + bankNames[savedBankIndex] + ")");
-        CS_FILE_DBG("Setting bank combo to ID: " + juce::String(savedBankIndex + 1) + " (bank: " + bankNames[savedBankIndex] + ")");
-        bankComboBox->setSelectedId(savedBankIndex + 1, juce::dontSendNotification);
-    } else {
-        CS_DBG("Bank index invalid (" + juce::String(savedBankIndex) + "), defaulting to Factory (ID: 1)");
-        CS_FILE_DBG("Bank index invalid (" + juce::String(savedBankIndex) + "), defaulting to Factory (ID: 1)");
-        bankComboBox->setSelectedId(1, juce::dontSendNotification); // Default to Factory
-    }
-    isUpdatingFromState = false;
-}
-
-void MainComponent::updatePresetComboBox()
-{
-    if (!presetComboBox) return;
-    
-    // Get presets for currently selected bank
-    int selectedBankId = bankComboBox ? bankComboBox->getSelectedId() : 1;
-    int bankIndex = selectedBankId - 1; // Convert to 0-based index
-    
-    // Get preset names for the selected bank
-    auto presetNames = audioProcessor.getPresetsForBank(bankIndex);
-    
-    // Check if we need to update
-    bool needsUpdate = (presetComboBox->getNumItems() != presetNames.size());
-    if (!needsUpdate) {
-        for (int i = 0; i < presetNames.size(); ++i) {
-            if (presetComboBox->getItemText(i) != presetNames[i]) {
-                needsUpdate = true;
-                break;
-            }
-        }
-    }
-    
-    if (!needsUpdate && !audioProcessor.isInCustomMode()) {
-        return; // Already up to date
-    }
-    
-    // Rebuild preset list
-    presetComboBox->clear();
-    
-    for (int i = 0; i < presetNames.size(); ++i)
-    {
-        presetComboBox->addItem(presetNames[i], i + 1);
-    }
-    
-    // Set current selection (if not in custom mode)
-    if (!audioProcessor.isInCustomMode())
-    {
-        // Get saved preset index from ValueTreeState (for DAW persistence)
-        int savedPresetIndex = 7; // Default to Init preset
-        
-        // Try state property first
-        auto& state = audioProcessor.getParameters().state;
-        if (state.hasProperty(ParamID::Global::CurrentPresetInBank)) {
-            savedPresetIndex = state.getProperty(ParamID::Global::CurrentPresetInBank, 7);
-            CS_FILE_DBG("Restored preset index from state property: " + juce::String(savedPresetIndex));
-        } else {
-            // Fallback to parameter approach
-            auto presetParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentPresetInBank);
-            if (presetParam) {
-                savedPresetIndex = static_cast<int>(presetParam->getValue() * (presetParam->getNumSteps() - 1));
-                CS_DBG("Restored preset index from parameter: " + juce::String(savedPresetIndex) + 
-                       " (raw value: " + juce::String(presetParam->getValue()) + ")");
-            } else {
-                CS_DBG("Preset parameter not found in ValueTreeState");
-            }
-        }
-        
-        // Ensure the preset index is valid for this bank
-        isUpdatingFromState = true;
-        if (savedPresetIndex >= 0 && savedPresetIndex < presetNames.size()) {
-            CS_DBG("Setting preset combo to ID: " + juce::String(savedPresetIndex + 1));
-            CS_FILE_DBG("Setting preset combo to ID: " + juce::String(savedPresetIndex + 1));
-            presetComboBox->setSelectedId(savedPresetIndex + 1, juce::dontSendNotification);
-        } else {
-            CS_DBG("Preset index invalid, using fallback search");
-            CS_DBG("savedPresetIndex: " + juce::String(savedPresetIndex) + ", presetNames.size(): " + juce::String(presetNames.size()));
-            // Fallback: Find which preset in the current bank matches the global current preset
-            int currentGlobalIndex = audioProcessor.getCurrentProgram();
-            
-            // Find the preset index within the current bank
-            for (int i = 0; i < presetNames.size(); ++i) {
-                int globalIndex = audioProcessor.getPresetManager().getGlobalPresetIndex(bankIndex, i);
-                if (globalIndex == currentGlobalIndex) {
-                    presetComboBox->setSelectedId(i + 1, juce::dontSendNotification);
-                    break;
-                }
-            }
-        }
-        isUpdatingFromState = false;
-    }
-    
-    // Enable/disable Save button based on custom mode
-    if (savePresetButton) {
-        bool hasChanges = audioProcessor.isInCustomMode();
-        savePresetButton->setEnabled(hasChanges);
-        
-        // Update visual appearance based on state
-        if (hasChanges) {
-            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
-            savePresetButton->setTooltip("Save modified settings as new preset");
-        } else {
-            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d3748));
-            savePresetButton->setTooltip("Save as new preset (modify parameters to enable)");
-        }
-    }
-}
-
-void MainComponent::onBankChanged()
-{
-    CS_FILE_DBG("onBankChanged called, isUpdatingFromState=" + juce::String(isUpdatingFromState ? "true" : "false"));
-    if (!bankComboBox || isUpdatingFromState) return;
-    
-    int selectedId = bankComboBox->getSelectedId();
-    CS_FILE_DBG("onBankChanged: selectedId = " + juce::String(selectedId));
-    
-    // Check if "Import OPM File..." was selected
-    if (selectedId == 9999) {
-        CS_DBG("Import OPM File option selected, opening file dialog");
-        
-        // Reset to previous bank selection (Factory by default)
-        bankComboBox->setSelectedId(1, juce::dontSendNotification);
-        
-        // Open import dialog
-        loadOpmFileDialog();
-        return;
-    }
-    
-    // Save bank selection to ValueTreeState for DAW persistence
-    int bankIndex = selectedId - 1; // Convert to 0-based index
-    
-    // Save to state property (more reliable for persistence)
-    auto& state = audioProcessor.getParameters().state;
-    state.setProperty(ParamID::Global::CurrentBankIndex, bankIndex, nullptr);
-    CS_DBG("Saved bank index to state property: " + juce::String(bankIndex));
-    
-    // Also save to parameter for host automation
-    auto bankParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentBankIndex);
-    if (bankParam) {
-        float normalizedValue = bankParam->convertTo0to1(static_cast<float>(bankIndex));
-        bankParam->setValueNotifyingHost(normalizedValue);
-        CS_DBG("Saved bank index to parameter: " + juce::String(bankIndex) + 
-               " (normalized: " + juce::String(normalizedValue) + ")");
-    } else {
-        CS_DBG("Failed to find bank parameter for saving");
-    }
-    
-    // Normal bank selection - defer update to avoid blocking the dropdown
-    juce::MessageManager::callAsync([this]() {
-        updatePresetComboBox();
-    });
-}
-
-void MainComponent::onPresetChanged()
-{
-    CS_FILE_DBG("onPresetChanged called, isUpdatingFromState=" + juce::String(isUpdatingFromState ? "true" : "false"));
-    if (!presetComboBox || !bankComboBox || isUpdatingFromState) return;
-    
-    int selectedPresetId = presetComboBox->getSelectedId();
-    int selectedBankId = bankComboBox->getSelectedId();
-    CS_FILE_DBG("onPresetChanged: bankId=" + juce::String(selectedBankId) + ", presetId=" + juce::String(selectedPresetId));
-    
-    if (selectedPresetId > 0 && selectedBankId > 0)
-    {
-        // Convert to 0-based indices
-        int bankIndex = selectedBankId - 1;
-        int presetIndex = selectedPresetId - 1;
-        
-        // Save preset selection to ValueTreeState for DAW persistence
-        auto& state = audioProcessor.getParameters().state;
-        state.setProperty(ParamID::Global::CurrentPresetInBank, presetIndex, nullptr);
-        CS_DBG("Saved preset index to state property: " + juce::String(presetIndex));
-        
-        // Also save to parameter for host automation
-        auto presetParam = audioProcessor.getParameters().getParameter(ParamID::Global::CurrentPresetInBank);
-        if (presetParam) {
-            float normalizedValue = presetParam->convertTo0to1(static_cast<float>(presetIndex));
-            presetParam->setValueNotifyingHost(normalizedValue);
-            CS_DBG("Saved preset index to parameter: " + juce::String(presetIndex) + 
-                   " (normalized: " + juce::String(normalizedValue) + ")");
-        } else {
-            CS_DBG("Failed to find preset parameter for saving");
-        }
-        
-        // Defer the actual change to avoid blocking the dropdown
-        juce::MessageManager::callAsync([this, bankIndex, presetIndex]() {
-            audioProcessor.setCurrentPresetInBank(bankIndex, presetIndex);
-        });
-    }
-}
 
 void MainComponent::setupDisplayComponents()
 {
@@ -937,168 +470,8 @@ void MainComponent::setupDisplayComponents()
 
 void MainComponent::updateAlgorithmDisplay()
 {
-    if (!algorithmDisplay) return;
-    
-    // Get current values from ComboBox and Knob (if they exist)
-    int algorithm = 0;
-    int feedback = 0;
-    
-    if (algorithmComboBox) {
-        algorithm = algorithmComboBox->getSelectedId() - 1;
-    }
-    if (feedbackKnob) {
-        feedback = static_cast<int>(feedbackKnob->getValue());
-    }
-    
-    // algorithmDisplay->setAlgorithm(algorithm);
-    // algorithmDisplay->setFeedbackLevel(feedback);
+    // Algorithm display is temporarily disabled
+    // GlobalControlsPanel now handles algorithm and feedback controls
+    // This method is kept for future algorithm display implementation
 }
 
-void MainComponent::loadOpmFileDialog()
-{
-    CS_DBG("loadOpmFileDialog() called - opening file chooser");
-    
-    auto fileChooser = std::make_shared<juce::FileChooser>(
-        "Select a VOPM preset file",
-        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
-        "*.opm"
-    );
-    
-    auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-    
-    fileChooser->launchAsync(chooserFlags, [this, fileChooser](const juce::FileChooser& fc)
-    {
-        auto file = fc.getResult();
-        
-        if (file.existsAsFile())
-        {
-            
-            // Load the OPM file through the audio processor
-            int numLoaded = audioProcessor.loadOpmFile(file);
-            
-            if (numLoaded > 0)
-            {
-                
-                // Update the bank list to include the new bank
-                updateBankComboBox();
-                
-                // Select the newly created bank (it will be the last bank before the Import option)
-                auto bankNames = audioProcessor.getBankNames();
-                int newBankIndex = bankNames.size(); // Last bank
-                if (newBankIndex > 0) {
-                    bankComboBox->setSelectedId(newBankIndex, juce::dontSendNotification);
-                }
-                
-                // Update presets for the newly selected bank
-                updatePresetComboBox();
-                
-                // Notify that preset list has been updated
-                audioProcessor.getParameters().state.setProperty("presetListUpdated", juce::var(juce::Random::getSystemRandom().nextInt()), nullptr);
-                
-                // Show success message
-                juce::AlertWindow::showMessageBoxAsync(
-                    juce::MessageBoxIconType::InfoIcon,
-                    "Load Successful",
-                    "Loaded " + juce::String(numLoaded) + " preset(s) from " + file.getFileName()
-                );
-            }
-            else
-            {
-                juce::AlertWindow::showMessageBoxAsync(
-                    juce::MessageBoxIconType::WarningIcon,
-                    "Load Error",
-                    "Failed to load any presets from: " + file.getFileName()
-                );
-            }
-        }
-    });
-}
-
-
-void MainComponent::savePresetDialog()
-{
-    
-    // Get default preset name
-    juce::String defaultName = "My Preset";
-    if (audioProcessor.isInCustomMode()) {
-        defaultName = audioProcessor.getCustomPresetName();
-    }
-    
-    // Create dialog
-    auto* dialog = new juce::AlertWindow("Save Preset", 
-                                        "Enter a name for the new preset:", 
-                                        juce::MessageBoxIconType::QuestionIcon);
-    
-    dialog->addTextEditor("presetName", defaultName, "Preset Name:");
-    dialog->addButton("Save", 1);
-    dialog->addButton("Cancel", 0);
-    
-    // Use a lambda that captures the dialog pointer
-    dialog->enterModalState(true, juce::ModalCallbackFunction::create([this, dialog](int result)
-    {
-        if (result == 1)
-        {
-            // Get the preset name from the text editor
-            auto* textEditor = dialog->getTextEditor("presetName");
-            if (textEditor)
-            {
-                juce::String presetName = textEditor->getText().trim();
-                
-                if (presetName.isNotEmpty())
-                {
-                    
-                    // Save directly to User bank (dummy file parameter - not used anymore)
-                    savePresetToFile(juce::File{}, presetName);
-                }
-                else
-                {
-                    juce::AlertWindow::showMessageBoxAsync(
-                        juce::MessageBoxIconType::WarningIcon,
-                        "Invalid Name",
-                        "Please enter a valid preset name."
-                    );
-                }
-            }
-        }
-        
-        delete dialog;
-    }));
-}
-
-void MainComponent::savePresetToFile(const juce::File& file, const juce::String& presetName)
-{
-    
-    // Save the preset to the User bank instead of a file
-    if (audioProcessor.saveCurrentPresetToUserBank(presetName))
-    {
-        
-        // Update UI to show the new preset
-        updateBankComboBox();
-        updatePresetComboBox();
-        
-        // Select User bank
-        auto bankNames = audioProcessor.getBankNames();
-        for (int i = 0; i < bankNames.size(); ++i) {
-            if (bankNames[i] == "User") {
-                bankComboBox->setSelectedId(i + 1, juce::dontSendNotification);
-                updatePresetComboBox();
-                break;
-            }
-        }
-        
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::InfoIcon,
-            "Save Successful",
-            "Preset '" + presetName + "' has been saved to the User bank.\n\n" +
-            "Your preset will persist across application restarts."
-        );
-    }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Save Error",
-            "Failed to save preset '" + presetName + "' to User bank."
-        );
-    }
-}

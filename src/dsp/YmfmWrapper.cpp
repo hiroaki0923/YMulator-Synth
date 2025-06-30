@@ -45,12 +45,11 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
         // Calculate the actual internal sample rate like S98Player does
         if (opmChip) {
             uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
-            // IMPORTANT: Always use the DAW's output sample rate for consistency
-            // ymfm internal rate is only used for timing calculations
-            internalSampleRate = outputSampleRate; // Use DAW sample rate, not ymfm rate
+            // Use ymfm's calculated internal rate for proper audio generation
+            internalSampleRate = ymfm_internal_rate;
             CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
             CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
-            CS_FILE_DBG("Final internalSampleRate set to outputSampleRate=" + juce::String(outputSampleRate) + " Hz");
+            CS_FILE_DBG("Final internalSampleRate set to ymfm_internal_rate=" + juce::String(internalSampleRate) + " Hz");
             CS_FILE_DBG("=== YmfmWrapper initialization complete ===");
         }
     } else {
@@ -161,6 +160,7 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
         // The library handles internal timing, no need for clock calculation
         
         // Generate samples one at a time (ymfm output is per-sample, not batched)
+        static int debugCounter = 0;
         for (int i = 0; i < numSamples; i++) {
             // CORRECT: ymfm::generate(output*, samples_to_generate)
             opmChip->generate(&opmOutput, 1);
@@ -274,9 +274,10 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
     if (chipType == ChipType::OPM) {
         // Setting up sine wave timbre for OPM channel (debug output disabled)
         
-        // Algorithm 0 (simple FM), FB=0, ensure output enabled
-        // Always enable both L/R outputs (PAN_CENTER = 0xC0)
-        uint8_t algFbLr = 0x00 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+        // Algorithm 0 (simple FM), FB=0, preserve current pan setting
+        uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+        uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+        uint8_t algFbLr = 0x00 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, algFbLr);
         
         // setupBasicPianoVoice debug output disabled
@@ -405,6 +406,12 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
                             ((value & YM2151Regs::MASK_KEY_SCALE) << YM2151Regs::SHIFT_KEY_SCALE) | 
                             (currentValue & YM2151Regs::PRESERVE_AR));
                 break;
+                
+            case OperatorParameter::AmsEnable:
+                // AmsEnable is handled via dedicated setOperatorAmsEnable method
+                // This switch case ensures enum completeness
+                setOperatorAmsEnable(channel, operator_num, value != 0);
+                break;
         }
     }
 }
@@ -431,6 +438,30 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
                 // Keep existing L/R/ALG bits, update FB
                 writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, 
                             (currentValue & YM2151Regs::PRESERVE_ALG_LR) | ((value & YM2151Regs::MASK_FEEDBACK) << YM2151Regs::SHIFT_FEEDBACK));
+                break;
+                
+            case ChannelParameter::Pan:
+                // Pan is handled via dedicated setChannelPan method
+                // Value interpretation: 0=Left, 1=Center, 2=Right, 3=Off
+                setChannelPan(channel, static_cast<float>(value) / 3.0f);
+                break;
+                
+            case ChannelParameter::AMS:
+                // AMS is handled via dedicated setChannelAmsPms method
+                {
+                    uint8_t regValue = readCurrentRegister(YM2151Regs::REG_LFO_AMS_PMS_BASE + channel);
+                    uint8_t currentPms = (regValue >> YM2151Regs::SHIFT_LFO_PMS) & YM2151Regs::MASK_LFO_PMS;
+                    setChannelAmsPms(channel, value, currentPms);
+                }
+                break;
+                
+            case ChannelParameter::PMS:
+                // PMS is handled via dedicated setChannelAmsPms method  
+                {
+                    uint8_t regValue = readCurrentRegister(YM2151Regs::REG_LFO_AMS_PMS_BASE + channel);
+                    uint8_t currentAms = regValue & YM2151Regs::MASK_LFO_AMS;
+                    setChannelAmsPms(channel, currentAms, value);
+                }
                 break;
         }
     }
@@ -534,7 +565,7 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
     
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
     
-    CS_DBG("Setting channel " + juce::String((int)channel) + " pan to " + juce::String(panValue, 3));
+    // CS_FILE_DBG("YmfmWrapper::setChannelPan - Setting channel " + juce::String((int)channel) + " pan to " + juce::String(panValue, 3));
     
     if (chipType == ChipType::OPM) {
         // Read current register value
@@ -548,10 +579,10 @@ void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
         
         writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, newValue);
         
-        CS_DBG("Pan register updated - channel=" + juce::String((int)channel) + 
-               ", pan=" + juce::String(panValue, 3) + 
-               ", panBits=0x" + juce::String::toHexString(panBits) + 
-               ", reg=0x" + juce::String::toHexString(newValue));
+        // CS_FILE_DBG("YmfmWrapper::setChannelPan - channel=" + juce::String((int)channel) + 
+        //            ", pan=" + juce::String(panValue, 3) + 
+        //            ", panBits=0x" + juce::String::toHexString(panBits) + 
+        //            ", reg=0x" + juce::String::toHexString(newValue));
     } else if (chipType == ChipType::OPNA) {
         // OPNA uses different pan control mechanism
         // For now, just debug log - OPNA pan would need separate implementation
@@ -627,9 +658,9 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
     
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
     
-    CS_DBG("Setting operator " + juce::String((int)operator_num) + 
-           " on channel " + juce::String((int)channel) + 
-           " AMS enable=" + juce::String(enable ? "true" : "false"));
+    //CS_DBG("Setting operator " + juce::String((int)operator_num) + 
+    //       " on channel " + juce::String((int)channel) + 
+    //       " AMS enable=" + juce::String(enable ? "true" : "false"));
     
     if (chipType == ChipType::OPM) {
         uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
@@ -644,9 +675,9 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
         
         writeRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr, newValue);
         
-        CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
-               ", channel=" + juce::String((int)channel) +
-               ", value=0x" + juce::String::toHexString(newValue));
+        //CS_DBG("AMS enable register updated - operator=" + juce::String((int)operator_num) +
+        //       ", channel=" + juce::String((int)channel) +
+        //       ", value=0x" + juce::String::toHexString(newValue));
     }
 }
 
@@ -940,7 +971,9 @@ void YmfmWrapper::testNoiseChannel()
     
     // Set up channel 7 for noise output using algorithm 7 (all operators parallel)
     // Note: Noise works with any algorithm, but algorithm 7 makes it easiest to hear
-    uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | YM2151Regs::PAN_CENTER;
+    uint8_t currentReg = readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel);
+    uint8_t currentPan = currentReg & YM2151Regs::MASK_PAN_LR;
+    uint8_t algFbLr = 0x07 | (0x00 << YM2151Regs::SHIFT_FEEDBACK) | currentPan;
     writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, algFbLr);
     
     // Configure operators 1-3 to be silent (high TL values)

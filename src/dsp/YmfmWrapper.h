@@ -12,7 +12,7 @@ class YmfmWrapper : public YmfmWrapperInterface, public ymfm::ymfm_interface
 {
 public:
     YmfmWrapper();
-    ~YmfmWrapper() = default;
+    ~YmfmWrapper() override = default;
     
     // Initialization and lifecycle - interface implementation
     void initialize(ChipType type, uint32_t outputSampleRate) override;
@@ -70,12 +70,12 @@ public:
     EnvelopeDebugInfo getEnvelopeDebugInfo(uint8_t channel, uint8_t operator_num) const override;
     
     // ymfm_interface overrides
-    uint8_t ymfm_external_read(ymfm::access_class type, uint32_t address) override 
+    uint8_t ymfm_external_read([[maybe_unused]] ymfm::access_class type, [[maybe_unused]] uint32_t address) override 
     { 
         return 0; 
     }
     
-    void ymfm_external_write(ymfm::access_class type, uint32_t address, uint8_t data) override 
+    void ymfm_external_write([[maybe_unused]] ymfm::access_class type, [[maybe_unused]] uint32_t address, [[maybe_unused]] uint8_t data) override 
     {
         // Not used for OPM/OPNA
     }

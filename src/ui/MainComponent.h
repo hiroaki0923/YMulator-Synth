@@ -5,11 +5,12 @@
 #include "OperatorPanel.h"
 #include "RotaryKnob.h"
 #include "AlgorithmDisplay.h"
+#include "PresetUIManager.h"
+#include "GlobalControlsPanel.h"
 
 class YMulatorSynthAudioProcessor;
 
-class MainComponent : public juce::Component,
-                      public juce::ValueTree::Listener
+class MainComponent : public juce::Component
 {
 public:
     explicit MainComponent(YMulatorSynthAudioProcessor& processor);
@@ -17,10 +18,6 @@ public:
     
     void paint(juce::Graphics& g) override;
     void resized() override;
-    
-    // ValueTree::Listener overrides
-    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
-                                 const juce::Identifier& property) override;
 
 private:
     YMulatorSynthAudioProcessor& audioProcessor;
@@ -28,19 +25,11 @@ private:
     // Menu bar
     std::unique_ptr<juce::PopupMenu> fileMenu;
     
-    // Global controls
-    std::unique_ptr<juce::ComboBox> algorithmComboBox;
-    std::unique_ptr<juce::Label> algorithmLabel;
-    std::unique_ptr<RotaryKnob> feedbackKnob;
-    std::unique_ptr<juce::ComboBox> globalPanComboBox;
-    std::unique_ptr<juce::Label> globalPanLabel;
+    // Global Controls Panel
+    std::unique_ptr<GlobalControlsPanel> globalControlsPanel;
     
-    // Bank and Preset selectors
-    std::unique_ptr<juce::ComboBox> bankComboBox;
-    std::unique_ptr<juce::Label> bankLabel;
-    std::unique_ptr<juce::ComboBox> presetComboBox;
-    std::unique_ptr<juce::Label> presetLabel;
-    std::unique_ptr<juce::TextButton> savePresetButton;
+    // Preset UI Manager
+    std::unique_ptr<PresetUIManager> presetUIManager;
     
     // LFO controls
     std::unique_ptr<RotaryKnob> lfoRateKnob;
@@ -71,16 +60,12 @@ private:
     // UI update flags
     bool isUpdatingFromState = false;
     
-    // Parameter attachments
-    std::unique_ptr<juce::Slider> feedbackHiddenSlider;
+    // Parameter attachments (for LFO and Noise controls remaining in MainComponent)
     std::unique_ptr<juce::Slider> lfoRateHiddenSlider;
     std::unique_ptr<juce::Slider> lfoAmdHiddenSlider;
     std::unique_ptr<juce::Slider> lfoPmdHiddenSlider;
     std::unique_ptr<juce::Slider> noiseFrequencyHiddenSlider;
     
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> feedbackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> globalPanAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoRateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoAmdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfoPmdAttachment;
@@ -88,19 +73,10 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> noiseEnableAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> noiseFrequencyAttachment;
     
-    void setupGlobalControls();
     void setupLfoControls();
     void setupOperatorPanels();
-    void setupPresetSelector();
     void setupDisplayComponents();
-    void updateBankComboBox();
-    void updatePresetComboBox();
-    void onBankChanged();
-    void onPresetChanged();
     void updateAlgorithmDisplay();
-    void loadOpmFileDialog();
-    void savePresetDialog();
-    void savePresetToFile(const juce::File& file, const juce::String& presetName);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

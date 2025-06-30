@@ -16,6 +16,10 @@ protected:
     }
     
     void TearDown() override {
+        if (processor) {
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
+        }
         processor.reset();
         host.reset();
     }

@@ -25,6 +25,11 @@ protected:
     }
     
     void TearDown() override {
+        // Reset static state before destroying processor to ensure clean test isolation
+        if (processor) {
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
+        }
         processor.reset();
         host.reset();
     }
@@ -144,7 +149,7 @@ TEST_F(PluginProcessorComprehensiveTest, MidiNoteOnOffBasic) {
     host->processBlock(*processor, 512);
     
     // Should generate audio
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Note off
     host->sendMidiNoteOff(*processor, 1, 60);
@@ -204,14 +209,14 @@ TEST_F(PluginProcessorComprehensiveTest, PolyphonicVoiceAllocation) {
     host->processBlock(*processor, 512);
     
     // Should generate audio with all voices
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // 9th note should trigger voice stealing
     host->sendMidiNoteOn(*processor, 1, 85, 100);
     host->processBlock(*processor, 512);
     
     // Should still generate audio (voice stealing handled)
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Clean up
     for (int note : notes) {
@@ -230,7 +235,7 @@ TEST_F(PluginProcessorComprehensiveTest, AudioGenerationSilentByDefault) {
     host->processBlock(*processor, 512);
     
     // Should be silent
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f) == false);
+    EXPECT_TRUE(host->hasNonSilentOutput() == false);
 }
 
 TEST_F(PluginProcessorComprehensiveTest, VariableBufferSizes) {
@@ -248,7 +253,7 @@ TEST_F(PluginProcessorComprehensiveTest, VariableBufferSizes) {
         EXPECT_NO_THROW(host->processBlock(*processor, bufferSize));
         
         // Should generate audio
-        EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+        EXPECT_TRUE(host->hasNonSilentOutput());
         
         // Clean up
         host->sendMidiNoteOff(*processor, 1, 60);
@@ -472,7 +477,7 @@ TEST_F(PluginProcessorComprehensiveTest, ExtremeMidiLoad) {
     EXPECT_NO_THROW(host->processBlock(*processor, 512));
     
     // Should still generate valid audio
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
 }
 
 // =============================================================================
@@ -635,7 +640,7 @@ TEST_F(PluginProcessorComprehensiveTest, ContinuousParameterAutomation) {
         
         // Should continue generating audio
         if (block % 50 == 0) {
-            EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+            EXPECT_TRUE(host->hasNonSilentOutput());
         }
     }
     
@@ -798,20 +803,20 @@ TEST_F(PluginProcessorComprehensiveTest, VoiceStealingBehavior) {
     
     // Verify we have audio output from all voices
     host->processBlock(*processor, 256);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Play 9th note - should trigger voice stealing
     host->sendMidiNoteOn(*processor, 1, 74, 100);
     host->processBlock(*processor, 256);
     
     // Should still have audio output (voice stealing handled gracefully)
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Play several more notes to test continued voice stealing
     for (int i = 0; i < 5; ++i) {
         host->sendMidiNoteOn(*processor, 1, 76 + i, 100);
         host->processBlock(*processor, 128);
-        EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+        EXPECT_TRUE(host->hasNonSilentOutput());
     }
     
     // Clean up - release all possible notes
@@ -886,7 +891,7 @@ TEST_F(PluginProcessorComprehensiveTest, SilenceAfterAllNotesOff) {
     }
     
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Release all notes
     for (int note : notes) {

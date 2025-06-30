@@ -17,7 +17,7 @@ public:
     static constexpr int MAX_VOICES = 8;  // YM2151 has 8 channels
     
     VoiceManager();
-    ~VoiceManager() = default;
+    ~VoiceManager() override = default;
     
     // Voice allocation
     int allocateVoice(uint8_t note, uint8_t velocity) override;

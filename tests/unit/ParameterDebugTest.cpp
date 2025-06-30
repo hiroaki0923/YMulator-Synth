@@ -62,10 +62,10 @@ TEST_F(ParameterDebugTest, ParameterAccessDebugTest) {
         float finalValue = host->getParameterValue(*processor, test.id);
         
         // Print debug info (this will show in test output)
-        std::cout << test.name << " (" << test.id << "): " 
-                  << "initial=" << initialValue 
-                  << ", set=" << testValue 
-                  << ", final=" << finalValue << std::endl;
+        CS_DBG(juce::String(test.name) + " (" + juce::String(test.id) + "): " 
+               + "initial=" + juce::String(initialValue) 
+               + ", set=" + juce::String(testValue) 
+               + ", final=" + juce::String(finalValue));
         
         // At minimum, values should be in valid range
         EXPECT_GE(finalValue, 0.0f) << "Parameter " << test.name << " out of lower bound";
@@ -89,12 +89,12 @@ TEST_F(ParameterDebugTest, ParameterStabilityTest) {
     }
     
     // Print value history
-    std::cout << "Algorithm parameter over time: ";
+    juce::String valueHistory = "Algorithm parameter over time: ";
     for (size_t i = 0; i < values.size(); ++i) {
-        std::cout << values[i];
-        if (i < values.size() - 1) std::cout << ", ";
+        valueHistory += juce::String(values[i]);
+        if (i < values.size() - 1) valueHistory += ", ";
     }
-    std::cout << std::endl;
+    CS_DBG(valueHistory);
     
     // Check if value stabilizes
     if (values.size() >= 2) {

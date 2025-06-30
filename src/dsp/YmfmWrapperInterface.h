@@ -40,12 +40,16 @@ public:
         Multiple,
         Detune1,
         Detune2,
-        KeyScale
+        KeyScale,
+        AmsEnable
     };
     
     enum class ChannelParameter {
         Algorithm,
-        Feedback
+        Feedback,
+        Pan,
+        AMS,
+        PMS
     };
     
     // Parameter control

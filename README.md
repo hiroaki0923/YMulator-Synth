@@ -1,5 +1,7 @@
 # YMulator Synth
 
+*[日本語版はこちら / Japanese version](README_ja.md)*
+
 A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with an intuitive 4-operator interface.
 
 ![YMulator Synth Screenshot](docs/images/screenshot.png)
@@ -44,16 +46,51 @@ A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound 
 
 ## Requirements
 
+### 🪟 Windows
+- Windows 10 or later (64-bit)
+- VST3 compatible DAW (Ableton Live, FL Studio, Reaper, etc.)
+
+### 🍎 macOS
 - macOS 10.13 or later
 - Audio Unit compatible DAW (Logic Pro, Ableton Live, GarageBand, etc.)
 - 64-bit Intel or Apple Silicon processor
 
+### 🐧 Linux
+- Modern Linux distribution (Ubuntu 18.04+, Fedora 30+, etc.)
+- VST3 compatible DAW (Reaper, Ardour, Bitwig Studio, etc.)
+- 64-bit x86_64 processor
+
 ## Installation
 
 ### Download Release
-1. Download the latest release from the [Releases](https://github.com/hiroaki0923/YMulator-Synth/releases) page
-2. Open the DMG file
-3. Copy `YMulator Synth.component` to `/Library/Audio/Plug-Ins/Components/`
+Download the latest release from the [Releases](https://github.com/hiroaki0923/YMulator-Synth/releases) page and follow the platform-specific instructions:
+
+#### 🪟 Windows
+1. Download `YMulator-Synth-Windows-VST3.zip`
+2. Extract the archive
+3. Copy `YMulator-Synth.vst3` to `C:\Program Files\Common Files\VST3\`
+4. Restart your DAW
+
+#### 🍎 macOS
+1. Download the appropriate package:
+   - `YMulator-Synth-macOS-AU.zip` (Audio Unit)
+   - `YMulator-Synth-macOS-VST3.zip` (VST3)
+   - `YMulator-Synth-macOS-Standalone.zip` (Standalone app)
+2. Extract the archive
+3. Copy plugins to the appropriate directory:
+   - **Audio Unit**: `/Library/Audio/Plug-Ins/Components/`
+   - **VST3**: `/Library/Audio/Plug-Ins/VST3/`
+   - **Standalone**: Install the `.app` to `Applications`
+4. Restart your DAW
+
+#### 🐧 Linux
+1. Download the appropriate package:
+   - `YMulator-Synth-Linux-VST3.tar.gz` (VST3)
+   - `YMulator-Synth-Linux-Standalone.tar.gz` (Standalone)
+2. Extract the archive: `tar -xzf YMulator-Synth-Linux-VST3.tar.gz`
+3. Copy plugins to your VST3 directory:
+   - **System-wide**: `/usr/lib/vst3/` (requires sudo)
+   - **User-only**: `~/.vst3/`
 4. Restart your DAW
 
 ### Build from Source
@@ -70,35 +107,110 @@ See [Building](#building) section below.
 ## Building
 
 ### Prerequisites
+
+#### 🪟 Windows
+```bash
+# Install CMake via chocolatey
+choco install cmake
+# Or download from https://cmake.org/download/
+
+# Install Git
+choco install git
+
+# Install Visual Studio 2019/2022 with C++ workload
+```
+
+#### 🍎 macOS
 ```bash
 # Install Xcode Command Line Tools
 xcode-select --install
 
-# Install CMake
-brew install cmake
+# Install CMake and Git
+brew install cmake git
+
+# Optional: Install Google Test for testing
+brew install googletest
+```
+
+#### 🐧 Linux (Ubuntu/Debian)
+```bash
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y \
+    cmake \
+    build-essential \
+    git \
+    libgtest-dev \
+    libasound2-dev \
+    libjack-jackd2-dev \
+    libfreetype6-dev \
+    libx11-dev \
+    libxcomposite-dev \
+    libxcursor-dev \
+    libxinerama-dev \
+    libxrandr-dev \
+    libxrender-dev \
+    libglu1-mesa-dev
 ```
 
 ### Clone and Build
+
+#### Quick Start (All Platforms)
 ```bash
 # Clone repository with submodules
 git clone --recursive https://github.com/hiroaki0923/YMulator-Synth.git
 cd YMulator-Synth
 
-# Create build directory
+# One-time setup
+./scripts/build.sh setup
+
+# Build the project
+./scripts/build.sh build
+
+# Install plugins (macOS only)
+./scripts/build.sh install
+```
+
+#### Platform-Specific Build
+```bash
+# Debug build for development
+./scripts/build.sh debug
+
+# Release build for distribution
+./scripts/build.sh release
+
+# Clean and rebuild
+./scripts/build.sh rebuild
+
+# Just clean build directory
+./scripts/build.sh clean
+```
+
+#### Manual Build (if scripts don't work)
+```bash
+# Clone repository with submodules
+git clone --recursive https://github.com/hiroaki0923/YMulator-Synth.git
+cd YMulator-Synth
+
+# Create and enter build directory
 mkdir build && cd build
 
-# Configure and build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+# Configure (choose one)
+cmake .. -DCMAKE_BUILD_TYPE=Release                    # Linux/macOS
+cmake .. -G "Visual Studio 17 2022" -A x64            # Windows
 
-# Install (copies to ~/Library/Audio/Plug-Ins/Components/)
+# Build
+cmake --build . --config Release --parallel
+
+# Install (macOS only - copies to Audio Unit directories)
 cmake --install .
 ```
 
 ### Development with VSCode
 1. Open the project folder in VSCode
-2. Install recommended extensions when prompted
+2. Install recommended extensions when prompted (CMake Tools, C/C++)
 3. Use CMake Tools extension for building and debugging
+4. See `CLAUDE.md` for detailed development setup instructions
 
 ## Technical Specifications
 
@@ -149,15 +261,81 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 5. Open a Pull Request
 
 ### Testing
+
+#### Quick Testing
 ```bash
-# Run unit tests
+# Run all tests (uses split binaries for speed)
+./scripts/test.sh
+
+# Test execution modes
+./scripts/test.sh --split           # Split binaries, parallel (default)
+./scripts/test.sh --split-seq       # Split binaries, sequential
+./scripts/test.sh --unified         # Unified binary (traditional)
+
+# Run specific test categories
+./scripts/test.sh --unit           # Unit tests only
+./scripts/test.sh --integration    # Integration tests only
+./scripts/test.sh --regression     # Regression tests only
+
+# Audio Unit validation (macOS only)
+./scripts/test.sh --auval
+
+# Build and test in one command
+./scripts/test.sh --build
+```
+
+#### Advanced Testing
+```bash
+# List available tests
+./scripts/test.sh --list
+
+# Run tests matching specific pattern
+./scripts/test.sh --filter "ParameterManager"
+./scripts/test.sh --filter "Pan"
+
+# Show only Google Test output (no debug logs)
+./scripts/test.sh --gtest-only
+
+# Quiet mode for CI/automated testing
+./scripts/test.sh --quiet
+
+# Verbose mode for debugging
+./scripts/test.sh --verbose
+
+# Pass additional arguments to Google Test
+./scripts/test.sh --gtest-args "--gtest_repeat=5"
+```
+
+#### Manual Testing (if scripts don't work)
+```bash
+# Run all tests using split binaries (fast parallel execution)
 cd build
+./bin/YMulatorSynthAU_BasicTests --gtest_brief &
+./bin/YMulatorSynthAU_PresetTests --gtest_brief &
+./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
+./bin/YMulatorSynthAU_PanTests --gtest_brief &
+./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
+./bin/YMulatorSynthAU_QualityTests --gtest_brief &
+wait
+
+# Run specific test categories
+./bin/YMulatorSynthAU_BasicTests         # Basic functionality tests
+./bin/YMulatorSynthAU_PresetTests        # Preset management tests
+./bin/YMulatorSynthAU_ParameterTests     # Parameter system tests
+./bin/YMulatorSynthAU_PanTests           # Pan functionality tests
+./bin/YMulatorSynthAU_IntegrationTests   # Component integration tests
+./bin/YMulatorSynthAU_QualityTests       # Audio quality tests
+
+# Unified test executable (traditional, slower)
+./bin/YMulatorSynthAU_Tests
+
+# Using ctest (runs all test executables)
 ctest --output-on-failure
 
-# Run Audio Unit validation (quiet)
+# Audio Unit validation (macOS only)
 auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval FAILED"
 
-# Run Audio Unit validation (verbose for debugging)
+# Audio Unit validation (verbose for debugging)
 auval -v aumu YMul Hrki
 ```
 

@@ -30,14 +30,13 @@ public:
     #define CS_DBG(msg) DBG(msg)
     #define CS_LOG(msg) std::cout << msg << std::endl
     #define CS_LOGF(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
+    #define CS_FILE_DBG(msg) DebugLogger::log(juce::String(msg))
 #else
     #define CS_DBG(msg) ((void)0)
     #define CS_LOG(msg) ((void)0)
     #define CS_LOGF(fmt, ...) ((void)0)
+    #define CS_FILE_DBG(msg) ((void)0)
 #endif
-
-// File debug logging is ALWAYS enabled for troubleshooting
-#define CS_FILE_DBG(msg) DebugLogger::log(juce::String(msg))
 
 // Additional debug utilities and assertions
 #ifdef JUCE_DEBUG
@@ -53,6 +52,8 @@ public:
     #define CS_ASSERT_PAN_RANGE(pan) jassert((pan) >= 0.0f && (pan) <= 1.0f)
     #define CS_ASSERT_VELOCITY(vel) jassert((vel) >= 0 && (vel) <= 127)
     #define CS_ASSERT_NOTE(note) jassert((note) >= 0 && (note) <= 127)
+    #define CS_ASSERT_ALGORITHM(alg) jassert((alg) >= 0 && (alg) <= 7)
+    #define CS_ASSERT_FEEDBACK(fb) jassert((fb) >= 0 && (fb) <= 7)
 #else
     #define CS_ASSERT(condition) ((void)0)
     #define CS_DBG_ONLY(code) ((void)0)
@@ -64,4 +65,6 @@ public:
     #define CS_ASSERT_PAN_RANGE(pan) ((void)0)
     #define CS_ASSERT_VELOCITY(vel) ((void)0)
     #define CS_ASSERT_NOTE(note) ((void)0)
+    #define CS_ASSERT_ALGORITHM(alg) ((void)0)
+    #define CS_ASSERT_FEEDBACK(fb) ((void)0)
 #endif

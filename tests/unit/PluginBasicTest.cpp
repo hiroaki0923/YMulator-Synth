@@ -17,6 +17,11 @@ protected:
     }
     
     void TearDown() override {
+        // Reset static state before destroying processor to ensure clean test isolation
+        if (processor) {
+            processor->resetProcessBlockStaticState();
+            ymulatorsynth::ParameterManager::resetStaticState();
+        }
         processor.reset();
         host.reset();
     }
@@ -42,7 +47,7 @@ TEST_F(PluginBasicTest, BasicSoundGenerationTest) {
     
     // Verify that we have non-silent output
     YMulatorSynth::Test::AudioOutputVerifier verifier(host->getLastProcessedBuffer());
-    EXPECT_TRUE(verifier.verifyNotSilent(0.001f));
+    EXPECT_TRUE(verifier.verifyNotSilent());
     
     // Send note off
     host->sendMidiNoteOff(*processor, 1, 60);
