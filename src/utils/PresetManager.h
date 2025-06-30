@@ -84,7 +84,7 @@ class PresetManager : public PresetManagerInterface
 {
 public:
     PresetManager();
-    ~PresetManager() = default;
+    ~PresetManager() override = default;
     
     // Interface implementation - Initialization
     void initialize() override;

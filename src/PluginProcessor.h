@@ -65,10 +65,10 @@ public:
     // ValueTree::Listener
     void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
                                 const juce::Identifier& property) override;
-    void valueTreeChildAdded(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) override {}
-    void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override {}
-    void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhoseChildrenHaveMoved, int oldIndex, int newIndex) override {}
-    void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override {}
+    void valueTreeChildAdded([[maybe_unused]] juce::ValueTree& parentTree, [[maybe_unused]] juce::ValueTree& childWhichHasBeenAdded) override {}
+    void valueTreeChildRemoved([[maybe_unused]] juce::ValueTree& parentTree, [[maybe_unused]] juce::ValueTree& childWhichHasBeenRemoved, [[maybe_unused]] int indexFromWhichChildWasRemoved) override {}
+    void valueTreeChildOrderChanged([[maybe_unused]] juce::ValueTree& parentTreeWhoseChildrenHaveMoved, [[maybe_unused]] int oldIndex, [[maybe_unused]] int newIndex) override {}
+    void valueTreeParentChanged([[maybe_unused]] juce::ValueTree& treeWhoseParentHasChanged) override {}
 
     // Parameter access for UI
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }

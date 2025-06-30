@@ -45,9 +45,9 @@ public:
     PanProcessor(const PanProcessor&) = delete;
     PanProcessor& operator=(const PanProcessor&) = delete;
     
-    // Enable move construction and assignment
+    // Enable move construction but delete move assignment (due to reference member)
     PanProcessor(PanProcessor&&) = default;
-    PanProcessor& operator=(PanProcessor&&) = default;
+    PanProcessor& operator=(PanProcessor&&) = delete;
     
     // =========================================================================
     // Pan Processing Methods

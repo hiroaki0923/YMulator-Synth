@@ -481,7 +481,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String
 
 // loadPreset(Preset*) moved to StateManager through ParameterManager
 
-void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue)
+void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, [[maybe_unused]] float newValue)
 {
     // CS_FILE_DBG("parameterValueChanged called - index: " + juce::String(parameterIndex) + 
     //             ", value: " + juce::String(newValue));
@@ -567,7 +567,7 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
 
 // applyGlobalPan, applyGlobalPanToAllChannels, setChannelRandomPan methods moved to ParameterManager
 
-void YMulatorSynthAudioProcessor::processMidiMessages(juce::MidiBuffer& midiMessages)
+void YMulatorSynthAudioProcessor::processMidiMessages([[maybe_unused]] juce::MidiBuffer& midiMessages)
 {
     // DEPRECATED: Now handled by MidiProcessor directly in processBlock
     // This method is kept for backward compatibility but should not be called
@@ -606,7 +606,6 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
         
         // DEBUG: Measure left/right channel levels for pan analysis
         static int panDebugCounter = 0;
-        static bool lastHadAudio = false;
         
         if (++panDebugCounter % 2048 == 0) { // Every ~2048 samples
             float leftLevel = 0.0f, rightLevel = 0.0f;
@@ -624,8 +623,8 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
             leftRMS = std::sqrt(leftRMS / numSamples);
             rightRMS = std::sqrt(rightRMS / numSamples);
             
-            bool hasAudio = (leftLevel > 0.0001f || rightLevel > 0.0001f);
-            lastHadAudio = hasAudio;
+            // Audio level monitoring (for debug purposes)
+            [[maybe_unused]] bool hasAudio = (leftLevel > 0.0001f || rightLevel > 0.0001f);
         }
         
         // Apply moderate gain to prevent clipping

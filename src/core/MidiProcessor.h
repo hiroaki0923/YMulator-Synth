@@ -41,7 +41,7 @@ public:
                  juce::AudioProcessorValueTreeState& parameters,
                  ParameterManager& parameterManager);
     
-    virtual ~MidiProcessor() = default;
+    ~MidiProcessor() override = default;
     
     // MidiProcessorInterface implementation
     void processMidiMessages(juce::MidiBuffer& midiMessages) override;
