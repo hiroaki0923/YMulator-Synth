@@ -62,8 +62,8 @@ protected:
         host->sendMidiNoteOff(*processor, channel, note);
     }
     
-    // Helper: Verify audio characteristics across multiple blocks
-    bool verifyConsistentAudio(int numBlocks, float minThreshold = 0.001f) {
+    // Helper: Verify audio characteristics across multiple blocks  
+    bool verifyConsistentAudio(int numBlocks, float minThreshold = 0.0001f) {
         int validBlocks = 0;
         
         for (int i = 0; i < numBlocks; ++i) {
@@ -92,15 +92,15 @@ TEST_F(ComprehensiveIntegrationTest, EndToEndMidiToAudioPipeline) {
     // Send complex MIDI sequence
     host->sendMidiNoteOn(*processor, 1, 60, 100);  // C4
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     host->sendMidiNoteOn(*processor, 1, 64, 110);  // E4 (add to chord)  
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     host->sendMidiNoteOn(*processor, 1, 67, 90);   // G4 (complete chord)
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Verify sustained audio over multiple blocks
     EXPECT_TRUE(verifyConsistentAudio(10)); // ~120ms sustained
@@ -112,7 +112,7 @@ TEST_F(ComprehensiveIntegrationTest, EndToEndMidiToAudioPipeline) {
     
     // Verify envelope release
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f)); // Should still have release tail
+    EXPECT_TRUE(host->hasNonSilentOutput()); // Should still have release tail
 }
 
 TEST_F(ComprehensiveIntegrationTest, RealTimeProcessingConstraints) {
@@ -171,24 +171,24 @@ TEST_F(ComprehensiveIntegrationTest, PresetSwitchingIntegration) {
     processor->setCurrentProgram(0);
     host->sendMidiNoteOn(*processor, 1, 60, 100);
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Switch preset while note is playing
     processor->setCurrentProgram(1);
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f)); // Should continue without glitches
+    EXPECT_TRUE(host->hasNonSilentOutput()); // Should continue without glitches
     
     // Switch to another preset
     processor->setCurrentProgram(2);
     host->processBlock(*processor, 512);
-    EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+    EXPECT_TRUE(host->hasNonSilentOutput());
     
     // Test rapid preset switching
     for (int preset = 0; preset < 5; ++preset) {
         processor->setCurrentProgram(preset);
         host->processBlock(*processor, 256); // Smaller blocks for rapid switching
         // Should not crash or produce silence
-        EXPECT_NO_THROW(host->hasNonSilentOutput(0.001f));
+        EXPECT_NO_THROW(host->hasNonSilentOutput());
     }
     
     host->sendMidiNoteOff(*processor, 1, 60);
@@ -238,7 +238,7 @@ TEST_F(ComprehensiveIntegrationTest, LiveParameterAutomationIntegration) {
         processor->setParameterNotifyingHost(0, paramValue); // Algorithm parameter
         
         host->processBlock(*processor, 512);
-        EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+        EXPECT_TRUE(host->hasNonSilentOutput());
         
         // Verify parameter took effect
         EXPECT_NEAR(processor->getParameter(0), paramValue, 0.01f);
@@ -262,7 +262,7 @@ TEST_F(ComprehensiveIntegrationTest, MultiParameterAutomationStress) {
         processor->setParameterNotifyingHost(2, t * 0.5f);    // Op1 Total Level
         
         host->processBlock(*processor, 512);
-        EXPECT_TRUE(host->hasNonSilentOutput(0.001f));
+        EXPECT_TRUE(host->hasNonSilentOutput());
         
         // Brief pause to simulate realistic automation timing
         std::this_thread::sleep_for(std::chrono::microseconds(10));

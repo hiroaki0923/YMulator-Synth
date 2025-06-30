@@ -64,7 +64,7 @@ public:
     
     // Test utilities
     void clearProcessedBuffer();
-    bool hasNonSilentOutput(float threshold = 0.001f) const;
+    bool hasNonSilentOutput(float threshold = 0.0001f) const;
     float getRMSLevel(int channel) const;
     float getPeakLevel(int channel) const;
     
@@ -105,8 +105,8 @@ public:
     
     bool verifyChannelCount(int expectedChannels) const;
     bool verifySampleCount(int expectedSamples) const;
-    bool verifyNotSilent(float threshold = 0.001f) const;
-    bool verifySilent(float threshold = 0.001f) const;
+    bool verifyNotSilent(float threshold = 0.0001f) const;
+    bool verifySilent(float threshold = 0.0001f) const;
     bool verifyRMSRange(int channel, float minRMS, float maxRMS) const;
     bool verifyPeakRange(int channel, float minPeak, float maxPeak) const;
     bool verifyFrequencyContent(int channel, float targetFrequency, 

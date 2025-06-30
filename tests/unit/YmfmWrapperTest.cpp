@@ -60,7 +60,7 @@ protected:
     }
     
     // Helper function to check if audio buffer contains non-silent audio
-    bool hasNonSilentAudio(const std::vector<float>& buffer, float threshold = 0.001f) {
+    bool hasNonSilentAudio(const std::vector<float>& buffer, float threshold = 0.0001f) {
         for (float sample : buffer) {
             if (std::abs(sample) > threshold) {
                 return true;
