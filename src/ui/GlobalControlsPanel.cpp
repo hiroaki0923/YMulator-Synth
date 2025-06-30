@@ -67,7 +67,7 @@ void GlobalControlsPanel::setupComponents()
     algorithmLabel = std::make_unique<juce::Label>("", "AL");
     algorithmLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     algorithmLabel->setJustificationType(juce::Justification::centredRight);
-    algorithmLabel->setFont(juce::Font(12.0f));
+    algorithmLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*algorithmLabel);
     
     // Feedback knob
@@ -86,7 +86,7 @@ void GlobalControlsPanel::setupComponents()
     globalPanLabel = std::make_unique<juce::Label>("", "PAN");
     globalPanLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     globalPanLabel->setJustificationType(juce::Justification::centredRight);
-    globalPanLabel->setFont(juce::Font(12.0f));
+    globalPanLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*globalPanLabel);
 }
 

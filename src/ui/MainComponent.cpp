@@ -200,7 +200,7 @@ void MainComponent::setupLfoControls()
     lfoSectionLabel = std::make_unique<juce::Label>("", "LFO");
     lfoSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    lfoSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    lfoSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle(juce::Font::bold)));
     addAndMakeVisible(*lfoSectionLabel);
     
     // LFO Rate knob (without label - will be added separately)
@@ -214,7 +214,7 @@ void MainComponent::setupLfoControls()
     lfoRateLabel = std::make_unique<juce::Label>("", "Rate");
     lfoRateLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoRateLabel->setJustificationType(juce::Justification::centred);
-    lfoRateLabel->setFont(juce::Font(12.0f));
+    lfoRateLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoRateLabel);
     
     // Create hidden slider for LFO Rate parameter
@@ -264,7 +264,7 @@ void MainComponent::setupLfoControls()
     lfoAmdLabel = std::make_unique<juce::Label>("", "AMD");
     lfoAmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoAmdLabel->setJustificationType(juce::Justification::centred);
-    lfoAmdLabel->setFont(juce::Font(12.0f));
+    lfoAmdLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoAmdLabel);
     
     // Create hidden slider for LFO AMD parameter
@@ -314,7 +314,7 @@ void MainComponent::setupLfoControls()
     lfoPmdLabel = std::make_unique<juce::Label>("", "PMD");
     lfoPmdLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoPmdLabel->setJustificationType(juce::Justification::centred);
-    lfoPmdLabel->setFont(juce::Font(12.0f));
+    lfoPmdLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoPmdLabel);
     
     // Create hidden slider for LFO PMD parameter
@@ -365,7 +365,7 @@ void MainComponent::setupLfoControls()
     lfoWaveformLabel = std::make_unique<juce::Label>("", "Wave");
     lfoWaveformLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoWaveformLabel->setJustificationType(juce::Justification::centred);
-    lfoWaveformLabel->setFont(juce::Font(12.0f));
+    lfoWaveformLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*lfoWaveformLabel);
     
     lfoWaveformAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
@@ -375,7 +375,7 @@ void MainComponent::setupLfoControls()
     noiseSectionLabel = std::make_unique<juce::Label>("", "Noise");
     noiseSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    noiseSectionLabel->setFont(juce::Font(16.0f, juce::Font::bold));
+    noiseSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle(juce::Font::bold)));
     addAndMakeVisible(*noiseSectionLabel);
     
     // Noise Enable toggle button (without text - will be labeled separately)
@@ -388,7 +388,7 @@ void MainComponent::setupLfoControls()
     noiseEnableLabel = std::make_unique<juce::Label>("", "Enable");
     noiseEnableLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseEnableLabel->setJustificationType(juce::Justification::centred);
-    noiseEnableLabel->setFont(juce::Font(12.0f));
+    noiseEnableLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*noiseEnableLabel);
     
     noiseEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
@@ -404,7 +404,7 @@ void MainComponent::setupLfoControls()
     noiseFreqLabel = std::make_unique<juce::Label>("", "Freq");
     noiseFreqLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseFreqLabel->setJustificationType(juce::Justification::centred);
-    noiseFreqLabel->setFont(juce::Font(12.0f));
+    noiseFreqLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*noiseFreqLabel);
     
     // Create hidden slider for Noise Frequency parameter

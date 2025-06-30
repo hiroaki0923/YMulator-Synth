@@ -26,7 +26,7 @@ void AlgorithmDisplay::paint(juce::Graphics& g)
     // Draw title
     auto titleArea = contentBounds.removeFromTop(16.0f);
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(12.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f).withStyle(juce::Font::bold)));
     g.drawText("Algorithm " + juce::String(currentAlgorithm), titleArea, juce::Justification::centred);
     
     contentBounds.removeFromTop(4.0f); // Small gap
@@ -50,7 +50,7 @@ void AlgorithmDisplay::paint(juce::Graphics& g)
     if (currentFeedback > 0) {
         auto feedbackArea = bounds.removeFromBottom(16.0f).reduced(10.0f, 0.0f);
         g.setColour(juce::Colour(0xfff59e0b)); // Amber
-        g.setFont(juce::Font(10.0f));
+        g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f)));
         g.drawText("FB: " + juce::String(currentFeedback), feedbackArea, juce::Justification::centredRight);
     }
 }
@@ -123,7 +123,7 @@ void AlgorithmDisplay::drawOperator(juce::Graphics& g, const OperatorInfo& op, c
     
     // Operator label
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(10.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle(juce::Font::bold)));
     g.drawText(op.name, opBounds, juce::Justification::centred);
 }
 

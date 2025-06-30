@@ -307,7 +307,7 @@ void PresetUIManager::setupComponents()
     bankLabel = std::make_unique<juce::Label>("", "Bank");
     bankLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     bankLabel->setJustificationType(juce::Justification::centredRight);
-    bankLabel->setFont(juce::Font(12.0f));
+    bankLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*bankLabel);
     
     // Preset selector
@@ -318,7 +318,7 @@ void PresetUIManager::setupComponents()
     presetLabel = std::make_unique<juce::Label>("", "Preset");
     presetLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     presetLabel->setJustificationType(juce::Justification::centredRight);
-    presetLabel->setFont(juce::Font(12.0f));
+    presetLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(*presetLabel);
     
     savePresetButton = std::make_unique<juce::TextButton>("Save");

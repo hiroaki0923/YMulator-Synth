@@ -83,7 +83,7 @@ void RotaryKnob::paint(juce::Graphics& g)
             // For LFO/Noise/FB labels, draw on the left side
             auto labelArea = bounds.removeFromLeft(35.0f);
             g.setColour(juce::Colours::white);
-            g.setFont(juce::Font(12.0f));
+            g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
             
             if (label == "FB") {
                 // FB label - single line, centered vertically with knob
@@ -110,7 +110,7 @@ void RotaryKnob::paint(juce::Graphics& g)
             // Regular label at bottom
             auto labelArea = bounds.removeFromBottom(16.0f);
             g.setColour(juce::Colours::white);
-            g.setFont(juce::Font(12.0f));
+            g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
             g.drawText(label, labelArea, juce::Justification::centred);
         }
     }
@@ -119,7 +119,7 @@ void RotaryKnob::paint(juce::Graphics& g)
     juce::String valueText = juce::String(static_cast<int>(value));
     auto textBounds = knobBounds.reduced(knobSize * 0.3f);
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(10.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle(juce::Font::bold)));
     g.drawText(valueText, textBounds, juce::Justification::centred);
 }
 
