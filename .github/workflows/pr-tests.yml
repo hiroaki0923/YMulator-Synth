@@ -55,13 +55,13 @@ jobs:
         ls -la bin/YMulatorSynthAU_*Tests || echo "No test binaries found"
         
         # Run tests that exist
-        [ -f "./bin/YMulatorSynthAU_BasicTests" ] && ./bin/YMulatorSynthAU_BasicTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_PresetTests" ] && ./bin/YMulatorSynthAU_PresetTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_ParameterTests" ] && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_PanTests" ] && ./bin/YMulatorSynthAU_PanTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_IntegrationTests" ] && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_QualityTests" ] && ./bin/YMulatorSynthAU_QualityTests --gtest_brief &
-        [ -f "./bin/YMulatorSynthAU_UITests" ] && ./bin/YMulatorSynthAU_UITests --gtest_brief &
+        [ -f "./bin/YMulatorSynthAU_BasicTests" ] && ./bin/YMulatorSynthAU_BasicTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_PresetTests" ] && ./bin/YMulatorSynthAU_PresetTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_ParameterTests" ] && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_PanTests" ] && ./bin/YMulatorSynthAU_PanTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_IntegrationTests" ] && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_QualityTests" ] && ./bin/YMulatorSynthAU_QualityTests --gtest_brief 2> /dev/null &
+        [ -f "./bin/YMulatorSynthAU_UITests" ] && ./bin/YMulatorSynthAU_UITests --gtest_brief 2> /dev/null &
         wait
     
     - name: Run specific test categories (verification)
@@ -75,13 +75,13 @@ jobs:
         
         if [ -d "$BUILD_DIR" ]; then
           echo "=== Basic Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_BasicTests" --gtest_brief
+          "$BUILD_DIR/bin/YMulatorSynthAU_BasicTests" --gtest_brief 2> /dev/null 
           
           echo "=== Integration Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_IntegrationTests" --gtest_brief
+          "$BUILD_DIR/bin/YMulatorSynthAU_IntegrationTests" --gtest_brief 2> /dev/null 
           
           echo "=== Parameter Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_ParameterTests" --gtest_brief
+          "$BUILD_DIR/bin/YMulatorSynthAU_ParameterTests" --gtest_brief 2> /dev/null 
         else
           echo "ERROR: Build directory not found at $BUILD_DIR"
           exit 1

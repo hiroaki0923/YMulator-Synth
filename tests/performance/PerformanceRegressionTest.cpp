@@ -142,10 +142,10 @@ TEST_F(PerformanceRegressionTest, SingleVoiceProcessingLatency) {
     EXPECT_GE(metrics.getComplianceRate(), 85.0) << "Real-time compliance rate too low";
     
     // Log results for tracking
-    std::cout << "Single Voice Performance:" << std::endl;
-    std::cout << "  Average: " << metrics.avgProcessingTime << "ms" << std::endl;
-    std::cout << "  Peak: " << metrics.maxProcessingTime << "ms" << std::endl;
-    std::cout << "  Compliance: " << metrics.getComplianceRate() << "%" << std::endl;
+    CS_DBG("Single Voice Performance:");
+    CS_DBG("  Average: " + juce::String(metrics.avgProcessingTime) + "ms");
+    CS_DBG("  Peak: " + juce::String(metrics.maxProcessingTime) + "ms");
+    CS_DBG("  Compliance: " + juce::String(metrics.getComplianceRate()) + "%");
     
     host->sendMidiNoteOff(*processor, 1, 60);
 }
@@ -177,10 +177,10 @@ TEST_F(PerformanceRegressionTest, PolyphonicProcessingLatency) {
     EXPECT_LT(metrics.maxProcessingTime, 20.0) << "Polyphonic peak processing time too high";
     EXPECT_GE(metrics.getComplianceRate(), 75.0) << "Polyphonic compliance rate too low";
     
-    std::cout << "Polyphonic (6-voice) Performance:" << std::endl;
-    std::cout << "  Average: " << metrics.avgProcessingTime << "ms" << std::endl;
-    std::cout << "  Peak: " << metrics.maxProcessingTime << "ms" << std::endl;
-    std::cout << "  Compliance: " << metrics.getComplianceRate() << "%" << std::endl;
+    CS_DBG("Polyphonic (6-voice) Performance:");
+    CS_DBG("  Average: " + juce::String(metrics.avgProcessingTime) + "ms");
+    CS_DBG("  Peak: " + juce::String(metrics.maxProcessingTime) + "ms");
+    CS_DBG("  Compliance: " + juce::String(metrics.getComplianceRate()) + "%");
     
     // Clean up
     for (int i = 0; i < 6; ++i) {
@@ -215,10 +215,10 @@ TEST_F(PerformanceRegressionTest, MaximumPolyphonyStressTest) {
     EXPECT_LT(metrics.maxProcessingTime, 30.0) << "8-voice peak processing time too high";
     EXPECT_GE(metrics.getComplianceRate(), 65.0) << "8-voice compliance rate too low";
     
-    std::cout << "Maximum Polyphony (8-voice) Performance:" << std::endl;
-    std::cout << "  Average: " << metrics.avgProcessingTime << "ms" << std::endl;
-    std::cout << "  Peak: " << metrics.maxProcessingTime << "ms" << std::endl;
-    std::cout << "  Compliance: " << metrics.getComplianceRate() << "%" << std::endl;
+    CS_DBG("Maximum Polyphony (8-voice) Performance:");
+    CS_DBG("  Average: " + juce::String(metrics.avgProcessingTime) + "ms");
+    CS_DBG("  Peak: " + juce::String(metrics.maxProcessingTime) + "ms");
+    CS_DBG("  Compliance: " + juce::String(metrics.getComplianceRate()) + "%");
     
     // Clean up
     for (int i = 0; i < 8; ++i) {
@@ -260,9 +260,9 @@ TEST_F(PerformanceRegressionTest, ParameterUpdateLatency) {
     EXPECT_LT(avgTime, 3.0) << "Average parameter update latency too high";
     EXPECT_LT(maxTime, 5.0) << "Peak parameter update latency too high";
     
-    std::cout << "Parameter Update Performance:" << std::endl;
-    std::cout << "  Average latency: " << avgTime << "ms" << std::endl;
-    std::cout << "  Peak latency: " << maxTime << "ms" << std::endl;
+    CS_DBG("Parameter Update Performance:");
+    CS_DBG("  Average latency: " + juce::String(avgTime) + "ms");
+    CS_DBG("  Peak latency: " + juce::String(maxTime) + "ms");
     
     host->sendMidiNoteOff(*processor, 1, 60);
 }
@@ -301,9 +301,9 @@ TEST_F(PerformanceRegressionTest, MultiParameterAutomationLatency) {
     EXPECT_LT(maxAutomationTime, 15.0) << "Peak multi-parameter automation too slow";
     EXPECT_LT(processingMetrics.avgProcessingTime, 15.0) << "Processing with automation too slow";
     
-    std::cout << "Multi-Parameter Automation Performance:" << std::endl;
-    std::cout << "  Automation time: " << avgAutomationTime << "ms (avg), " << maxAutomationTime << "ms (peak)" << std::endl;
-    std::cout << "  Processing time: " << processingMetrics.avgProcessingTime << "ms (avg)" << std::endl;
+    CS_DBG("Multi-Parameter Automation Performance:");
+    CS_DBG("  Automation time: " + juce::String(avgAutomationTime) + "ms (avg), " + juce::String(maxAutomationTime) + "ms (peak)");
+    CS_DBG("  Processing time: " + juce::String(processingMetrics.avgProcessingTime) + "ms (avg)");
     
     host->sendMidiNoteOff(*processor, 1, 60);
     host->sendMidiNoteOff(*processor, 1, 64);
@@ -349,9 +349,9 @@ TEST_F(PerformanceRegressionTest, PresetSwitchingLatency) {
     EXPECT_LT(maxSwitchTime, 50.0) << "Peak preset switch time too high";
     EXPECT_LT(processingMetrics.avgProcessingTime, 15.0) << "Processing after preset switch too slow";
     
-    std::cout << "Preset Switching Performance:" << std::endl;
-    std::cout << "  Switch time: " << avgSwitchTime << "ms (avg), " << maxSwitchTime << "ms (peak)" << std::endl;
-    std::cout << "  Processing after switch: " << processingMetrics.avgProcessingTime << "ms (avg)" << std::endl;
+    CS_DBG("Preset Switching Performance:");
+    CS_DBG("  Switch time: " + juce::String(avgSwitchTime) + "ms (avg), " + juce::String(maxSwitchTime) + "ms (peak)");
+    CS_DBG("  Processing after switch: " + juce::String(processingMetrics.avgProcessingTime) + "ms (avg)");
     
     host->sendMidiNoteOff(*processor, 1, 60);
 }
@@ -406,10 +406,10 @@ TEST_F(PerformanceRegressionTest, ExtendedOperationStability) {
     EXPECT_LT(longTermMetrics.avgProcessingTime, 20.0) << "Long-term performance too slow";
     EXPECT_LT(performanceDegradation, 25.0) << "Performance degradation too high: " << performanceDegradation << "%";
     
-    std::cout << "Extended Operation Performance:" << std::endl;
-    std::cout << "  Short-term (2.3s): " << shortTermMetrics.avgProcessingTime << "ms avg" << std::endl;
-    std::cout << "  Long-term (23s): " << longTermMetrics.avgProcessingTime << "ms avg" << std::endl;
-    std::cout << "  Performance change: " << performanceDegradation << "%" << std::endl;
+    CS_DBG("Extended Operation Performance:");
+    CS_DBG("  Short-term (2.3s): " + juce::String(shortTermMetrics.avgProcessingTime) + "ms avg");
+    CS_DBG("  Long-term (23s): " + juce::String(longTermMetrics.avgProcessingTime) + "ms avg");
+    CS_DBG("  Performance change: " + juce::String(performanceDegradation) + "%");
     
     // Clean up
     for (int i = 0; i < 4; ++i) {
@@ -463,7 +463,7 @@ TEST_F(PerformanceRegressionTest, MemoryUsageStability) {
     // basic memory management is working
     SUCCEED() << "Memory stability test completed successfully";
     
-    std::cout << "Memory Usage Test: Completed " << cycles << " cycles without issues" << std::endl;
+    CS_DBG("Memory Usage Test: Completed " + juce::String(cycles) + " cycles without issues");
 }
 
 } // namespace Performance  
