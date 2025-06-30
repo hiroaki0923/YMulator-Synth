@@ -406,6 +406,12 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
                             ((value & YM2151Regs::MASK_KEY_SCALE) << YM2151Regs::SHIFT_KEY_SCALE) | 
                             (currentValue & YM2151Regs::PRESERVE_AR));
                 break;
+                
+            case OperatorParameter::AmsEnable:
+                // AmsEnable is handled via dedicated setOperatorAmsEnable method
+                // This switch case ensures enum completeness
+                setOperatorAmsEnable(channel, operator_num, value != 0);
+                break;
         }
     }
 }
@@ -432,6 +438,30 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
                 // Keep existing L/R/ALG bits, update FB
                 writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, 
                             (currentValue & YM2151Regs::PRESERVE_ALG_LR) | ((value & YM2151Regs::MASK_FEEDBACK) << YM2151Regs::SHIFT_FEEDBACK));
+                break;
+                
+            case ChannelParameter::Pan:
+                // Pan is handled via dedicated setChannelPan method
+                // Value interpretation: 0=Left, 1=Center, 2=Right, 3=Off
+                setChannelPan(channel, static_cast<float>(value) / 3.0f);
+                break;
+                
+            case ChannelParameter::AMS:
+                // AMS is handled via dedicated setChannelAmsPms method
+                {
+                    uint8_t regValue = readCurrentRegister(YM2151Regs::REG_LFO_AMS_PMS_BASE + channel);
+                    uint8_t currentPms = (regValue >> YM2151Regs::SHIFT_LFO_PMS) & YM2151Regs::MASK_LFO_PMS;
+                    setChannelAmsPms(channel, value, currentPms);
+                }
+                break;
+                
+            case ChannelParameter::PMS:
+                // PMS is handled via dedicated setChannelAmsPms method  
+                {
+                    uint8_t regValue = readCurrentRegister(YM2151Regs::REG_LFO_AMS_PMS_BASE + channel);
+                    uint8_t currentAms = regValue & YM2151Regs::MASK_LFO_AMS;
+                    setChannelAmsPms(channel, currentAms, value);
+                }
                 break;
         }
     }
