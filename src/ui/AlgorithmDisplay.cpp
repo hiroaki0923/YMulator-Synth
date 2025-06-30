@@ -26,7 +26,7 @@ void AlgorithmDisplay::paint(juce::Graphics& g)
     // Draw title
     auto titleArea = contentBounds.removeFromTop(16.0f);
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f).withStyle(juce::Font::bold)));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f).withStyle("bold")));
     g.drawText("Algorithm " + juce::String(currentAlgorithm), titleArea, juce::Justification::centred);
     
     contentBounds.removeFromTop(4.0f); // Small gap
@@ -123,7 +123,7 @@ void AlgorithmDisplay::drawOperator(juce::Graphics& g, const OperatorInfo& op, c
     
     // Operator label
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle(juce::Font::bold)));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle("bold")));
     g.drawText(op.name, opBounds, juce::Justification::centred);
 }
 

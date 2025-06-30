@@ -119,7 +119,7 @@ void RotaryKnob::paint(juce::Graphics& g)
     juce::String valueText = juce::String(static_cast<int>(value));
     auto textBounds = knobBounds.reduced(knobSize * 0.3f);
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle(juce::Font::bold)));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle("bold")));
     g.drawText(valueText, textBounds, juce::Justification::centred);
 }
 

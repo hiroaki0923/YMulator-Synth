@@ -200,7 +200,7 @@ void MainComponent::setupLfoControls()
     lfoSectionLabel = std::make_unique<juce::Label>("", "LFO");
     lfoSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     lfoSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    lfoSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle(juce::Font::bold)));
+    lfoSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle("bold")));
     addAndMakeVisible(*lfoSectionLabel);
     
     // LFO Rate knob (without label - will be added separately)
@@ -375,7 +375,7 @@ void MainComponent::setupLfoControls()
     noiseSectionLabel = std::make_unique<juce::Label>("", "Noise");
     noiseSectionLabel->setColour(juce::Label::textColourId, juce::Colours::white);
     noiseSectionLabel->setJustificationType(juce::Justification::centred); // Center both horizontally and vertically
-    noiseSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle(juce::Font::bold)));
+    noiseSectionLabel->setFont(juce::Font(juce::FontOptions().withHeight(16.0f).withStyle("bold")));
     addAndMakeVisible(*noiseSectionLabel);
     
     // Noise Enable toggle button (without text - will be labeled separately)

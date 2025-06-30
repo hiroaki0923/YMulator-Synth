@@ -3,6 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../../src/PluginProcessor.h"
 #include "../../src/ui/MainComponent.h"
+#include "../../src/ui/PresetUIManager.h"
 #include "../mocks/MockAudioProcessorHost.h"
 
 /**
@@ -70,15 +71,28 @@ TEST_F(MainComponentTest, ComponentHasRequiredChildren) {
 // =============================================================================
 
 TEST_F(MainComponentTest, PresetUIComponentsExist) {
-    // Find preset-related components by searching child components
+    // Find PresetUIManager first as it contains the preset-related components
+    PresetUIManager* presetUIManager = nullptr;
+    
+    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
+        auto* child = mainComponent->getChildComponent(i);
+        presetUIManager = dynamic_cast<PresetUIManager*>(child);
+        if (presetUIManager) {
+            break;
+        }
+    }
+    
+    ASSERT_NE(presetUIManager, nullptr) << "PresetUIManager not found as child of MainComponent";
+    
+    // Now search within PresetUIManager for the preset-related components
     bool foundBankComboBox = false;
     bool foundPresetComboBox = false;
     bool foundSaveButton = false;
     bool foundBankLabel = false;
     bool foundPresetLabel = false;
     
-    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
-        auto* child = mainComponent->getChildComponent(i);
+    for (int i = 0; i < presetUIManager->getNumChildComponents(); ++i) {
+        auto* child = presetUIManager->getChildComponent(i);
         
         // Check for ComboBox components
         if (auto* comboBox = dynamic_cast<juce::ComboBox*>(child)) {
@@ -86,10 +100,11 @@ TEST_F(MainComponentTest, PresetUIComponentsExist) {
             for (int j = 0; j < comboBox->getNumItems(); ++j) {
                 if (comboBox->getItemText(j) == "Factory") {
                     foundBankComboBox = true;
+                    break;
                 }
             }
             
-            // If it's not the bank combo, it might be preset combo
+            // If it's not the bank combo and has items, it might be preset combo
             if (!foundBankComboBox && comboBox->getNumItems() > 0) {
                 foundPresetComboBox = true;
             }
@@ -113,19 +128,32 @@ TEST_F(MainComponentTest, PresetUIComponentsExist) {
         }
     }
     
-    EXPECT_TRUE(foundBankComboBox) << "Bank ComboBox not found";
-    EXPECT_TRUE(foundBankLabel) << "Bank Label not found";
-    EXPECT_TRUE(foundPresetLabel) << "Preset Label not found";
-    EXPECT_TRUE(foundSaveButton) << "Save Button not found";
+    EXPECT_TRUE(foundBankComboBox) << "Bank ComboBox not found in PresetUIManager";
+    EXPECT_TRUE(foundBankLabel) << "Bank Label not found in PresetUIManager";
+    EXPECT_TRUE(foundPresetLabel) << "Preset Label not found in PresetUIManager";
+    EXPECT_TRUE(foundSaveButton) << "Save Button not found in PresetUIManager";
 }
 
 TEST_F(MainComponentTest, PresetUIInitialState) {
-    // Find the bank ComboBox and save button
-    juce::ComboBox* bankComboBox = nullptr;
-    juce::TextButton* saveButton = nullptr;
+    // Find PresetUIManager first
+    PresetUIManager* presetUIManager = nullptr;
     
     for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
         auto* child = mainComponent->getChildComponent(i);
+        presetUIManager = dynamic_cast<PresetUIManager*>(child);
+        if (presetUIManager) {
+            break;
+        }
+    }
+    
+    ASSERT_NE(presetUIManager, nullptr) << "PresetUIManager not found as child of MainComponent";
+    
+    // Find the bank ComboBox and save button within PresetUIManager
+    juce::ComboBox* bankComboBox = nullptr;
+    juce::TextButton* saveButton = nullptr;
+    
+    for (int i = 0; i < presetUIManager->getNumChildComponents(); ++i) {
+        auto* child = presetUIManager->getChildComponent(i);
         
         if (auto* comboBox = dynamic_cast<juce::ComboBox*>(child)) {
             // Bank combo should have "Factory" item
@@ -144,8 +172,8 @@ TEST_F(MainComponentTest, PresetUIInitialState) {
         }
     }
     
-    ASSERT_NE(bankComboBox, nullptr) << "Bank ComboBox not found";
-    ASSERT_NE(saveButton, nullptr) << "Save Button not found";
+    ASSERT_NE(bankComboBox, nullptr) << "Bank ComboBox not found in PresetUIManager";
+    ASSERT_NE(saveButton, nullptr) << "Save Button not found in PresetUIManager";
     
     // Bank ComboBox should have at least Factory bank
     EXPECT_GE(bankComboBox->getNumItems(), 1);
