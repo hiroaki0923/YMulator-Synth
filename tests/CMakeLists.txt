@@ -36,6 +36,11 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/PluginProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/PluginEditor.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/YmfmWrapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/dsp/UnisonEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/dsp/RegisterManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/dsp/NoteConverter.cpp
+        ${CMAKE_SOURCE_DIR}/src/dsp/ParameterConverter.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/AudioProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MidiProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
@@ -102,6 +107,7 @@ if(GTest_FOUND)
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp
+        unit/UnisonEngineTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         ${COMMON_SOURCES}
     )
