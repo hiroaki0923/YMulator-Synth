@@ -47,43 +47,18 @@ jobs:
         # Use our unified build script for building
         ./scripts/build.sh debug
     
-    - name: Run all tests (split binaries for speed)
+    - name: Run all tests (unified binary with clean output)
       run: |
-        # Use split test binaries for faster parallel execution
         cd build
         echo "Available test binaries:"
         ls -la bin/YMulatorSynthAU_*Tests || echo "No test binaries found"
         
-        # Run tests that exist
-        [ -f "./bin/YMulatorSynthAU_BasicTests" ] && ./bin/YMulatorSynthAU_BasicTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_PresetTests" ] && ./bin/YMulatorSynthAU_PresetTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_ParameterTests" ] && ./bin/YMulatorSynthAU_ParameterTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_PanTests" ] && ./bin/YMulatorSynthAU_PanTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_IntegrationTests" ] && ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_QualityTests" ] && ./bin/YMulatorSynthAU_QualityTests --gtest_brief 2> /dev/null &
-        [ -f "./bin/YMulatorSynthAU_UITests" ] && ./bin/YMulatorSynthAU_UITests --gtest_brief 2> /dev/null &
-        wait
-    
-    - name: Run specific test categories (verification)
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Contents: $(ls -la)"
-        
-        # Always use absolute paths to avoid directory issues
-        BUILD_DIR="$(pwd)/build"
-        echo "Build directory: $BUILD_DIR"
-        
-        if [ -d "$BUILD_DIR" ]; then
-          echo "=== Basic Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_BasicTests" --gtest_brief 2> /dev/null 
-          
-          echo "=== Integration Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_IntegrationTests" --gtest_brief 2> /dev/null 
-          
-          echo "=== Parameter Tests ==="
-          "$BUILD_DIR/bin/YMulatorSynthAU_ParameterTests" --gtest_brief 2> /dev/null 
+        # Run unified test binary with clean output (hide debug stderr, keep test results)
+        echo "Running comprehensive test suite..."
+        if [ -f "./bin/YMulatorSynthAU_Tests" ]; then
+          ./bin/YMulatorSynthAU_Tests --gtest_brief 2> /dev/null
         else
-          echo "ERROR: Build directory not found at $BUILD_DIR"
+          echo "ERROR: YMulatorSynthAU_Tests binary not found"
           exit 1
         fi
     
