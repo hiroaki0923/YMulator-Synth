@@ -28,6 +28,9 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     stateManager = std::make_unique<ymulatorsynth::StateManager>(parameters, *presetManager, *parameterManager);
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
     stateManager->setMacroMapper(macroMapper.get());
+    patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
+        ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
+                                                  [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
     
     // Initialize MidiProcessor after other components are ready
     midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
@@ -65,6 +68,9 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
         parameterManager->initializeParameters(parameters);
     }
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
+    patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
+        ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
+                                                  [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
     
     // Initialize preset manager
     presetManager->initialize();

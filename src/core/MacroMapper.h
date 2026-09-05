@@ -62,6 +62,8 @@ public:
     bool restoreFromState(const juce::ValueTree& state);
     
     const RawPatch& getAnchor() const { return anchor; }
+    /** Replaces the anchor without touching the macros (snapshot restore). */
+    void setAnchor(const RawPatch& newAnchor);
     RawPatch currentRaw() const;
     MacroValues currentMacros() const;
     int currentAlgorithm() const;

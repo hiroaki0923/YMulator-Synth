@@ -278,6 +278,12 @@ void MacroMapper::captureAnchor()
     CS_DBG("MacroMapper: anchor captured");
 }
 
+void MacroMapper::setAnchor(const RawPatch& newAnchor)
+{
+    anchor = newAnchor;
+    lastRaw = currentRaw();
+}
+
 void MacroMapper::writeAnchorTo(juce::ValueTree& state) const
 {
     state.removeChild(state.getChildWithName(anchorNodeType), nullptr);

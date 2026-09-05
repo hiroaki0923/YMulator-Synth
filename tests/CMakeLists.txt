@@ -39,6 +39,9 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MacroMapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/SnapshotStore.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchWorkspace.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
@@ -89,6 +92,8 @@ if(GTest_FOUND)
         unit/ParameterManagerTest.cpp
         unit/ParameterStateIntegrationTest.cpp
         unit/MacroMapperTest.cpp
+        unit/PatchGeneratorTest.cpp
+        unit/PatchWorkspaceTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -181,6 +186,8 @@ if(GTest_FOUND)
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
         unit/MacroMapperTest.cpp
+        unit/PatchGeneratorTest.cpp
+        unit/PatchWorkspaceTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
