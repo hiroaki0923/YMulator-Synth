@@ -12,8 +12,10 @@ cmake --build . --target YMulatorSynthAU_UISnapshot
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --bank 0 --preset 2      # via the UI's bank/preset path
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 2               # via host program change
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --scale 1 --settle 500
+./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 2 --then-preset 5 --dump   # program change with the editor open
 ```
 
 Options: `--out` (default `ui_snapshot.png`, relative to the working directory), `--preset`, `--bank`,
-`--scale` (render scale, default 2), `--settle` (milliseconds of message-loop time given to
-asynchronous UI updates before capture, default 300).
+`--then-preset` (a second program change after the editor exists), `--dump` (print state properties
+and every combo box text), `--scale` (render scale, default 2), `--settle` (milliseconds of
+message-loop time given to asynchronous UI updates before capture, default 300).
