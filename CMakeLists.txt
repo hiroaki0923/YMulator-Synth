@@ -20,8 +20,10 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/install" CACHE PATH "Install prefix" FORCE)
 endif()
 
-# Find packages
-find_package(PkgConfig REQUIRED)
+# pkg-config is only used on Unix (JUCE's Linux dependencies); Windows runners lack it
+if(UNIX)
+    find_package(PkgConfig)
+endif()
 
 # Add subdirectories
 add_subdirectory(cmake)
