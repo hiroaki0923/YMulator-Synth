@@ -298,7 +298,7 @@ void YmfmWrapper::setupBasicPianoVoice(uint8_t channel)
         
         // Configure all 4 operators for Algorithm 0 (simple FM)
         for (int op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; op++) {
-            int base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+            int base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[op] + channel;
             
             writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, YM2151Regs::DEFAULT_DT1_MUL);     // DT1=0, MUL=1
             
@@ -336,7 +336,7 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
     
     if (chipType == ChipType::OPM) {
-        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel;
         uint8_t currentValue;
         
         switch (param) {
@@ -674,7 +674,7 @@ void YmfmWrapper::setOperatorAmsEnable(uint8_t channel, uint8_t operator_num, bo
     //       " AMS enable=" + juce::String(enable ? "true" : "false"));
     
     if (chipType == ChipType::OPM) {
-        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel;
         
         // Read current register value to preserve D1R bits
         uint8_t currentValue = readCurrentRegister(YM2151Regs::REG_AMS_D1R_BASE + base_addr);
@@ -715,7 +715,7 @@ void YmfmWrapper::setOperatorEnvelope(uint8_t channel, uint8_t operator_num,
            ", D1L=" + juce::String((int)d1l));
     
     if (chipType == ChipType::OPM) {
-        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel;
         
         // Batch update all envelope registers for this operator
         writeRegister(YM2151Regs::REG_KS_AR_BASE + base_addr, 
@@ -770,7 +770,7 @@ void YmfmWrapper::batchUpdateChannelParameters(uint8_t channel, uint8_t algorith
             uint8_t dt1 = params[8];
             uint8_t dt2 = params[9];
             
-            uint8_t base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+            uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[op] + channel;
             
             // Batch write all operator registers
             writeRegister(YM2151Regs::REG_DT1_MUL_BASE + base_addr, 
@@ -806,7 +806,7 @@ YmfmWrapper::EnvelopeDebugInfo YmfmWrapper::getEnvelopeDebugInfo(uint8_t channel
         // to access ymfm's internal state to get actual envelope information.
         // For now, we return basic information based on register values.
         
-        uint8_t base_addr = operator_num * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+        uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel;
         
         // Read envelope-related registers to estimate state
         uint8_t ar_ks = currentRegisters[YM2151Regs::REG_KS_AR_BASE + base_addr];
@@ -862,7 +862,7 @@ void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
         
         // Only apply velocity if sensitivity is not 1.0 (default)
         if (std::abs(sensitivity - 1.0f) > 0.001f) {
-            uint8_t base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + channel;
+            uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[op] + channel;
             
             // Read current TL value
             uint8_t currentTL = currentRegisters[YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr];
@@ -989,12 +989,12 @@ void YmfmWrapper::testNoiseChannel()
     
     // Configure operators 1-3 to be silent (high TL values)
     for (int op = 0; op < 3; op++) {  // Operators 0, 1, 2
-        int base_addr = op * YM2151Regs::OPERATOR_ADDRESS_STEP + noiseChannel;
+        int base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[op] + noiseChannel;
         writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, 127);  // Maximum attenuation (silent)
     }
     
     // Configure operator 4 (the noise operator) with audible settings
-    int op4_base_addr = 3 * YM2151Regs::OPERATOR_ADDRESS_STEP + noiseChannel;  // Operator 3 = index 3
+    int op4_base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[3] + noiseChannel;  // C2 slot of the noise channel
     
     writeRegister(YM2151Regs::REG_DT1_MUL_BASE + op4_base_addr, YM2151Regs::DEFAULT_DT1_MUL);      // DT1=0, MUL=1
     writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + op4_base_addr, 32);                           // Moderate volume for noise

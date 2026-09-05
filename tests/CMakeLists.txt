@@ -118,6 +118,7 @@ if(GTest_FOUND)
         test_main.cpp
         AudioQualityTest.cpp
         unit/PitchAccuracyTest.cpp
+        unit/OperatorSlotOrderTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -161,6 +162,7 @@ if(GTest_FOUND)
         PanModeRegressionTest.cpp
         AudioQualityTest.cpp
         unit/PitchAccuracyTest.cpp
+        unit/OperatorSlotOrderTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
