@@ -26,8 +26,6 @@ endif()
 
 if(GTest_FOUND)
     # Check if JUCE binary data has been generated
-    set(JUCE_BINARY_DATA_FILE "${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulator-Synth_Resources/JuceLibraryCode/BinaryData1.cpp")
-    
     # Define common source files used by all test executables
     set(COMMON_SOURCES
         mocks/MockAudioProcessorHost.cpp
@@ -209,21 +207,11 @@ if(GTest_FOUND)
     set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot)
     
     # Configure each test executable
+    # Embedded resources (presets, algorithm diagrams) come from the same
+    # binary-data target the plugin links, so every generated file is included
     foreach(TEST_EXECUTABLE ${HOST_TARGETS})
-        # Add JUCE binary data if it exists, otherwise use mock
-        if(EXISTS "${JUCE_BINARY_DATA_FILE}")
-            target_sources(${TEST_EXECUTABLE} PRIVATE "${JUCE_BINARY_DATA_FILE}")
-        else()
-            target_sources(${TEST_EXECUTABLE} PRIVATE "mocks/MockBinaryData.cpp")
-            target_compile_definitions(${TEST_EXECUTABLE} PRIVATE USING_MOCK_BINARY_DATA=1)
-        endif()
+        target_link_libraries(${TEST_EXECUTABLE} PRIVATE YMulator-Synth_Resources)
     endforeach()
-    
-    if(EXISTS "${JUCE_BINARY_DATA_FILE}")
-        message(STATUS "Added JUCE binary data file to all test executables: ${JUCE_BINARY_DATA_FILE}")
-    else()
-        message(STATUS "JUCE binary data not available - using MockBinaryData for all test executables")
-    endif()
     
     # Configure include directories for all test executables
     foreach(TEST_EXECUTABLE ${HOST_TARGETS})

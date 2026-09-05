@@ -156,7 +156,7 @@ void ToneStrip::resized()
     algorithmComboBox->setBounds(pickerArea.withHeight(24).withY(centreY - 20));
     algorithmLabel->setBounds(pickerArea.withHeight(14).withY(centreY + 6));
     right.removeFromRight(10);
-    algorithmDisplay->setBounds(right.removeFromRight(132).withHeight(getHeight() - 6).withCentre({ right.getRight() + 66, centreY }));
+    algorithmDisplay->setBounds(right.removeFromRight(120).withHeight(getHeight() - 8).withCentre({ right.getRight() + 60, centreY }));
     right.removeFromRight(16);
     
     hintLabel->setBounds(juce::Rectangle<int>(x, centreY - 15, juce::jmax(0, right.getRight() - x), 30));

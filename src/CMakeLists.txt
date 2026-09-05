@@ -105,6 +105,14 @@ target_compile_definitions(YMulator-Synth
 juce_add_binary_data(YMulator-Synth_Resources
     SOURCES
         ${CMAKE_SOURCE_DIR}/resources/presets/ymulator-synth-preset-collection.opm
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm0.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm1.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm2.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm3.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm4.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm5.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm6.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm7.svg
 )
 
 # Link resources to the plugin

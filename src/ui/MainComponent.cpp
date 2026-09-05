@@ -8,7 +8,7 @@
 
 namespace {
 constexpr int kHeaderHeight = 50;
-constexpr int kToneHeight = 64;
+constexpr int kToneHeight = 72;
 constexpr int kFooterHeight = 46;
 constexpr int kRowGap = 6;
 const char* const kRoleParameters[] = { ParamID::Global::Algorithm, ParamID::Global::Feedback, ParamID::Global::NoiseEnable };

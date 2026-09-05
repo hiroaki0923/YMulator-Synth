@@ -22,3 +22,14 @@ and every combo box text), `--scale` (render scale, default 2), `--settle` (mill
 message-loop time given to asynchronous UI updates before capture, default 300), `--focus-macro N`
 (0 Brightness, 1 Harmonics, 2 Attack, 3 Decay, 4 Release, 5 Spread: draws the amber rings on that
 macro's target knobs, the way touching the TONE knob does).
+
+## gen_algorithm_svg.py
+
+Writes `resources/algorithms/algorithm0..7.svg`, the algorithm diagrams the editor shows
+(embedded through `juce_add_binary_data`). Roles and edges follow `src/dsp/AlgorithmInfo.h`;
+only the box positions live in the script. Re-run it from the repository root after changing
+either, then rebuild.
+
+```bash
+python3 tools/gen_algorithm_svg.py
+```
