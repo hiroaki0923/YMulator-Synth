@@ -67,6 +67,7 @@ if(GTest_FOUND)
         unit/SimpleParameterTest.cpp
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
+        unit/MidiCcMappingTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -150,6 +151,7 @@ if(GTest_FOUND)
         unit/SimpleParameterTest.cpp
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
+        unit/MidiCcMappingTest.cpp
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp

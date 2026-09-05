@@ -74,8 +74,8 @@ TEST_F(PluginBasicTest, ParameterTest) {
 
 // Test MIDI CC mapping
 TEST_F(PluginBasicTest, MidiCCTest) {
-    // Send CC for algorithm change (CC 14 as per VOPMex)
-    host->sendMidiCC(*processor, 1, 14, 64); // Algorithm = 4 (64/16)
+    // Send CC for algorithm change (CC 14 as per VOPMex: the CC value is the algorithm number)
+    host->sendMidiCC(*processor, 1, 14, 4); // Algorithm = 4
     
     // Process to apply the CC
     host->processBlock(*processor, 128);
