@@ -151,7 +151,11 @@ constexpr float REFERENCE_FREQUENCY = 440.0f;        // A4 reference frequency
 constexpr uint8_t MAX_OPM_CHANNELS = 8;              // YM2151 channels
 constexpr uint8_t MAX_OPNA_FM_CHANNELS = 6;          // YM2608 FM channels
 constexpr uint8_t MAX_OPERATORS_PER_VOICE = 4;       // FM operators per voice
-constexpr uint8_t OPERATOR_ADDRESS_STEP = 8;         // Address step between operators
+constexpr uint8_t OPERATOR_ADDRESS_STEP = 8;         // Address step between register slots
+// Register slot offset for each operator in VOPM/voice order (M1, C1, M2, C2).
+// The YM2151 register map is ordered M1, M2, C1, C2 (+0, +8, +16, +24), and the
+// algorithm chains pair M1->C1 and M2->C2, so C1 lives at +16 and M2 at +8.
+constexpr uint8_t OPERATOR_SLOT_OFFSET[MAX_OPERATORS_PER_VOICE] = {0, 16, 8, 24};
 
 // =============================================================================
 // MIDI and Note Constants
@@ -238,7 +242,7 @@ constexpr int MAX_DEBUG_CALLS = 5;                   // Maximum debug calls
 
 // Calculate operator register address (operator 0-3, channel 0-7)
 constexpr uint8_t getOperatorRegister(uint8_t baseReg, uint8_t operator_num, uint8_t channel) {
-    return baseReg + (operator_num * OPERATOR_ADDRESS_STEP) + channel;
+    return baseReg + OPERATOR_SLOT_OFFSET[operator_num] + channel;
 }
 
 // Calculate channel register address
