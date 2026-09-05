@@ -57,13 +57,14 @@ TEST_F(StateManagerTest, GetNumProgramsWithCustomPreset) {
     // Enable custom mode
     processor->setCustomMode(true, "Test Custom");
     
-    // Program count should increase by 1 when in custom mode
+    // The program count is fixed (last slot is always the custom program);
+    // hosts cache the program list and may reset the program when it changes
     int customProgramCount = processor->getNumPrograms();
     
     processor->setCustomMode(false);
     int normalProgramCount = processor->getNumPrograms();
     
-    EXPECT_GT(customProgramCount, normalProgramCount);
+    EXPECT_EQ(customProgramCount, normalProgramCount);
 }
 
 TEST_F(StateManagerTest, SetCurrentProgramValidIndex) {
@@ -409,8 +410,11 @@ TEST_F(StateManagerTest, BankAndPresetSelectionIsStoredInState) {
 
 TEST_F(StateManagerTest, HostProgramChangeUpdatesBankAndPresetSelection) {
     const auto& presets = processor->getPresetManager();
+    // A host program change only carries the global index, so the bank is found by
+    // reverse lookup (first bank that lists the preset). Use the factory bank, whose
+    // presets are never duplicated in other banks.
     const int presetInBank = 3;
-    const int bank = pickTestBank(presets, presetInBank);
+    const int bank = 0;
     const int globalIndex = presets.getGlobalPresetIndex(bank, presetInBank);
     ASSERT_GE(globalIndex, 0);
     
@@ -444,4 +448,24 @@ TEST_F(StateManagerTest, BankAndPresetSelectionSurvivesStateReload) {
     EXPECT_EQ(restored->getProgramName(restored->getCurrentProgram()), expectedName);
     
     restored->resetProcessBlockStaticState();
+}
+
+// ============================================================================
+// Program count stability (hosts cache the program list)
+// ============================================================================
+
+TEST_F(StateManagerTest, ProgramCountDoesNotChangeWhenEnteringCustomMode) {
+    const int before = processor->getNumPrograms();
+    const int customSlot = before - 1;
+    EXPECT_EQ(processor->getProgramName(customSlot), "Custom");
+    
+    processor->setCustomMode(true, "Edited");
+    EXPECT_EQ(processor->getNumPrograms(), before);
+    EXPECT_EQ(processor->getCurrentProgram(), customSlot);
+    EXPECT_EQ(processor->getProgramName(customSlot), "Edited");
+    
+    // A host re-sending the custom slot must not load a preset or leave custom mode
+    processor->setCurrentProgram(customSlot);
+    EXPECT_TRUE(processor->isInCustomMode());
+    EXPECT_EQ(processor->getCurrentProgram(), customSlot);
 }

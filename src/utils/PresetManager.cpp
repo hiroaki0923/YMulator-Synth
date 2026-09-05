@@ -222,7 +222,7 @@ void PresetManager::initialize()
 {
     clear();
     loadFactoryPresets();
-    loadBundledPresets();
+    numBundledPresets = loadBundledPresets();
     initializeBanks();
     loadUserData();  // Load persistent user data
     
@@ -557,6 +557,17 @@ void PresetManager::initializeBanks()
         factoryBank.presetIndices.push_back(i);
     }
     banks.insert(banks.begin(), factoryBank);
+    
+    // The bundled collection follows the factory presets in the global list
+    if (numBundledPresets > 0) {
+        Bank collectionBank("Collection");
+        const int first = NUM_FACTORY_PRESETS;
+        const int last = std::min(first + numBundledPresets, static_cast<int>(presets.size()));
+        for (int i = first; i < last; ++i) {
+            collectionBank.presetIndices.push_back(i);
+        }
+        banks.insert(banks.begin() + 1, collectionBank);
+    }
 }
 
 juce::StringArray PresetManager::getPresetsForBank(int bankIndex) const

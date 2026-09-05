@@ -71,7 +71,20 @@ private:
     ParameterManager& parameterManager;
     
     // MIDI CC to parameter mapping (VOPMex compatibility)
-    std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
+    struct CcTarget {
+        juce::RangedAudioParameter* param = nullptr;
+        bool reversed = false;   // TL / AR / D1R / D2R / D1L / RR run opposite to the register in natural mode
+    };
+    std::unordered_map<int, CcTarget> ccToParameterMap;
+    
+    // VOPMex CC value interpretation: natural (scaled, some reversed) by default,
+    // register values after NRPN 126/127 (or 126/0) data 127
+    bool registerValueMode = false;
+    int nrpnMsb = -1;
+    int nrpnLsb = -1;
+    int lfoRateLsbBit = 0;
+    
+    void applyCcToParameter(int ccNumber, int value, const CcTarget& target);
     
     // Current pitch bend value (0-16383, center=8192)
     std::atomic<int> currentPitchBend{8192};

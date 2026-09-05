@@ -171,7 +171,7 @@ TEST_F(PluginProcessorComprehensiveTest, MidiCCParameterMapping) {
     // Get initial value
     float initialValue = host->getParameterValue(*processor, algorithmId);
     
-    // Send CC 14 with value 64 (mid-range)
+    // Send CC 14 with value 64 (VOPMex natural mode scales 0-127 to 0-7: 64 >> 4 = 4)
     host->sendMidiCC(*processor, 1, 14, 64);
     host->processBlock(*processor, 128);
     
@@ -179,9 +179,8 @@ TEST_F(PluginProcessorComprehensiveTest, MidiCCParameterMapping) {
     float newValue = host->getParameterValue(*processor, algorithmId);
     EXPECT_NE(newValue, initialValue);
     
-    // Should be in reasonable range for mid-value CC
-    EXPECT_GT(newValue, 0.2f);
-    EXPECT_LT(newValue, 0.8f);
+    // Discrete parameter: exactly algorithm 4 of 0-7
+    EXPECT_FLOAT_EQ(newValue, 4.0f / 7.0f);
 }
 
 TEST_F(PluginProcessorComprehensiveTest, MidiInputValidation) {

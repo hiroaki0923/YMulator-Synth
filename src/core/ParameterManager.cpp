@@ -6,6 +6,16 @@
 
 using namespace ymulatorsynth;
 
+namespace {
+// Register value held by a parameter, honouring the parameter's own range
+// (the previous "normalised * max" arithmetic truncated values for any
+// parameter whose range does not start at 0 or whose float division rounds down).
+float registerValue(const juce::RangedAudioParameter* param)
+{
+    return param ? static_cast<float>(juce::roundToInt(param->convertFrom0to1(param->getValue()))) : 0.0f;
+}
+} // namespace
+
 // Static thread_local variable for test isolation
 static thread_local bool s_isProcessingParameterChange = false;
 
@@ -64,7 +74,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
             
         // Release Rate (0-15)
         layout.add(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::rr(op), "Op" + juce::String(op) + " RR", 1, 15, 7));
+            ParamID::Op::rr(op), "Op" + juce::String(op) + " RR", 0, 15, 7));
             
         // Key Scale (0-3)
         layout.add(std::make_unique<juce::AudioParameterInt>(
@@ -283,34 +293,34 @@ void ParameterManager::loadPresetParameters(const Preset* preset, float& preserv
         int opIndex = op - 1; // Convert to 0-based index
         
         parametersPtr->getParameter(ParamID::Op::tl(op))->setValueNotifyingHost(
-            preset->operators[opIndex].totalLevel / 127.0f);
+            parametersPtr->getParameter(ParamID::Op::tl(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].totalLevel)));
         parametersPtr->getParameter(ParamID::Op::ar(op))->setValueNotifyingHost(
-            preset->operators[opIndex].attackRate / 31.0f);
+            parametersPtr->getParameter(ParamID::Op::ar(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].attackRate)));
         parametersPtr->getParameter(ParamID::Op::d1r(op))->setValueNotifyingHost(
-            preset->operators[opIndex].decay1Rate / 31.0f);
+            parametersPtr->getParameter(ParamID::Op::d1r(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].decay1Rate)));
         parametersPtr->getParameter(ParamID::Op::d1l(op))->setValueNotifyingHost(
-            preset->operators[opIndex].sustainLevel / 15.0f);
+            parametersPtr->getParameter(ParamID::Op::d1l(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].sustainLevel)));
         parametersPtr->getParameter(ParamID::Op::d2r(op))->setValueNotifyingHost(
-            preset->operators[opIndex].decay2Rate / 31.0f);
+            parametersPtr->getParameter(ParamID::Op::d2r(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].decay2Rate)));
         parametersPtr->getParameter(ParamID::Op::rr(op))->setValueNotifyingHost(
-            preset->operators[opIndex].releaseRate / 15.0f);
+            parametersPtr->getParameter(ParamID::Op::rr(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].releaseRate)));
         parametersPtr->getParameter(ParamID::Op::ks(op))->setValueNotifyingHost(
-            preset->operators[opIndex].keyScale / 3.0f);
+            parametersPtr->getParameter(ParamID::Op::ks(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].keyScale)));
         parametersPtr->getParameter(ParamID::Op::mul(op))->setValueNotifyingHost(
-            preset->operators[opIndex].multiple / 15.0f);
+            parametersPtr->getParameter(ParamID::Op::mul(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].multiple)));
         parametersPtr->getParameter(ParamID::Op::dt1(op))->setValueNotifyingHost(
-            preset->operators[opIndex].detune1 / 7.0f);
+            parametersPtr->getParameter(ParamID::Op::dt1(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].detune1)));
         parametersPtr->getParameter(ParamID::Op::dt2(op))->setValueNotifyingHost(
-            preset->operators[opIndex].detune2 / 3.0f);
+            parametersPtr->getParameter(ParamID::Op::dt2(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].detune2)));
         parametersPtr->getParameter(ParamID::Op::ams_en(op))->setValueNotifyingHost(
             preset->operators[opIndex].amsEnable ? 1.0f : 0.0f);
     }
     
     // Load global parameters
     parametersPtr->getParameter(ParamID::Global::Algorithm)->setValueNotifyingHost(
-        preset->algorithm / 7.0f);
+            parametersPtr->getParameter(ParamID::Global::Algorithm)->convertTo0to1(static_cast<float>(preset->algorithm)));
     parametersPtr->getParameter(ParamID::Global::Feedback)->setValueNotifyingHost(
-        preset->feedback / 7.0f);
+            parametersPtr->getParameter(ParamID::Global::Feedback)->convertTo0to1(static_cast<float>(preset->feedback)));
         
     // Re-enable listeners
     setupParameterListeners(true);
@@ -392,25 +402,25 @@ void ParameterManager::extractCurrentParameterValues(Preset& preset) const
         auto& opParams = preset.operators[opIndex];
         
         opParams.totalLevel = static_cast<uint8_t>(
-            parametersPtr->getParameter(ParamID::Op::tl(op))->getValue() * 127.0f);
+            registerValue(parametersPtr->getParameter(ParamID::Op::tl(op))));
         opParams.attackRate = static_cast<uint8_t>(
-            parametersPtr->getParameter(ParamID::Op::ar(op))->getValue() * 31.0f);
-        opParams.decay1Rate = parametersPtr->getParameter(ParamID::Op::d1r(op))->getValue() * 31.0f;
-        opParams.sustainLevel = parametersPtr->getParameter(ParamID::Op::d1l(op))->getValue() * 15.0f;
-        opParams.decay2Rate = parametersPtr->getParameter(ParamID::Op::d2r(op))->getValue() * 31.0f;
-        opParams.releaseRate = parametersPtr->getParameter(ParamID::Op::rr(op))->getValue() * 15.0f;
-        opParams.keyScale = parametersPtr->getParameter(ParamID::Op::ks(op))->getValue() * 3.0f;
-        opParams.multiple = parametersPtr->getParameter(ParamID::Op::mul(op))->getValue() * 15.0f;
-        opParams.detune1 = parametersPtr->getParameter(ParamID::Op::dt1(op))->getValue() * 7.0f;
-        opParams.detune2 = parametersPtr->getParameter(ParamID::Op::dt2(op))->getValue() * 3.0f;
+            registerValue(parametersPtr->getParameter(ParamID::Op::ar(op))));
+        opParams.decay1Rate = registerValue(parametersPtr->getParameter(ParamID::Op::d1r(op)));
+        opParams.sustainLevel = registerValue(parametersPtr->getParameter(ParamID::Op::d1l(op)));
+        opParams.decay2Rate = registerValue(parametersPtr->getParameter(ParamID::Op::d2r(op)));
+        opParams.releaseRate = registerValue(parametersPtr->getParameter(ParamID::Op::rr(op)));
+        opParams.keyScale = registerValue(parametersPtr->getParameter(ParamID::Op::ks(op)));
+        opParams.multiple = registerValue(parametersPtr->getParameter(ParamID::Op::mul(op)));
+        opParams.detune1 = registerValue(parametersPtr->getParameter(ParamID::Op::dt1(op)));
+        opParams.detune2 = registerValue(parametersPtr->getParameter(ParamID::Op::dt2(op)));
         opParams.amsEnable = parametersPtr->getParameter(ParamID::Op::ams_en(op))->getValue() > 0.5f;
     }
     
     // Extract global parameters
     preset.algorithm = static_cast<uint8_t>(
-        parametersPtr->getParameter(ParamID::Global::Algorithm)->getValue() * 7.0f);
+        registerValue(parametersPtr->getParameter(ParamID::Global::Algorithm)));
     preset.feedback = static_cast<uint8_t>(
-        parametersPtr->getParameter(ParamID::Global::Feedback)->getValue() * 7.0f);
+        registerValue(parametersPtr->getParameter(ParamID::Global::Feedback)));
     
     CS_DBG("Parameter extraction completed");
 }
@@ -542,49 +552,49 @@ void ParameterManager::updateChannelParameters(int channel)
         int opIndex = op - 1; // Convert to 0-based for ymfm
         
         // Get parameter values (0.0-1.0) and scale to hardware ranges
-        float tl = parametersPtr->getParameter(ParamID::Op::tl(op))->getValue();
-        float ar = parametersPtr->getParameter(ParamID::Op::ar(op))->getValue();
-        float d1r = parametersPtr->getParameter(ParamID::Op::d1r(op))->getValue();
-        float d1l = parametersPtr->getParameter(ParamID::Op::d1l(op))->getValue();
-        float d2r = parametersPtr->getParameter(ParamID::Op::d2r(op))->getValue();
-        float rr = parametersPtr->getParameter(ParamID::Op::rr(op))->getValue();
-        float ks = parametersPtr->getParameter(ParamID::Op::ks(op))->getValue();
-        float mul = parametersPtr->getParameter(ParamID::Op::mul(op))->getValue();
-        float dt1 = parametersPtr->getParameter(ParamID::Op::dt1(op))->getValue();
-        float dt2 = parametersPtr->getParameter(ParamID::Op::dt2(op))->getValue();
-        float ams = parametersPtr->getParameter(ParamID::Op::ams_en(op))->getValue();
+        float tl = registerValue(parametersPtr->getParameter(ParamID::Op::tl(op)));
+        float ar = registerValue(parametersPtr->getParameter(ParamID::Op::ar(op)));
+        float d1r = registerValue(parametersPtr->getParameter(ParamID::Op::d1r(op)));
+        float d1l = registerValue(parametersPtr->getParameter(ParamID::Op::d1l(op)));
+        float d2r = registerValue(parametersPtr->getParameter(ParamID::Op::d2r(op)));
+        float rr = registerValue(parametersPtr->getParameter(ParamID::Op::rr(op)));
+        float ks = registerValue(parametersPtr->getParameter(ParamID::Op::ks(op)));
+        float mul = registerValue(parametersPtr->getParameter(ParamID::Op::mul(op)));
+        float dt1 = registerValue(parametersPtr->getParameter(ParamID::Op::dt1(op)));
+        float dt2 = registerValue(parametersPtr->getParameter(ParamID::Op::dt2(op)));
+        float ams = registerValue(parametersPtr->getParameter(ParamID::Op::ams_en(op)));
         
         // Scale and apply to ymfm
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::TotalLevel, 
-            static_cast<uint8_t>(tl * 127.0f));
+            static_cast<uint8_t>(tl));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::AttackRate, 
-            static_cast<uint8_t>(ar * 31.0f));
+            static_cast<uint8_t>(ar));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::Decay1Rate, 
-            static_cast<uint8_t>(d1r * 31.0f));
+            static_cast<uint8_t>(d1r));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::SustainLevel, 
-            static_cast<uint8_t>(d1l * 15.0f));
+            static_cast<uint8_t>(d1l));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::Decay2Rate, 
-            static_cast<uint8_t>(d2r * 31.0f));
+            static_cast<uint8_t>(d2r));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::ReleaseRate, 
-            static_cast<uint8_t>(rr * 15.0f));
+            static_cast<uint8_t>(rr));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::KeyScale, 
-            static_cast<uint8_t>(ks * 3.0f));
+            static_cast<uint8_t>(ks));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::Multiple, 
-            static_cast<uint8_t>(mul * 15.0f));
+            static_cast<uint8_t>(mul));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::Detune1, 
-            static_cast<uint8_t>(dt1 * 7.0f));
+            static_cast<uint8_t>(dt1));
         ymfmWrapper.setOperatorParameter(channel, opIndex, 
             YmfmWrapperInterface::OperatorParameter::Detune2, 
-            static_cast<uint8_t>(dt2 * 3.0f));
+            static_cast<uint8_t>(dt2));
         
         // AMS enable is handled separately as a boolean
         ymfmWrapper.setOperatorAmsEnable(channel, opIndex, ams > 0.5f);
@@ -604,11 +614,11 @@ void ParameterManager::updateGlobalParameters()
     }
     
     // Algorithm and Feedback
-    float algorithm = parametersPtr->getParameter(ParamID::Global::Algorithm)->getValue();
-    float feedback = parametersPtr->getParameter(ParamID::Global::Feedback)->getValue();
+    float algorithm = registerValue(parametersPtr->getParameter(ParamID::Global::Algorithm));
+    float feedback = registerValue(parametersPtr->getParameter(ParamID::Global::Feedback));
     
-    uint8_t algorithmValue = static_cast<uint8_t>(algorithm * 7.0f);
-    uint8_t feedbackValue = static_cast<uint8_t>(feedback * 7.0f);
+    uint8_t algorithmValue = static_cast<uint8_t>(algorithm);
+    uint8_t feedbackValue = static_cast<uint8_t>(feedback);
     
     CS_ASSERT_ALGORITHM(algorithmValue);
     CS_ASSERT_FEEDBACK(feedbackValue);
@@ -620,27 +630,27 @@ void ParameterManager::updateGlobalParameters()
     }
     
     // LFO Parameters
-    float lfoRate = parametersPtr->getParameter(ParamID::Global::LfoRate)->getValue();
-    float lfoPmd = parametersPtr->getParameter(ParamID::Global::LfoPmd)->getValue();
-    float lfoAmd = parametersPtr->getParameter(ParamID::Global::LfoAmd)->getValue();
+    float lfoRate = registerValue(parametersPtr->getParameter(ParamID::Global::LfoRate));
+    float lfoPmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoPmd));
+    float lfoAmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoAmd));
     auto* lfoWaveformParam = static_cast<juce::AudioParameterChoice*>(
         parametersPtr->getParameter(ParamID::Global::LfoWaveform));
     
     uint8_t lfoWaveform = lfoWaveformParam ? static_cast<uint8_t>(lfoWaveformParam->getIndex()) : 0;
     ymfmWrapper.setLfoParameters(
-        static_cast<uint8_t>(lfoRate * 255.0f),
-        static_cast<uint8_t>(lfoAmd * 127.0f),
-        static_cast<uint8_t>(lfoPmd * 127.0f),
+        static_cast<uint8_t>(lfoRate),
+        static_cast<uint8_t>(lfoAmd),
+        static_cast<uint8_t>(lfoPmd),
         lfoWaveform
     );
     
     // Noise Parameters
     auto* noiseEnableParam = static_cast<juce::AudioParameterBool*>(
         parametersPtr->getParameter(ParamID::Global::NoiseEnable));
-    float noiseFreq = parametersPtr->getParameter(ParamID::Global::NoiseFrequency)->getValue();
+    float noiseFreq = registerValue(parametersPtr->getParameter(ParamID::Global::NoiseFrequency));
     
     bool noiseEnable = noiseEnableParam ? noiseEnableParam->get() : false;
-    ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFreq * 31.0f));
+    ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFreq));
 }
 
 void ParameterManager::validateParameterRange(float value, float min, float max, const juce::String& paramName) const

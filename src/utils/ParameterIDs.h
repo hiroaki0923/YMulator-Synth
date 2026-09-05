@@ -177,15 +177,31 @@ namespace MIDI_CC {
     constexpr int Algorithm = 14;
     constexpr int Feedback = 15;
     
-    // LFO parameters (using undefined CC numbers in VOPMex range)
-    constexpr int LfoRate = 76;       // LFO frequency
-    constexpr int LfoAmd = 77;        // LFO amplitude modulation depth
-    constexpr int LfoPmd = 78;        // LFO phase modulation depth  
-    constexpr int LfoWaveform = 79;   // LFO waveform (0-3)
+    // Hardware LFO (VOPMex numbers). CC values are register values; the LFO
+    // frequency register is 8-bit, so CC 1 carries the upper 7 bits.
+    constexpr int LfoRate = 1;        // LFO frequency (MSB)
+    constexpr int LfoPmd = 2;         // LFO pitch modulation depth (0-127)
+    constexpr int LfoAmd = 3;         // LFO amplitude modulation depth (0-127)
+    constexpr int LfoWaveform = 12;   // LFO waveform (0-3)
     
-    // Noise parameters (using next available CC numbers)
-    constexpr int NoiseEnable = 80;   // Noise enable (0/127)
-    constexpr int NoiseFrequency = 81; // Noise frequency (0-31)
+    // Legacy YMulator numbers for the same LFO parameters (kept for old projects)
+    constexpr int LegacyLfoRate = 76;
+    constexpr int LegacyLfoAmd = 77;
+    constexpr int LegacyLfoPmd = 78;
+    constexpr int LegacyLfoWaveform = 79;
+    
+    // NRPN used by VOPMex to switch how CC values are interpreted
+    constexpr int NrpnMsb = 99;
+    constexpr int NrpnLsb = 98;
+    constexpr int DataEntry = 6;
+    constexpr int ResetAllControllers = 121;
+    constexpr int NrpnCcDirectionMsb = 126;   // LSB 127 = all channels, 0 = this channel
+    constexpr int LfoRateLsb = 33;            // lower bit of the 8-bit LFRQ register
+    
+    // Noise (VOPMex numbers)
+    constexpr int NoiseEnable = 80;   // Noise enable (0 = off, otherwise on)
+    constexpr int NoiseFrequency = 82; // Noise frequency (0-31)
+    constexpr int LegacyNoiseFrequency = 81;
     
     // Channel Pan (CC 32-39) - YMulator Synth extension
     constexpr int Ch0_Pan = 32;
@@ -245,17 +261,23 @@ namespace MIDI_CC {
     constexpr int Op3_D2R = 53;
     constexpr int Op4_D2R = 54;
     
-    // Operator Release Rate (CC 55-58)
-    constexpr int Op1_RR = 55;
-    constexpr int Op2_RR = 56;
-    constexpr int Op3_RR = 57;
-    constexpr int Op4_RR = 58;
+    // Operator Decay1 Level (CC 55-58)
+    constexpr int Op1_D1L = 55;
+    constexpr int Op2_D1L = 56;
+    constexpr int Op3_D1L = 57;
+    constexpr int Op4_D1L = 58;
     
-    // Operator Decay1 Level (CC 59-62)
-    constexpr int Op1_D1L = 59;
-    constexpr int Op2_D1L = 60;
-    constexpr int Op3_D1L = 61;
-    constexpr int Op4_D1L = 62;
+    // Operator Release Rate (CC 59-62)
+    constexpr int Op1_RR = 59;
+    constexpr int Op2_RR = 60;
+    constexpr int Op3_RR = 61;
+    constexpr int Op4_RR = 62;
+    
+    // Operator AMS Enable (CC 70-73)
+    constexpr int Op1_AME = 70;
+    constexpr int Op2_AME = 71;
+    constexpr int Op3_AME = 72;
+    constexpr int Op4_AME = 73;
     
     // Helper function to get CC number for operator parameter
     inline int getOpCC(int opNum, const char* paramType) {
@@ -279,6 +301,8 @@ namespace MIDI_CC {
             return Op1_RR + opNum - 1;
         } else if (std::string(paramType) == Op::SustainLevel) {
             return Op1_D1L + opNum - 1;
+        } else if (std::string(paramType) == Op::AmsEnable) {
+            return Op1_AME + opNum - 1;
         }
         return -1; // Invalid parameter type
     }

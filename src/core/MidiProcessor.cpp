@@ -116,18 +116,54 @@ void MidiProcessor::handleMidiCC(int ccNumber, int value)
         return;
     }
     
-    auto it = ccToParameterMap.find(ccNumber);
-    if (it != ccToParameterMap.end() && it->second != nullptr)
-    {
-        // Normalize CC value (0-127) to parameter range (0.0-1.0)
-        float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
-        
-        // Update parameter (thread-safe)
-        it->second->setValueNotifyingHost(normalizedValue);
-        
-        CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
-            " -> " + it->second->name + " = " + juce::String(it->second->getValue()));
+    // NRPN: VOPMex uses MSB 126 / LSB 127 (all channels) or 0 (this channel) with
+    // data 127 to switch to register-value input, data 0 back to natural
+    if (ccNumber == ParamID::MIDI_CC::NrpnMsb) { nrpnMsb = value; return; }
+    if (ccNumber == ParamID::MIDI_CC::NrpnLsb) { nrpnLsb = value; return; }
+    if (ccNumber == ParamID::MIDI_CC::DataEntry) {
+        if (nrpnMsb == ParamID::MIDI_CC::NrpnCcDirectionMsb && (nrpnLsb == 127 || nrpnLsb == 0))
+            registerValueMode = (value != 0);
+        return;
     }
+    if (ccNumber == ParamID::MIDI_CC::ResetAllControllers) {
+        registerValueMode = false;
+        nrpnMsb = nrpnLsb = -1;
+        return;
+    }
+    if (ccNumber == ParamID::MIDI_CC::LfoRateLsb) { lfoRateLsbBit = value >> 6; return; }
+    
+    auto it = ccToParameterMap.find(ccNumber);
+    if (it != ccToParameterMap.end() && it->second.param != nullptr)
+        applyCcToParameter(ccNumber, value, it->second);
+}
+
+void MidiProcessor::applyCcToParameter(int ccNumber, int value, const CcTarget& target)
+{
+    const auto& range = target.param->getNormalisableRange();
+    const int maxValue = static_cast<int>(range.end);
+    float registerValue;
+    
+    if (ccNumber == ParamID::MIDI_CC::LfoRate || ccNumber == ParamID::MIDI_CC::LegacyLfoRate) {
+        // 8-bit LFRQ: CC 1 carries the upper 7 bits, CC 33 the lowest bit
+        registerValue = static_cast<float>((value << 1) | lfoRateLsbBit);
+    } else if (registerValueMode) {
+        registerValue = static_cast<float>(value & maxValue);
+    } else {
+        // Natural mode: scale the 7-bit CC to the parameter's step count
+        // (value >> (7 - bits(max))), then reverse the envelope-type parameters
+        int bits = 0;
+        for (int m = maxValue; m > 0; m >>= 1) ++bits;
+        const int shift = juce::jmax(0, 7 - bits);
+        int scaled = value >> shift;
+        if (target.reversed) scaled = maxValue - scaled;
+        registerValue = static_cast<float>(scaled);
+    }
+    
+    registerValue = juce::jlimit(range.start, range.end, registerValue);
+    target.param->setValueNotifyingHost(range.convertTo0to1(registerValue));
+    
+    CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
+        " -> " + target.param->name + " = " + juce::String(registerValue));
 }
 
 void MidiProcessor::handlePitchBend(int pitchBendValue)
@@ -167,40 +203,37 @@ void MidiProcessor::handlePitchBend(int pitchBendValue)
 void MidiProcessor::setupCCMapping()
 {
     // VOPMex compatible MIDI CC mapping
+    using namespace ParamID;
+    auto direct = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), false }; };
+    auto reversed = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), true }; };
     
-    // Global parameters
-    ccToParameterMap[ParamID::MIDI_CC::Algorithm] = parameters.getParameter(ParamID::Global::Algorithm);
-    ccToParameterMap[ParamID::MIDI_CC::Feedback] = parameters.getParameter(ParamID::Global::Feedback);
-    ccToParameterMap[ParamID::MIDI_CC::LfoRate] = 
-        parameters.getParameter(ParamID::Global::LfoRate);
-    ccToParameterMap[ParamID::MIDI_CC::LfoAmd] = 
-        parameters.getParameter(ParamID::Global::LfoAmd);
-    ccToParameterMap[ParamID::MIDI_CC::LfoPmd] = 
-        parameters.getParameter(ParamID::Global::LfoPmd);
-    ccToParameterMap[ParamID::MIDI_CC::LfoWaveform] = 
-        parameters.getParameter(ParamID::Global::LfoWaveform);
+    direct(MIDI_CC::Algorithm, Global::Algorithm);
+    direct(MIDI_CC::Feedback, Global::Feedback);
     
-    // Noise parameters - AudioParameterBool needs special handling for MIDI CC
-    ccToParameterMap[ParamID::MIDI_CC::NoiseEnable] = 
-        parameters.getParameter(ParamID::Global::NoiseEnable);
-    ccToParameterMap[ParamID::MIDI_CC::NoiseFrequency] = 
-        parameters.getParameter(ParamID::Global::NoiseFrequency);
+    // Hardware LFO: VOPMex numbers plus the legacy YMulator numbers
+    for (int cc : {MIDI_CC::LfoRate, MIDI_CC::LegacyLfoRate}) direct(cc, Global::LfoRate);
+    for (int cc : {MIDI_CC::LfoAmd, MIDI_CC::LegacyLfoAmd}) direct(cc, Global::LfoAmd);
+    for (int cc : {MIDI_CC::LfoPmd, MIDI_CC::LegacyLfoPmd}) direct(cc, Global::LfoPmd);
+    for (int cc : {MIDI_CC::LfoWaveform, MIDI_CC::LegacyLfoWaveform}) direct(cc, Global::LfoWaveform);
     
-    // Operator parameters (Op1-Op4, all 4 operators)
+    // Noise
+    direct(MIDI_CC::NoiseEnable, Global::NoiseEnable);
+    for (int cc : {MIDI_CC::NoiseFrequency, MIDI_CC::LegacyNoiseFrequency}) direct(cc, Global::NoiseFrequency);
+    
+    // Operator parameters: four consecutive CCs per parameter (OP1-OP4).
+    // Level and envelope rates/levels are reversed in natural mode, as in VOPMex.
     for (int op = 1; op <= 4; ++op) {
-        int baseCC = ParamID::MIDI_CC::Op1_TL + (op - 1) * 11; // 11 CCs per operator
-        
-        ccToParameterMap[baseCC + 0] = parameters.getParameter(ParamID::Op::tl(op));        // TL
-        ccToParameterMap[baseCC + 1] = parameters.getParameter(ParamID::Op::ar(op));        // AR
-        ccToParameterMap[baseCC + 2] = parameters.getParameter(ParamID::Op::d1r(op));       // D1R
-        ccToParameterMap[baseCC + 3] = parameters.getParameter(ParamID::Op::d2r(op));       // D2R
-        ccToParameterMap[baseCC + 4] = parameters.getParameter(ParamID::Op::rr(op));        // RR
-        ccToParameterMap[baseCC + 5] = parameters.getParameter(ParamID::Op::d1l(op));       // D1L
-        ccToParameterMap[baseCC + 6] = parameters.getParameter(ParamID::Op::ks(op));        // KS
-        ccToParameterMap[baseCC + 7] = parameters.getParameter(ParamID::Op::mul(op));       // MUL
-        ccToParameterMap[baseCC + 8] = parameters.getParameter(ParamID::Op::dt1(op));       // DT1
-        ccToParameterMap[baseCC + 9] = parameters.getParameter(ParamID::Op::dt2(op));       // DT2
-        ccToParameterMap[baseCC + 10] = parameters.getParameter(ParamID::Op::ams_en(op));   // AMS-EN
+        reversed(MIDI_CC::getOpCC(op, Op::TotalLevel),   Op::tl(op));
+        direct  (MIDI_CC::getOpCC(op, Op::Multiple),     Op::mul(op));
+        direct  (MIDI_CC::getOpCC(op, Op::Detune1),      Op::dt1(op));
+        direct  (MIDI_CC::getOpCC(op, Op::Detune2),      Op::dt2(op));
+        direct  (MIDI_CC::getOpCC(op, Op::KeyScale),     Op::ks(op));
+        reversed(MIDI_CC::getOpCC(op, Op::AttackRate),   Op::ar(op));
+        reversed(MIDI_CC::getOpCC(op, Op::Decay1Rate),   Op::d1r(op));
+        reversed(MIDI_CC::getOpCC(op, Op::Decay2Rate),   Op::d2r(op));
+        reversed(MIDI_CC::getOpCC(op, Op::SustainLevel), Op::d1l(op));
+        reversed(MIDI_CC::getOpCC(op, Op::ReleaseRate),  Op::rr(op));
+        direct  (MIDI_CC::getOpCC(op, Op::AmsEnable),    Op::ams_en(op));
     }
     
     // Note: Channel pan parameters are handled separately in handleMidiCC() 
