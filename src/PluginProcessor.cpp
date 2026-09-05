@@ -627,12 +627,6 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
             [[maybe_unused]] bool hasAudio = (leftLevel > 0.0001f || rightLevel > 0.0001f);
         }
         
-        // Apply moderate gain to prevent clipping
-        buffer.applyGain(0, 0, numSamples, 2.0f);
-        if (buffer.getNumChannels() > 1) {
-            buffer.applyGain(1, 0, numSamples, 2.0f);
-        }
-        
         // Check for non-zero audio (debug)
         static int debugCounter = 0;
         if (++debugCounter % 44100 == 0) { // Every ~1 second at 44.1kHz
