@@ -96,6 +96,14 @@ private:
     // Output data holders
     ymfm::ym2151::output_data opmOutput;
     ymfm::ym2608::output_data opnaOutput;
+
+    // Resampler state. ymfm renders at the chip's native rate (clock / 64, about
+    // 55.9 kHz for OPM); output is interpolated to the host rate with 4-point
+    // cubic Hermite interpolation between history[1] and history[2].
+    double resampleStep = 1.0;    // native samples per output sample
+    double resamplePhase = 1.0;   // fractional position between history[1] and history[2]
+    std::array<float, 4> historyLeft {};
+    std::array<float, 4> historyRight {};
     
     // Current register values (for read-modify-write operations)
     uint8_t currentRegisters[256];
@@ -119,4 +127,6 @@ private:
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
     void updateRegisterCache(uint8_t address, uint8_t value);
+    void resetResampler();
+    void renderNativeSample();
 };

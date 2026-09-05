@@ -14,7 +14,7 @@
 YmfmWrapper::YmfmWrapper()
     : chipType(ChipType::OPM)
     , outputSampleRate(44100)
-    , internalSampleRate(62500)
+    , internalSampleRate(44100)
 {
     // Initialize register cache
     std::memset(currentRegisters, 0, sizeof(currentRegisters));
@@ -29,6 +29,7 @@ YmfmWrapper::YmfmWrapper()
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
 {
+    CS_ASSERT_SAMPLE_RATE(outputSampleRate);
     CS_FILE_DBG("=== YmfmWrapper::initialize ===");
     CS_FILE_DBG("ChipType: " + juce::String(type == ChipType::OPM ? "OPM" : "OPNA"));
     CS_FILE_DBG("Received outputSampleRate: " + juce::String(outputSampleRate));
@@ -37,25 +38,15 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
     this->outputSampleRate = outputSampleRate;
     
     if (type == ChipType::OPM) {
-        // Use proper OPM clock like S98Player
-        uint32_t opm_clock = YM2151Regs::OPM_DEFAULT_CLOCK; // Default YM2151 clock from S98Player
-        internalSampleRate = 0; // Will be calculated properly
         initializeOPM();
-        
-        // Calculate the actual internal sample rate like S98Player does
-        if (opmChip) {
-            uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
-            // Use ymfm's calculated internal rate for proper audio generation
-            internalSampleRate = ymfm_internal_rate;
-            CS_FILE_DBG("OPM clock=" + juce::String(opm_clock) + " Hz");
-            CS_FILE_DBG("ymfm calculated internal rate=" + juce::String(ymfm_internal_rate) + " Hz");
-            CS_FILE_DBG("Final internalSampleRate set to ymfm_internal_rate=" + juce::String(internalSampleRate) + " Hz");
-            CS_FILE_DBG("=== YmfmWrapper initialization complete ===");
-        }
+        internalSampleRate = opmChip->sample_rate(YM2151Regs::OPM_DEFAULT_CLOCK);
     } else {
-        internalSampleRate = YM2151Regs::OPNA_INTERNAL_RATE;  // OPNA internal rate  
         initializeOPNA();
+        internalSampleRate = opnaChip->sample_rate(YM2151Regs::OPNA_DEFAULT_CLOCK);
     }
+    
+    resetResampler();
+    CS_FILE_DBG("Chip native rate=" + juce::String(internalSampleRate) + " Hz, resample step=" + juce::String(resampleStep, 6));
     
     initialized = true;
 }
@@ -69,6 +60,42 @@ void YmfmWrapper::reset()
         opnaChip->reset();
         initializeOPNA();
     }
+    resetResampler();
+}
+
+void YmfmWrapper::resetResampler()
+{
+    resampleStep = (outputSampleRate > 0)
+        ? static_cast<double>(internalSampleRate) / static_cast<double>(outputSampleRate)
+        : 1.0;
+    resamplePhase = 1.0;  // Pull a fresh native sample on the first output sample
+    historyLeft.fill(0.0f);
+    historyRight.fill(0.0f);
+}
+
+void YmfmWrapper::renderNativeSample()
+{
+    constexpr float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
+    float left = 0.0f;
+    float right = 0.0f;
+    
+    if (chipType == ChipType::OPM && opmChip) {
+        opmChip->generate(&opmOutput, 1);
+        // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
+        left = static_cast<float>(opmOutput.data[0]) * scaleFactor;
+        right = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+    } else if (chipType == ChipType::OPNA && opnaChip) {
+        opnaChip->generate(&opnaOutput, 1);
+        left = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
+        right = static_cast<float>(opnaOutput.data[1]) * scaleFactor;
+    }
+    
+    for (size_t i = 0; i + 1 < historyLeft.size(); ++i) {
+        historyLeft[i] = historyLeft[i + 1];
+        historyRight[i] = historyRight[i + 1];
+    }
+    historyLeft.back() = left;
+    historyRight.back() = right;
 }
 
 void YmfmWrapper::initializeOPM()
@@ -152,36 +179,23 @@ void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int num
         return; // Buffers already cleared
     }
     
-    if (chipType == ChipType::OPM && opmChip) {
-        // Convert to float with optimized scaling
-        const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
-        
-        // ymfm library design: generate 1 sample at a time
-        // The library handles internal timing, no need for clock calculation
-        
-        // Generate samples one at a time (ymfm output is per-sample, not batched)
-        static int debugCounter = 0;
-        for (int i = 0; i < numSamples; i++) {
-            // CORRECT: ymfm::generate(output*, samples_to_generate)
-            opmChip->generate(&opmOutput, 1);
-            
-            // Sample generation debug output disabled for performance
-            
-            // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
-            leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
-            rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+    // Catmull-Rom cubic between h[1] and h[2]; h[0] and h[3] are the neighbours.
+    auto interpolate = [](const std::array<float, 4>& h, float t) {
+        const float a = -0.5f * h[0] + 1.5f * h[1] - 1.5f * h[2] + 0.5f * h[3];
+        const float b = h[0] - 2.5f * h[1] + 2.0f * h[2] - 0.5f * h[3];
+        const float c = -0.5f * h[0] + 0.5f * h[2];
+        return ((a * t + b) * t + c) * t + h[1];
+    };
+    
+    for (int i = 0; i < numSamples; i++) {
+        while (resamplePhase >= 1.0) {
+            renderNativeSample();
+            resamplePhase -= 1.0;
         }
-        
-    } else if (chipType == ChipType::OPNA && opnaChip) {
-        // OPNA generates one sample at a time
-        for (int i = 0; i < numSamples; i++) {
-            opnaChip->generate(&opnaOutput);
-            
-            // Convert to float with optimized scaling
-            const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
-            leftBuffer[i] = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
-            rightBuffer[i] = static_cast<float>(opnaOutput.data[1]) * scaleFactor;
-        }
+        const float t = static_cast<float>(resamplePhase);
+        leftBuffer[i] = interpolate(historyLeft, t);
+        rightBuffer[i] = interpolate(historyRight, t);
+        resamplePhase += resampleStep;
     }
 }
 
@@ -495,37 +509,34 @@ void YmfmWrapper::setOperatorParameters(uint8_t channel, uint8_t operator_num,
 
 uint16_t YmfmWrapper::noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones)
 {
-    // Calculate the actual note with pitch bend applied
-    float actualNote = note + pitchBendSemitones;
+    // YM2151 pitch = KC (octave + note code, see KEY_CODE_NOTE_TABLE) plus KF in
+    // 1/64-semitone steps. The note code field starts at C#, so MIDI note 61 (C#4)
+    // is octave 4 / code 0 and C4 is octave 3 / code 14.
+    const float actualNote = static_cast<float>(note) + pitchBendSemitones;
+    const int wholeNote = static_cast<int>(std::floor(actualNote));
+    const float fraction = actualNote - static_cast<float>(wholeNote);
     
-    // Calculate frequency from MIDI note
-    float freq = YM2151Regs::REFERENCE_FREQUENCY * std::pow(YM2151Regs::SEMITONE_RATIO, (actualNote - YM2151Regs::MIDI_NOTE_A4) / YM2151Regs::NOTES_PER_OCTAVE);
+    const int semitonesFromCsharp4 = wholeNote - YM2151Regs::MIDI_NOTE_CSHARP4;
+    int octave = YM2151Regs::KEY_CODE_OCTAVE_4
+               + static_cast<int>(std::floor(static_cast<float>(semitonesFromCsharp4) / YM2151Regs::NOTES_PER_OCTAVE));
+    int noteIndex = ((semitonesFromCsharp4 % YM2151Regs::NOTES_PER_OCTAVE) + YM2151Regs::NOTES_PER_OCTAVE)
+                    % YM2151Regs::NOTES_PER_OCTAVE;
+    uint8_t kf = static_cast<uint8_t>(fraction * YM2151Regs::KF_SCALE_FACTOR) & YM2151Regs::MASK_KEY_FRACTION;
     
-    // Convert frequency to YM2151 KC/KF format
-    float fnote = YM2151Regs::NOTES_PER_OCTAVE * log2f(freq / YM2151Regs::REFERENCE_FREQUENCY) + YM2151Regs::MIDI_NOTE_A4;
-    int noteInt = (int)round(fnote);
-    int octave = (noteInt / YM2151Regs::NOTES_PER_OCTAVE) - 1;
-    int noteInOctave = noteInt % YM2151Regs::NOTES_PER_OCTAVE;
-    
-    // Clamp octave to valid range (0-7) for YM2151
+    // Clamp to the chip's 8 octaves
     if (octave < YM2151Regs::MIN_OCTAVE) {
         octave = YM2151Regs::MIN_OCTAVE;
-        noteInOctave = 0;
+        noteIndex = 0;
+        kf = 0;
     } else if (octave > YM2151Regs::MAX_OCTAVE) {
         octave = YM2151Regs::MAX_OCTAVE;
-        noteInOctave = YM2151Regs::NOTES_PER_OCTAVE - 1;
+        noteIndex = YM2151Regs::NOTES_PER_OCTAVE - 1;
+        kf = YM2151Regs::MASK_KEY_FRACTION;
     }
     
-    // YM2151 key code calculation
-    const uint8_t noteCode[YM2151Regs::NOTES_PER_OCTAVE] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 14};
-    uint8_t kc = ((octave & YM2151Regs::MASK_OCTAVE) << YM2151Regs::SHIFT_OCTAVE) | noteCode[noteInOctave];
-    
-    // Calculate fine tuning (KF) for the fractional part
-    float fractionalPart = actualNote - noteInt;
-    uint8_t kf = (uint8_t)(fractionalPart * YM2151Regs::KF_SCALE_FACTOR); // 6-bit KF value
-    
-    // Combine KC and KF into a 16-bit value for convenience
-    return (kc << YM2151Regs::SHIFT_KEY_CODE) | (kf & YM2151Regs::MASK_KEY_FRACTION);
+    const uint8_t kc = static_cast<uint8_t>(((octave & YM2151Regs::MASK_OCTAVE) << YM2151Regs::SHIFT_OCTAVE)
+                                            | YM2151Regs::KEY_CODE_NOTE_TABLE[noteIndex]);
+    return static_cast<uint16_t>((kc << YM2151Regs::SHIFT_KEY_CODE) | kf);
 }
 
 void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)

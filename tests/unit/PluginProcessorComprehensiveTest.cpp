@@ -872,6 +872,10 @@ TEST_F(PluginProcessorComprehensiveTest, AudioSignalIntegrity) {
     EXPECT_GT(rightRMS, 0.001f);  // Not silent
     EXPECT_LT(rightRMS, 1.0f);    // Not clipping
     
+    // A single note must never exceed full scale (0 dBFS)
+    EXPECT_LE(host->getPeakLevel(0), 1.0f);
+    EXPECT_LE(host->getPeakLevel(1), 1.0f);
+    
     // Channels should be reasonably balanced for center pan
     float balance = std::max(leftRMS, rightRMS) / std::min(leftRMS, rightRMS);
     EXPECT_LT(balance, 5.0f); // Not more than 5:1 ratio

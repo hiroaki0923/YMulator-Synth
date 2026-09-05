@@ -134,9 +134,8 @@ constexpr uint8_t SHIFT_OPNA_BLOCK = 3;              // OPNA block shift
 
 // Clock and Sample Rate Constants
 constexpr uint32_t OPM_DEFAULT_CLOCK = 3579545;      // Default YM2151 clock frequency
-constexpr uint32_t OPNA_INTERNAL_RATE = 55466;       // OPNA internal sample rate
+constexpr uint32_t OPNA_DEFAULT_CLOCK = 7987200;     // Default YM2608 clock frequency
 constexpr uint32_t DEFAULT_OUTPUT_RATE = 44100;      // Default output sample rate
-constexpr uint32_t OPM_INTERNAL_RATE = 62500;        // OPM internal rate (fallback)
 
 // Audio Format Constants
 constexpr float SAMPLE_SCALE_FACTOR = 32768.0f;      // Int16 to float conversion
@@ -180,6 +179,12 @@ constexpr uint8_t MAX_OCTAVE = 7;                    // Maximum octave for YM215
 constexpr uint8_t MIN_OCTAVE = 0;                    // Minimum octave
 constexpr uint8_t NOTES_PER_OCTAVE = 12;             // Chromatic scale
 constexpr uint8_t KF_SCALE_FACTOR = 64;              // KF fractional scaling
+// YM2151 key code note field, indexed by semitones above C#. The chip's octave
+// boundary sits between C and C#, so C is code 14 of the octave below.
+// Codes 3, 7, 11 and 15 are unused by the hardware.
+constexpr uint8_t KEY_CODE_NOTE_TABLE[12] = {0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14};
+constexpr uint8_t MIDI_NOTE_CSHARP4 = 61;             // First note of key code octave 4
+constexpr uint8_t KEY_CODE_OCTAVE_4 = 4;             // Octave field value for C#4..C5
 
 // =============================================================================
 // Default Parameter Values
