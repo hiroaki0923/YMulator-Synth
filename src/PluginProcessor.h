@@ -163,6 +163,7 @@ public:
     
     // Testing interface
     ymulatorsynth::MidiProcessorInterface* getMidiProcessor() { return midiProcessor.get(); }
+    const YmfmWrapperInterface& getYmfmWrapper() const { return *ymfmWrapper; }
     
 private:
     

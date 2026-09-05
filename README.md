@@ -403,6 +403,8 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **Multiple instances**: The second instance of the plugin on the same thread was silent
 - **VST3 hosts**: Editing a parameter changed the program count, which made some hosts reset to program 0; the count is now fixed and the last program is "Custom"
 - **MIDI CC**: The mapping now matches VOPMex (one CC per parameter and operator, CC value = register value, D1L 55-58, RR 59-62, AME 70-73, LFO 1/2/3/12, noise 80/82); the previous build used per-operator CC blocks and scaled values
+- **Preset values**: Release Rate (and any parameter whose range does not start at 0) was written one step low because of normalised-value truncation; RR now spans 0-15 as in VOPM
+- **Bundled collection**: The 64 bundled presets were not registered in any bank and could not be chosen from the Bank/Preset menus; they now appear as the "Collection" bank
 
 **⚠️ Change:**
 - A fixed 2x output gain that clipped single notes was removed; output is about 6 dB lower than 0.0.6
