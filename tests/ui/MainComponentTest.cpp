@@ -528,3 +528,38 @@ TEST_F(MainComponentTest, QuickViewAlgorithmButtonsStepTheParameter) {
     EXPECT_EQ(juce::roundToInt(algorithm->convertFrom0to1(algorithm->getValue())), 0) << "wraps from 7 to 0";
     EXPECT_EQ(quick->getDisplayedAlgorithm(), 0);
 }
+
+TEST_F(MainComponentTest, NewSoundButtonGeneratesAndCompareSwitchesBack) {
+    QuickView* quick = nullptr;
+    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i)
+        if ((quick = dynamic_cast<QuickView*>(mainComponent->getChildComponent(i))) != nullptr) break;
+    ASSERT_NE(quick, nullptr);
+    
+    juce::TextButton *newSound = nullptr, *slotA = nullptr, *slotB = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::TextButton*>(child)) {
+                if (b->getButtonText() == "New sound") newSound = b;
+                if (b->getButtonText() == "A") slotA = b;
+                if (b->getButtonText() == "B") slotB = b;
+            }
+            find(child);
+        }
+    };
+    find(quick);
+    ASSERT_NE(newSound, nullptr);
+    ASSERT_NE(slotA, nullptr);
+    ASSERT_NE(slotB, nullptr);
+    EXPECT_FALSE(slotB->isEnabled()) << "nothing generated yet";
+    
+    const auto before = processor->getPatchWorkspace().capture();
+    newSound->onClick();
+    EXPECT_FALSE(processor->getPatchWorkspace().capture() == before);
+    EXPECT_TRUE(slotB->isEnabled());
+    EXPECT_TRUE(slotB->getToggleState());
+    
+    slotA->onClick();
+    EXPECT_TRUE(processor->getPatchWorkspace().capture() == before);
+    EXPECT_TRUE(slotA->getToggleState());
+}

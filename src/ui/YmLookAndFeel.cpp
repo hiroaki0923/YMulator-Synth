@@ -16,6 +16,7 @@ YmLookAndFeel::YmLookAndFeel()
     setColour(juce::TextButton::buttonOnColourId, UiTheme::borderSoft);
     setColour(juce::TextButton::textColourOffId, UiTheme::text);
     setColour(juce::TextButton::textColourOnId, UiTheme::text);
+    setColour(juce::TextButton::textColourOffId, UiTheme::text);
     setColour(juce::Label::textColourId, UiTheme::text);
     setColour(juce::TextEditor::backgroundColourId, UiTheme::dark);
     setColour(juce::TextEditor::textColourId, UiTheme::text);
@@ -87,16 +88,52 @@ void YmLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button
                                          bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 {
     auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
+    if (button.getProperties()["chip"]) {
+        // Pill-shaped category chip: green when selected
+        const bool on = button.getToggleState();
+        g.setColour(on ? UiTheme::green : UiTheme::panel);
+        g.fillRoundedRectangle(bounds, bounds.getHeight() * 0.5f);
+        g.setColour(on ? UiTheme::green : UiTheme::border);
+        g.drawRoundedRectangle(bounds, bounds.getHeight() * 0.5f, 1.0f);
+        return;
+    }
+    if (button.getProperties()["accent"]) {
+        g.setColour(shouldDrawButtonAsDown ? UiTheme::green.darker(0.2f) : (shouldDrawButtonAsHighlighted ? UiTheme::green.brighter(0.1f) : UiTheme::green));
+        g.fillRoundedRectangle(bounds, 4.0f);
+        return;
+    }
     auto colour = backgroundColour;
     if (shouldDrawButtonAsDown) colour = colour.brighter(0.2f);
     else if (shouldDrawButtonAsHighlighted) colour = colour.brighter(0.08f);
     g.setColour(colour);
     g.fillRoundedRectangle(bounds, 4.0f);
-    g.setColour(button.getToggleState() ? UiTheme::borderSoft : UiTheme::border);
+    g.setColour(button.getToggleState() ? UiTheme::green : UiTheme::border);
     g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
 }
 
-juce::Font YmLookAndFeel::getTextButtonFont(juce::TextButton&, int)
+juce::Font YmLookAndFeel::getTextButtonFont(juce::TextButton& button, int)
 {
-    return UiTheme::sans(12.0f, true);
+    return UiTheme::sans(12.0f, !button.getProperties()["chip"]);
+}
+
+void YmLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
+                                     float, float, juce::Slider::SliderStyle style, juce::Slider& slider)
+{
+    if (style != juce::Slider::LinearHorizontal) {
+        LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, 0.0f, 0.0f, style, slider);
+        return;
+    }
+    const float centreY = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
+    auto track = juce::Rectangle<float>(static_cast<float>(x), centreY - 3.0f, static_cast<float>(width), 6.0f);
+    g.setColour(UiTheme::borderSoft);
+    g.fillRoundedRectangle(track, 3.0f);
+    g.setColour(UiTheme::border);
+    g.drawRoundedRectangle(track, 3.0f, 1.0f);
+    g.setColour(slider.isEnabled() ? UiTheme::green : UiTheme::dim);
+    g.fillRoundedRectangle(track.withRight(sliderPos), 3.0f);
+    const auto thumb = juce::Rectangle<float>(16.0f, 16.0f).withCentre({ sliderPos, centreY });
+    g.setColour(UiTheme::background);
+    g.fillEllipse(thumb.expanded(2.0f));
+    g.setColour(UiTheme::text);
+    g.fillEllipse(thumb);
 }

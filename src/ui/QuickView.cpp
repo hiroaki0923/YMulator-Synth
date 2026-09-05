@@ -3,6 +3,7 @@
 #include "../PluginProcessor.h"
 #include "../dsp/AlgorithmInfo.h"
 #include "../utils/ParameterIDs.h"
+#include "../core/PatchWorkspace.h"
 
 namespace {
 constexpr int kSideWidth = 250;
@@ -50,7 +51,17 @@ void QuickView::Card::paint(juce::Graphics& g)
 
 juce::Rectangle<int> QuickView::Card::bodyBounds() const
 {
-    return getLocalBounds().reduced(12, 8).withTrimmedTop(20);
+    return getLocalBounds().reduced(12, 8).withTrimmedTop(24);
+}
+
+juce::Rectangle<int> QuickView::Card::headerBounds() const
+{
+    return getLocalBounds().reduced(12, 8).withHeight(20);
+}
+
+int QuickView::Card::titleWidth() const
+{
+    return juce::roundToInt(UiTheme::mono(11.0f, true).getStringWidthFloat(title)) + 12;
 }
 
 // ============================================================================
@@ -103,10 +114,40 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     nextAlgorithmButton->onClick = [this]() { stepAlgorithm(1); };
     algorithmCard->addAndMakeVisible(*nextAlgorithmButton);
     
-    generateCard = std::make_unique<Card>("GENERATE", "Guided random patches arrive in a later step.");
+    generateCard = std::make_unique<Card>("GENERATE", "");
     addAndMakeVisible(*generateCard);
-    compareCard = std::make_unique<Card>("COMPARE", "A / B slots arrive with the generator.");
+    generateNote = std::make_unique<juce::Label>("", "Pick a direction, then roll. Pure random is unusable nine times out of ten.");
+    generateNote->setFont(UiTheme::sans(11.0f));
+    generateNote->setColour(juce::Label::textColourId, UiTheme::muted);
+    generateCard->addAndMakeVisible(*generateNote);
+    generatorPanel = std::make_unique<GeneratorPanel>(processor);
+    generateCard->addAndMakeVisible(*generatorPanel);
+    newSoundButton = std::make_unique<juce::TextButton>("New sound");
+    newSoundButton->getProperties().set("accent", true);
+    newSoundButton->setColour(juce::TextButton::textColourOffId, UiTheme::dark);
+    newSoundButton->setTooltip("Generate a patch in the chosen direction; the current sound stays in A");
+    newSoundButton->onClick = [this]() { generateNewSound(); };
+    generateCard->addAndMakeVisible(*newSoundButton);
+    undoButton = std::make_unique<juce::TextButton>("Undo");
+    undoButton->setTooltip("Back to the sound before the last generation or TONE move");
+    undoButton->onClick = [this]() { audioProcessor.getPatchWorkspace().undo(); refresh(); };
+    generateCard->addAndMakeVisible(*undoButton);
+    
+    compareCard = std::make_unique<Card>("COMPARE", "");
     addAndMakeVisible(*compareCard);
+    slotAButton = std::make_unique<juce::TextButton>("A");
+    slotAButton->setTooltip("The sound from before the last generation");
+    slotAButton->onClick = [this]() { audioProcessor.getPatchWorkspace().selectSlot(ymulatorsynth::PatchWorkspace::Slot::A); refresh(); };
+    compareCard->addAndMakeVisible(*slotAButton);
+    slotBButton = std::make_unique<juce::TextButton>("B");
+    slotBButton->setTooltip("The generated sound");
+    slotBButton->onClick = [this]() { audioProcessor.getPatchWorkspace().selectSlot(ymulatorsynth::PatchWorkspace::Slot::B); refresh(); };
+    compareCard->addAndMakeVisible(*slotBButton);
+    compareNote = std::make_unique<juce::Label>("", "The sound before generating stays in A. Compare with B and go back if A was better.");
+    compareNote->setFont(UiTheme::sans(11.0f));
+    compareNote->setColour(juce::Label::textColourId, UiTheme::muted);
+    compareNote->setJustificationType(juce::Justification::topLeft);
+    compareCard->addAndMakeVisible(*compareNote);
     motionCard = std::make_unique<Card>("MOTION", "Wide, vibrato and pan motion arrive with the motion engine.");
     addAndMakeVisible(*motionCard);
     outputCard = std::make_unique<Card>("OUTPUT", "Waveform display arrives in a later step.");
@@ -177,6 +218,24 @@ void QuickView::refresh()
     algorithmDescription->setText(info.description, juce::dontSendNotification);
     algorithmCaption->setText("ALG " + juce::String(displayedAlgorithm) + " / FB " + juce::String(feedback), juce::dontSendNotification);
     updateSummary();
+    updateWorkspaceButtons();
+}
+
+void QuickView::generateNewSound()
+{
+    audioProcessor.getPatchWorkspace().generate(generatorPanel->currentInput(), juce::Random::getSystemRandom().nextInt64());
+    refresh();
+}
+
+void QuickView::updateWorkspaceButtons()
+{
+    using Slot = ymulatorsynth::PatchWorkspace::Slot;
+    auto& ws = audioProcessor.getPatchWorkspace();
+    undoButton->setEnabled(ws.canUndo());
+    const bool haveB = ws.hasSlot(Slot::B);
+    slotBButton->setEnabled(haveB);
+    slotAButton->setToggleState(ws.activeSlot() == Slot::A, juce::dontSendNotification);
+    slotBButton->setToggleState(haveB && ws.activeSlot() == Slot::B, juce::dontSendNotification);
 }
 
 void QuickView::updateSummary()
@@ -265,9 +324,27 @@ void QuickView::resized()
     auto side = content.removeFromRight(kSideWidth);
     content.removeFromRight(kGap + 4);
     generateCard->setBounds(content);
+    {
+        auto header = generateCard->headerBounds();
+        header.removeFromLeft(generateCard->titleWidth());
+        undoButton->setBounds(header.removeFromRight(64).withHeight(26).withCentre({ header.getRight() + 32, header.getCentreY() }));
+        header.removeFromRight(8);
+        newSoundButton->setBounds(header.removeFromRight(96).withHeight(26).withCentre({ header.getRight() + 48, header.getCentreY() }));
+        generateNote->setBounds(header);
+        generatorPanel->setBounds(generateCard->bodyBounds().withTrimmedTop(6));
+    }
     outputCard->setBounds(side.removeFromBottom(96));
     side.removeFromBottom(10);
     motionCard->setBounds(side.removeFromBottom(110));
     side.removeFromBottom(10);
     compareCard->setBounds(side);
+    {
+        auto body = compareCard->bodyBounds();
+        auto buttons = body.removeFromTop(34);
+        slotAButton->setBounds(buttons.removeFromLeft(buttons.getWidth() / 2 - 3));
+        buttons.removeFromLeft(6);
+        slotBButton->setBounds(buttons);
+        body.removeFromTop(8);
+        compareNote->setBounds(body);
+    }
 }
