@@ -189,15 +189,23 @@ enum class VopmCC : uint8_t {
 ```
 
 #### 1.5.2 パラメータ変換仕様
-VOPMex では CC 値がそのままレジスタ値になる（TL 0〜127 は 0 が最大音量・127 が無音、MUL 0〜15、AR 0〜31、D1L/RR 0〜15 など）。本プラグインも同じ規則に従い、反転やスケーリングは行わない。範囲を超えた値はパラメータの上限に丸める。8 ビットの LFO 周波数（LFRQ）は CC 1 を上位 7 ビットとして 2 倍する。
+VOPMex の既定（ナチュラルモード）に合わせる。0〜127 の CC 値をパラメータの段数へスケール（`value >> (7 - bit幅)`）し、TL/AR/D1R/D2R/D1L/RR はレジスタと逆向き（`max - value`）にする。MUL/DT1/DT2/KS/ALG/FB などはスケールのみで反転しない。範囲を超えた値は上限に丸める。8 ビットの LFO 周波数（LFRQ）は CC 1 を上位 7 ビット、CC 33 を最下位ビットとして合成する。
 
 ```cpp
-// CC値 → レジスタ値 → 正規化値
-float registerValue = static_cast<float>(ccValue);
-if (cc == LfoRate) registerValue *= 2.0f;                 // 7bit CC → 8bit LFRQ
-registerValue = juce::jlimit(range.start, range.end, registerValue);
-param->setValueNotifyingHost(range.convertTo0to1(registerValue));
+int bits = 0; for (int m = maxValue; m > 0; m >>= 1) ++bits;
+int scaled = ccValue >> std::max(0, 7 - bits);
+if (reversed) scaled = maxValue - scaled;              // TL/AR/D1R/D2R/D1L/RR
+registerValue = juce::jlimit(0, maxValue, scaled);
 ```
+
+NRPN でレジスタ値入力モードに切り替えると、CC 値がそのままレジスタ値になる（反転・スケールなし）。
+
+| NRPN | 設定 |
+|------|------|
+| CC 99=126, CC 98=127, CC 6=127 | 全チャンネルをレジスタ値モードに |
+| CC 99=126, CC 98=0,   CC 6=127 | 当該チャンネルをレジスタ値モードに |
+| CC 6=0 | ナチュラルモードに戻す |
+| CC 121 (Reset All Controllers) | ナチュラルモードに戻す |
 
 旧バージョン（0.0.6 以前）の CC 番号 76〜79（LFO）と 81（ノイズ周波数）は互換のため引き続き受け付ける。
 

@@ -244,7 +244,7 @@ cmake --install .
 | 80 | Noise Enable | 0 / 1-127 | Channel 8 noise on/off |
 | 82 | Noise Frequency | 0-31 | NFRQ (81 also accepted) |
 
-The CC value is the register value itself, as in VOPMex: TL 0 is loudest and 127 is silent, MUL is 0-15, AR is 0-31, and so on. Values above a parameter's range are clamped.
+By default (VOPMex "natural" mode) the 0-127 CC value is scaled to the parameter's range, and TL, AR, D1R, D1L, D2R and RR run opposite to the register (CC 127 = loudest / fastest), like an analogue synth. Send NRPN 126/127 with data 127 (CC 99=126, CC 98=127, CC 6=127) to switch to register-value input, where the CC value is the register value; data 0 returns to natural mode.
 
 ### Factory Presets
 | # | Name | Algorithm | Features |

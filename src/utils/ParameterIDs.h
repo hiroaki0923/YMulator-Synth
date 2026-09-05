@@ -190,6 +190,14 @@ namespace MIDI_CC {
     constexpr int LegacyLfoPmd = 78;
     constexpr int LegacyLfoWaveform = 79;
     
+    // NRPN used by VOPMex to switch how CC values are interpreted
+    constexpr int NrpnMsb = 99;
+    constexpr int NrpnLsb = 98;
+    constexpr int DataEntry = 6;
+    constexpr int ResetAllControllers = 121;
+    constexpr int NrpnCcDirectionMsb = 126;   // LSB 127 = all channels, 0 = this channel
+    constexpr int LfoRateLsb = 33;            // lower bit of the 8-bit LFRQ register
+    
     // Noise (VOPMex numbers)
     constexpr int NoiseEnable = 80;   // Noise enable (0 = off, otherwise on)
     constexpr int NoiseFrequency = 82; // Noise frequency (0-31)

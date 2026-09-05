@@ -171,8 +171,8 @@ TEST_F(PluginProcessorComprehensiveTest, MidiCCParameterMapping) {
     // Get initial value
     float initialValue = host->getParameterValue(*processor, algorithmId);
     
-    // Send CC 14 with value 4 (VOPMex: the CC value is the algorithm number)
-    host->sendMidiCC(*processor, 1, 14, 4);
+    // Send CC 14 with value 64 (VOPMex natural mode scales 0-127 to 0-7: 64 >> 4 = 4)
+    host->sendMidiCC(*processor, 1, 14, 64);
     host->processBlock(*processor, 128);
     
     // Value should change
