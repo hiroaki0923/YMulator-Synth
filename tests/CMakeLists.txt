@@ -66,6 +66,7 @@ if(GTest_FOUND)
         unit/PluginBasicTest.cpp
         unit/SimpleParameterTest.cpp
         unit/ParameterDebugTest.cpp
+        unit/MultiInstanceTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -148,6 +149,7 @@ if(GTest_FOUND)
         unit/PluginBasicTest.cpp
         unit/SimpleParameterTest.cpp
         unit/ParameterDebugTest.cpp
+        unit/MultiInstanceTest.cpp
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp

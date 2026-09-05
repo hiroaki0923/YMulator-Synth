@@ -87,6 +87,12 @@ private:
     juce::AudioProcessorValueTreeState parameters;
     bool needsPresetReapply = false;
     
+    // Per-instance initialisation state (must not be shared between instances)
+    bool ymfmInitialized = false;
+    uint32_t lastSampleRate = 0;
+    bool hasLoggedFirstCall = false;
+    int processBlockCallCounter = 0;
+    
     // Legacy MIDI state (deprecated - TODO: remove after full migration)
     std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
     int currentPitchBend = 8192;

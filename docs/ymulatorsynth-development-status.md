@@ -22,6 +22,7 @@
 - ✅ **ピッチ回帰テスト追加** - `tests/unit/PitchAccuracyTest.cpp`（ラッパー単体 / プロセッサ経由 / ピッチベンド）
 - ✅ **オペレータのスロット順修正** - Op1〜4（M1, C1, M2, C2 の VOPM 順）をレジスタ +0, +8, +16, +24 に順番に書いていたが、YM2151 のレジスタ順は M1, M2, C1, C2 で、C1 と M2 が入れ替わって鳴っていた。`YM2151Regs::OPERATOR_SLOT_OFFSET` で対応付け。回帰テスト `tests/unit/OperatorSlotOrderTest.cpp`（アルゴリズム 4 で M1→C1、M2→C2 を実測）
 - ✅ **バンク／プリセット選択の永続化修正** - `currentBankIndex` / `currentPresetInBank` がどこにも書かれておらず、エディタを開き直すと常に Init 表示、DAW プロジェクトの再読込やホストのプログラムチェンジにもコンボが追従しなかった。StateManager がプリセット読込時に state プロパティへ記録し、PresetUIManager は一覧が同じでも選択を更新するよう修正。テスト 3 件追加
+- ✅ **複数インスタンスで 2 つ目以降が無音になるバグ修正** - ymfm 初期化済みフラグが thread_local のグローバル変数で、同一スレッド上の 2 つ目のインスタンスが初期化をスキップして無音だった。インスタンスのメンバに変更。回帰テスト `tests/unit/MultiInstanceTest.cpp`
 - ✅ **UI スナップショットツール追加** - `tools/ui_snapshot.cpp`（`YMulatorSynthAU_UISnapshot`）。ホスト無しでエディタを PNG に描画し、状態とコンボ内容をダンプできる
 
 **未着手（次の候補）:**

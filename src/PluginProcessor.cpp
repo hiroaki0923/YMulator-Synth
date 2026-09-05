@@ -6,11 +6,6 @@
 
 using namespace ymulatorsynth;
 
-// Global thread_local variables for test isolation
-thread_local bool g_hasLoggedFirstCall = false;
-thread_local int g_processBlockCallCounter = 0;
-thread_local bool g_ymfmInitialized = false;
-thread_local uint32_t g_lastSampleRate = 0;
 
 YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
      : AudioProcessor(BusesProperties()
@@ -134,11 +129,11 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     
     // Initialize ymfm wrapper with OPM for now (only if needed)
     uint32_t currentSampleRate = static_cast<uint32_t>(sampleRate);
-    if (!g_ymfmInitialized || g_lastSampleRate != currentSampleRate) {
+    if (!ymfmInitialized || lastSampleRate != currentSampleRate) {
         CS_DBG("Initializing ymfm - sampleRate: " + juce::String(currentSampleRate));
         ymfmWrapper->initialize(YmfmWrapperInterface::ChipType::OPM, currentSampleRate);
-        g_ymfmInitialized = true;
-        g_lastSampleRate = currentSampleRate;
+        ymfmInitialized = true;
+        lastSampleRate = currentSampleRate;
         
         // Apply initial parameters only when truly initializing
         updateYmfmParameters();
@@ -185,12 +180,12 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     juce::ScopedNoDenormals noDenormals;
     
-    g_processBlockCallCounter++;
+    processBlockCallCounter++;
     
-    if (!g_hasLoggedFirstCall) {
+    if (!hasLoggedFirstCall) {
         CS_DBG(" processBlock FIRST CALL - channels: " + juce::String(buffer.getNumChannels()) + 
             ", samples: " + juce::String(buffer.getNumSamples()));
-        g_hasLoggedFirstCall = true;
+        hasLoggedFirstCall = true;
     }
     
     // Clear output buffer
@@ -642,11 +637,10 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
 
 void YMulatorSynthAudioProcessor::resetProcessBlockStaticState()
 {
-    // Reset thread_local variables for test isolation
-    g_hasLoggedFirstCall = false;
-    g_processBlockCallCounter = 0;
-    g_ymfmInitialized = false;
-    g_lastSampleRate = 0;
+    hasLoggedFirstCall = false;
+    processBlockCallCounter = 0;
+    ymfmInitialized = false;
+    lastSampleRate = 0;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
