@@ -4,6 +4,7 @@
 #include "../../src/PluginProcessor.h"
 #include "../../src/ui/MainComponent.h"
 #include "../../src/ui/PresetUIManager.h"
+#include "../../src/ui/QuickView.h"
 #include "../mocks/MockAudioProcessorHost.h"
 #include "../../src/core/MacroMapper.h"
 #include "../../src/dsp/AlgorithmInfo.h"
@@ -481,4 +482,49 @@ TEST_F(MainComponentTest, MacroFocusHighlightsExactlyItsTargets) {
     }
     mainComponent->setMacroFocus(std::nullopt);
     EXPECT_TRUE(mainComponent->highlightedParameterIds().empty());
+}
+
+// =============================================================================
+// Quick / Detail switching
+// =============================================================================
+
+TEST_F(MainComponentTest, ViewModeSwitchesVisibleChildrenAndPersists) {
+    mainComponent->setViewMode(MainComponent::ViewMode::Detail);
+    EXPECT_EQ(mainComponent->getViewMode(), MainComponent::ViewMode::Detail);
+    EXPECT_TRUE(mainComponent->getOperatorPanel(0).isVisible());
+    EXPECT_EQ(processor->getParameters().state.getProperty("uiViewMode").toString(), "detail");
+    
+    mainComponent->setViewMode(MainComponent::ViewMode::Quick);
+    EXPECT_FALSE(mainComponent->getOperatorPanel(0).isVisible());
+    EXPECT_EQ(processor->getParameters().state.getProperty("uiViewMode").toString(), "quick");
+    
+    // A new editor on the same state opens in the saved mode
+    auto another = std::make_unique<MainComponent>(*processor);
+    EXPECT_EQ(another->getViewMode(), MainComponent::ViewMode::Quick);
+}
+
+TEST_F(MainComponentTest, QuickViewAlgorithmButtonsStepTheParameter) {
+    QuickView* quick = nullptr;
+    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i)
+        if ((quick = dynamic_cast<QuickView*>(mainComponent->getChildComponent(i))) != nullptr) break;
+    ASSERT_NE(quick, nullptr);
+    
+    juce::TextButton* next = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::TextButton*>(child))
+                if (b->getTooltip() == "Next algorithm") next = b;
+            find(child);
+        }
+    };
+    find(quick);
+    ASSERT_NE(next, nullptr);
+    
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    algorithm->setValueNotifyingHost(algorithm->convertTo0to1(7.0f));
+    ASSERT_TRUE(next->onClick != nullptr);
+    next->onClick();
+    EXPECT_EQ(juce::roundToInt(algorithm->convertFrom0to1(algorithm->getValue())), 0) << "wraps from 7 to 0";
+    EXPECT_EQ(quick->getDisplayedAlgorithm(), 0);
 }

@@ -50,6 +50,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/RotaryKnob.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/PresetUIManager.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/ToneStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/QuickView.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/LfoNoiseStrip.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/YmLookAndFeel.cpp
         

@@ -12,7 +12,7 @@ class RotaryKnob : public juce::Component,
                    public juce::SettableTooltipClient
 {
 public:
-    enum class Style { Primary, Small, Tiny };          // 48 / 36 / 30 px dial
+    enum class Style { Large, Primary, Small, Tiny };   // 84 / 48 / 36 / 30 px dial
     enum class LabelPosition { Below, Right, None };
     
     explicit RotaryKnob(const juce::String& labelText = "", Style style = Style::Small);

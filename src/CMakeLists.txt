@@ -58,6 +58,7 @@ target_sources(YMulator-Synth
         ui/AlgorithmDisplay.cpp
         ui/PresetUIManager.cpp
         ui/ToneStrip.cpp
+        ui/QuickView.cpp
         ui/LfoNoiseStrip.cpp
         ui/YmLookAndFeel.cpp
         utils/PresetManager.cpp

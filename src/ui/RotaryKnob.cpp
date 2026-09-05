@@ -18,6 +18,7 @@ RotaryKnob::~RotaryKnob() = default;
 int RotaryKnob::dialDiameter(Style s)
 {
     switch (s) {
+        case Style::Large:   return 84;
         case Style::Primary: return 48;
         case Style::Small:   return 36;
         default:             return 30;
@@ -85,7 +86,7 @@ void RotaryKnob::paint(juce::Graphics& g)
         g.drawEllipse(dial.expanded(1.5f), 2.0f);
     }
     
-    const float valueFontSize = style == Style::Primary ? 12.0f : (style == Style::Small ? 11.0f : 9.0f);
+    const float valueFontSize = style == Style::Large ? 16.0f : (style == Style::Primary ? 12.0f : (style == Style::Small ? 11.0f : 9.0f));
     g.setColour(UiTheme::text);
     g.setFont(UiTheme::mono(valueFontSize, true));
     const juce::String shown = valueFormatter ? valueFormatter(value) : juce::String(juce::roundToInt(value));
@@ -93,7 +94,7 @@ void RotaryKnob::paint(juce::Graphics& g)
     
     if (label.isEmpty() || labelPosition == LabelPosition::None) return;
     
-    g.setFont(UiTheme::mono(10.0f));
+    g.setFont(UiTheme::mono(style == Style::Large ? 11.0f : 10.0f));
     g.setColour(highlighted ? UiTheme::amber : UiTheme::muted);
     if (labelPosition == LabelPosition::Below) {
         auto labelArea = juce::Rectangle<float>(0.0f, dial.getBottom() + kRingPadding, static_cast<float>(getWidth()), static_cast<float>(kLabelHeight));

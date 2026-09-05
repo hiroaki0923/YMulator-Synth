@@ -12,6 +12,7 @@ constexpr int kToneHeight = 72;
 constexpr int kFooterHeight = 46;
 constexpr int kRowGap = 6;
 const char* const kRoleParameters[] = { ParamID::Global::Algorithm, ParamID::Global::Feedback, ParamID::Global::NoiseEnable };
+const juce::Identifier kViewModeProperty("uiViewMode");
 }
 
 MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
@@ -20,12 +21,12 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     setLookAndFeel(&lookAndFeel);
     
     quickModeButton = std::make_unique<juce::TextButton>("Quick");
-    quickModeButton->setEnabled(false);
-    quickModeButton->setTooltip("Quick view (coming in a later step)");
+    quickModeButton->setTooltip("Seven macro knobs and the algorithm");
+    quickModeButton->onClick = [this]() { setViewMode(ViewMode::Quick); };
     addAndMakeVisible(*quickModeButton);
     detailModeButton = std::make_unique<juce::TextButton>("Detail");
-    detailModeButton->setToggleState(true, juce::dontSendNotification);
-    detailModeButton->setClickingTogglesState(false);
+    detailModeButton->setTooltip("Every operator register");
+    detailModeButton->onClick = [this]() { setViewMode(ViewMode::Detail); };
     addAndMakeVisible(*detailModeButton);
     
     presetUIManager = std::make_unique<PresetUIManager>(processor);
@@ -37,6 +38,10 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*globalPanComboBox);
     globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getParameters(), ParamID::Global::GlobalPan, *globalPanComboBox);
+    
+    quickView = std::make_unique<QuickView>(processor);
+    quickView->onShowDetail = [this]() { setViewMode(ViewMode::Detail); };
+    addAndMakeVisible(*quickView);
     
     toneStrip = std::make_unique<ToneStrip>(processor);
     toneStrip->onMacroFocus = [this](std::optional<ymulatorsynth::Macro> macro) { setMacroFocus(macro); };
@@ -54,6 +59,9 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
         audioProcessor.getParameters().addParameterListener(id, this);
     refreshRoles();
     
+    const juce::String savedMode = audioProcessor.getParameters().state.getProperty(kViewModeProperty, "quick").toString();
+    setViewMode(savedMode == "detail" ? ViewMode::Detail : ViewMode::Quick);
+    
     setSize(kWidth, kHeight);
     CS_DBG("MainComponent created");
 }
@@ -67,6 +75,7 @@ MainComponent::~MainComponent()
     lfoNoiseStrip.reset();
     for (auto& panel : operatorPanels) panel.reset();
     toneStrip.reset();
+    quickView.reset();
     presetUIManager.reset();
     globalPanAttachment.reset();
     globalPanComboBox.reset();
@@ -101,6 +110,8 @@ void MainComponent::resized()
     header.removeFromRight(12);
     header.removeFromLeft(12);
     presetUIManager->setBounds(header);
+    
+    quickView->setBounds(bounds);
     
     toneStrip->setBounds(bounds.removeFromTop(kToneHeight));
     lfoNoiseStrip->setBounds(bounds.removeFromBottom(kFooterHeight));
@@ -145,6 +156,22 @@ void MainComponent::refreshRoles()
     }
     toneStrip->setAlgorithm(algorithm);
     toneStrip->setFeedback(feedback);
+    quickView->refresh();
+}
+
+void MainComponent::setViewMode(ViewMode mode)
+{
+    viewMode = mode;
+    const bool quick = mode == ViewMode::Quick;
+    quickView->setVisible(quick);
+    toneStrip->setVisible(!quick);
+    for (auto& panel : operatorPanels) panel->setVisible(!quick);
+    lfoNoiseStrip->setVisible(!quick);
+    quickModeButton->setToggleState(quick, juce::dontSendNotification);
+    detailModeButton->setToggleState(!quick, juce::dontSendNotification);
+    audioProcessor.getParameters().state.setProperty(kViewModeProperty, quick ? "quick" : "detail", nullptr);
+    if (quick) quickView->refresh();
+    else setMacroFocus(std::nullopt);
 }
 
 void MainComponent::setMacroFocus(std::optional<ymulatorsynth::Macro> macro)

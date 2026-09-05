@@ -43,7 +43,9 @@
 - ✅ **ステップ 1: マクロ層** - `ParamID::Macro`（Brightness / Harmonics / Attack / Decay / Release / Spread、meta パラメータ）と `src/core/MacroMapper`。プリセット読込・保存・状態復元でアンカーを取り、Detail での直接編集はアンカーを再基準化。アンカーは state の `macroAnchor` ノードに永続化（`tests/unit/MacroMapperTest.cpp`）
 - ✅ **ステップ 2: Detail ビュー** - ヘッダ（モード切替・バンク/プリセット・EDITED・Save・Pan）、TONE 行（マクロ 7 ノブ＋アルゴリズム図と選択）、オペレータ 4 行（役割タグ MOD / CARRIER / NOISE、主ノブ Level・Ratio・Detune を人間向け表示＋生値の副表示、EG 表示と 5 ノブ、KS / DT2 / AMS）、LFO / ノイズ行。マクロに触れると対象ノブに琥珀の輪（`MacroMapper::targetsOf` と一致することをテスト）。新規 `UiTheme.h`, `YmLookAndFeel`, `KnobBinding.h`, `ToneStrip`, `LfoNoiseStrip`。エディタは 1000×640。アルゴリズム図は `tools/gen_algorithm_svg.py` が生成する SVG（`resources/algorithms/`、BinaryData 埋め込み）を `juce::Drawable` で描画
 - ✅ **SLOT（オペレータ ON/OFF）の復旧** - 2025-06 に実装された SLOT 制御は、その後のパラメータ整理で `op*_slot_en` が APVTS から消え、UI のチェックボックスと保存経路だけが残っていた。パラメータを復活させ、キーオン時のスロットマスク（ハードウェア順 M1, M2, C1, C2 = bit 3〜6）へ配線。.opm の SLOT 値とオペレータ（音色順 M1, C1, M2, C2）の対応も修正（`tests/unit/SlotEnableTest.cpp`）
-- ⏳ 次: Layer 3「Motion」（唸り・自動パン・BPM 同期）の設計文書 → ステップ 3 Quick ビュー → ステップ 4 ジェネレータ / Undo / A-B → ステップ 5 出力波形
+- ✅ **Motion 設計** - [ymulatorsynth-motion-design.md](ymulatorsynth-motion-design.md)。Wide は `YmfmWrapper` 内のシャドウチップで 8 音を維持
+- ✅ **ステップ 3: Quick ビュー** - `src/ui/QuickView`。TONE の大ノブ 7 個（人間向け表示＋一言）、アルゴリズムカード（図・構造・説明・前後ボタン）、GENERATE / COMPARE / MOTION / OUTPUT の枠、DETAIL への導線と現在値の要約行。Quick / Detail の選択は state の `uiViewMode` に残り、初期表示は Quick
+- ⏳ 次: ステップ 4 ジェネレータ / Undo / A-B → ステップ 5 出力波形 → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 

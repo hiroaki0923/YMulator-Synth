@@ -10,6 +10,7 @@
 #include "OperatorPanel.h"
 #include "ToneStrip.h"
 #include "LfoNoiseStrip.h"
+#include "QuickView.h"
 #include "PresetUIManager.h"
 #include "../core/MacroMapper.h"
 
@@ -28,6 +29,8 @@ public:
     static constexpr int kWidth = 1000;
     static constexpr int kHeight = 640;
     
+    enum class ViewMode { Quick, Detail };
+    
     explicit MainComponent(YMulatorSynthAudioProcessor& processor);
     ~MainComponent() override;
     
@@ -40,6 +43,10 @@ public:
     
     /** Re-derives operator roles and hints from the algorithm, feedback and noise parameters. */
     void refreshRoles();
+    
+    /** Switches between the Quick and Detail views; the choice is kept in the plugin state. */
+    void setViewMode(ViewMode mode);
+    ViewMode getViewMode() const { return viewMode; }
     const OperatorPanel& getOperatorPanel(int index) const { return *operatorPanels[static_cast<size_t>(index)]; }
     
 private:
@@ -52,10 +59,12 @@ private:
     std::unique_ptr<juce::ComboBox> globalPanComboBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> globalPanAttachment;
     
+    std::unique_ptr<QuickView> quickView;
     std::unique_ptr<ToneStrip> toneStrip;
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;
     std::unique_ptr<LfoNoiseStrip> lfoNoiseStrip;
     
+    ViewMode viewMode = ViewMode::Quick;
     void parameterChanged(const juce::String& parameterID, float newValue) override;
     void handleAsyncUpdate() override;
     int parameterValue(const char* id) const;
