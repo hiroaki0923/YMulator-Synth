@@ -140,6 +140,9 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
         CS_DBG("Initial parameters applied");
     }
     
+    // The chip may have been reset or recreated; rewrite every parameter on the next block
+    if (parameterManager) parameterManager->invalidateRegisterCache();
+    
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
         loadPreset(getCurrentProgram());

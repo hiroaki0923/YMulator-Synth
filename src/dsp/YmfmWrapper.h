@@ -60,6 +60,7 @@ public:
     
     // Register access - interface implementation
     void writeRegister(int address, uint8_t data) override;
+    uint64_t getRegisterWriteCount() const override { return registerWriteCount; }
     uint8_t readCurrentRegister(int address) const override;
     
     // Batch operations for efficiency - interface implementation
@@ -85,6 +86,7 @@ private:
     uint32_t outputSampleRate;
     uint32_t internalSampleRate;
     bool initialized = false;
+    uint64_t registerWriteCount = 0;
     
     // ymfm interface - no longer needed since we inherit from ymfm_interface
     // YMulatorSynthInterface interface;

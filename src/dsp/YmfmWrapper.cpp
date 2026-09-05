@@ -137,6 +137,7 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     
     // Update register cache
     currentRegisters[addr] = data;
+    ++registerWriteCount;
     
     if (chipType == ChipType::OPM && opmChip) {
         // DEBUG: Enable register write logging for investigation

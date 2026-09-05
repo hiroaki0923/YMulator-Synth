@@ -87,6 +87,8 @@ public:
     
     // Register access
     virtual void writeRegister(int address, uint8_t data) = 0;
+    /** Number of register writes issued so far (diagnostics and tests). */
+    virtual uint64_t getRegisterWriteCount() const { return 0; }
     virtual uint8_t readCurrentRegister(int address) const = 0;
     
     // Batch operations for efficiency

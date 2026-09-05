@@ -1,53 +1,35 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <array>
 
+/**
+ * Draws the current YM2151 algorithm as a graph: carriers in blue, modulators
+ * in magenta, arrows for modulation and a loop on operator 1 when feedback is
+ * active. Roles and connections come from AlgorithmInfo; only the operator
+ * positions are defined here.
+ */
 class AlgorithmDisplay : public juce::Component
 {
 public:
     AlgorithmDisplay();
-    ~AlgorithmDisplay() override;
+    ~AlgorithmDisplay() override = default;
 
     void paint(juce::Graphics& g) override;
-    void resized() override;
-    
+
     void setAlgorithm(int algorithmNumber);
     void setFeedbackLevel(int feedbackLevel);
+    int getAlgorithm() const { return currentAlgorithm; }
+
+    static const juce::Colour carrierColour;
+    static const juce::Colour modulatorColour;
 
 private:
     int currentAlgorithm = 0;  // 0-7
     int currentFeedback = 0;   // 0-7
-    
-    // Operator positions and connections for each algorithm
-    struct OperatorInfo {
-        juce::Point<float> position;
-        bool isCarrier;
-        juce::String name;
-    };
-    
-    struct Connection {
-        int fromOp;
-        int toOp;
-        bool isFeedback = false;
-    };
-    
-    std::array<OperatorInfo, 4> operators;
-    std::vector<Connection> connections;
-    
-    void updateAlgorithmLayout();
-    void drawOperator(juce::Graphics& g, const OperatorInfo& op, const juce::Rectangle<float>& bounds);
-    void drawConnection(juce::Graphics& g, const Connection& conn, const juce::Rectangle<float>& bounds);
-    void drawFeedbackLoop(juce::Graphics& g, int operatorIndex, const juce::Rectangle<float>& bounds);
-    
-    // Algorithm definitions (YM2151's 8 algorithms)
-    void setupAlgorithm0(); // M1→M2→C1→C2 (complete series)
-    void setupAlgorithm1(); // M1→C1, M2→C2 (two parallel chains)
-    void setupAlgorithm2(); // M1→(C1+C2), M2→C2 (branch + parallel)
-    void setupAlgorithm3(); // M1→C1, M2→C1, C2 (2 input 1 output + parallel)
-    void setupAlgorithm4(); // M1→C1, M2, C2 (1 chain + 2 parallel)
-    void setupAlgorithm5(); // M1→(C1+C2+M2) (1 input 3 output)
-    void setupAlgorithm6(); // M1→(C1+M2), C2 (1 input 2 output + parallel)
-    void setupAlgorithm7(); // M1, M2, C1, C2 (4 parallel outputs)
-    
+
+    juce::Rectangle<float> operatorBox(int op, const juce::Rectangle<float>& bounds) const;
+    void drawArrow(juce::Graphics& g, juce::Point<float> from, juce::Point<float> to) const;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AlgorithmDisplay)
 };

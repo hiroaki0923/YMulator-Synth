@@ -68,6 +68,7 @@ if(GTest_FOUND)
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
         unit/MidiCcMappingTest.cpp
+        unit/AlgorithmInfoTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -122,6 +123,7 @@ if(GTest_FOUND)
         unit/PitchAccuracyTest.cpp
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
+        unit/RegisterUpdateTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -153,6 +155,7 @@ if(GTest_FOUND)
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
         unit/MidiCcMappingTest.cpp
+        unit/AlgorithmInfoTest.cpp
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp
@@ -169,6 +172,7 @@ if(GTest_FOUND)
         unit/PitchAccuracyTest.cpp
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
+        unit/RegisterUpdateTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring

@@ -164,6 +164,8 @@ void ParameterManager::initializeParameters(juce::AudioProcessorValueTreeState& 
     setupParameterListeners(true);
     
     CS_DBG("ParameterManager initialized with parameter ValueTree");
+    cacheParameterHandles();
+    invalidateRegisterCache();
 }
 
 void ParameterManager::setupParameterListeners(bool enable)
@@ -198,17 +200,74 @@ void ParameterManager::updateYmfmParameters()
         return;
     }
     
-    // CS_FILE_DBG("updateYmfmParameters - Updating all parameters");
-    
-    // Update global parameters first
     updateGlobalParameters();
     
-    // Update all channel parameters
-    for (int channel = 0; channel < 8; ++channel) {
-        updateChannelParameters(channel);
+    for (int op = 0; op < 4; ++op) {
+        for (int which = 0; which < NumOpParams; ++which) {
+            auto* param = opParamHandles[static_cast<size_t>(op)][static_cast<size_t>(which)];
+            if (param == nullptr) continue;
+            const int value = static_cast<int>(registerValue(param));
+            if (value == lastOpValues[static_cast<size_t>(op)][static_cast<size_t>(which)]) continue;
+            lastOpValues[static_cast<size_t>(op)][static_cast<size_t>(which)] = value;
+            writeOperatorParameterToAllChannels(op, static_cast<OpParam>(which), value);
+        }
     }
-    
-    // Note: applyGlobalPanToAllChannels() removed - handled by parameterValueChanged() listener
+}
+
+void ParameterManager::invalidateRegisterCache()
+{
+    for (auto& row : lastOpValues) row.fill(-1);
+    lastGlobalValues.fill(-1);
+}
+
+void ParameterManager::cacheParameterHandles()
+{
+    if (!parametersPtr) return;
+    for (int op = 1; op <= 4; ++op) {
+        auto& row = opParamHandles[static_cast<size_t>(op - 1)];
+        row[OP_TL]     = parametersPtr->getParameter(ParamID::Op::tl(op));
+        row[OP_AR]     = parametersPtr->getParameter(ParamID::Op::ar(op));
+        row[OP_D1R]    = parametersPtr->getParameter(ParamID::Op::d1r(op));
+        row[OP_D1L]    = parametersPtr->getParameter(ParamID::Op::d1l(op));
+        row[OP_D2R]    = parametersPtr->getParameter(ParamID::Op::d2r(op));
+        row[OP_RR]     = parametersPtr->getParameter(ParamID::Op::rr(op));
+        row[OP_KS]     = parametersPtr->getParameter(ParamID::Op::ks(op));
+        row[OP_MUL]    = parametersPtr->getParameter(ParamID::Op::mul(op));
+        row[OP_DT1]    = parametersPtr->getParameter(ParamID::Op::dt1(op));
+        row[OP_DT2]    = parametersPtr->getParameter(ParamID::Op::dt2(op));
+        row[OP_AMS_EN] = parametersPtr->getParameter(ParamID::Op::ams_en(op));
+    }
+    globalParamHandles[G_ALG]        = parametersPtr->getParameter(ParamID::Global::Algorithm);
+    globalParamHandles[G_FB]         = parametersPtr->getParameter(ParamID::Global::Feedback);
+    globalParamHandles[G_LFO_RATE]   = parametersPtr->getParameter(ParamID::Global::LfoRate);
+    globalParamHandles[G_LFO_AMD]    = parametersPtr->getParameter(ParamID::Global::LfoAmd);
+    globalParamHandles[G_LFO_PMD]    = parametersPtr->getParameter(ParamID::Global::LfoPmd);
+    globalParamHandles[G_LFO_WF]     = parametersPtr->getParameter(ParamID::Global::LfoWaveform);
+    globalParamHandles[G_NOISE_EN]   = parametersPtr->getParameter(ParamID::Global::NoiseEnable);
+    globalParamHandles[G_NOISE_FREQ] = parametersPtr->getParameter(ParamID::Global::NoiseFrequency);
+}
+
+void ParameterManager::writeOperatorParameterToAllChannels(int op, OpParam which, int value)
+{
+    using P = YmfmWrapperInterface::OperatorParameter;
+    const auto v = static_cast<uint8_t>(value);
+    for (uint8_t ch = 0; ch < 8; ++ch) {
+        const auto opIndex = static_cast<uint8_t>(op);
+        switch (which) {
+            case OP_TL:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::TotalLevel, v); break;
+            case OP_AR:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::AttackRate, v); break;
+            case OP_D1R:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Decay1Rate, v); break;
+            case OP_D1L:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::SustainLevel, v); break;
+            case OP_D2R:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Decay2Rate, v); break;
+            case OP_RR:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::ReleaseRate, v); break;
+            case OP_KS:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::KeyScale, v); break;
+            case OP_MUL:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Multiple, v); break;
+            case OP_DT1:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune1, v); break;
+            case OP_DT2:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune2, v); break;
+            case OP_AMS_EN: ymfmWrapper.setOperatorAmsEnable(ch, opIndex, value > 0); break;
+            default: break;
+        }
+    }
 }
 
 void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
@@ -385,6 +444,7 @@ void ParameterManager::applyPresetToYmfm(const Preset* preset)
     }
     
     CS_DBG("Preset applied to ymfm successfully");
+    invalidateRegisterCache();
 }
 
 void ParameterManager::extractCurrentParameterValues(Preset& preset) const
@@ -539,118 +599,39 @@ void ParameterManager::setCustomMode(bool custom, const juce::String& name)
 // Internal Helper Methods
 // ============================================================================
 
-void ParameterManager::updateChannelParameters(int channel)
-{
-    CS_ASSERT_CHANNEL(channel);
-    
-    if (!parametersPtr) {
-        return;
-    }
-    
-    // Update operator parameters for this channel
-    for (int op = 1; op <= 4; ++op) {
-        int opIndex = op - 1; // Convert to 0-based for ymfm
-        
-        // Get parameter values (0.0-1.0) and scale to hardware ranges
-        float tl = registerValue(parametersPtr->getParameter(ParamID::Op::tl(op)));
-        float ar = registerValue(parametersPtr->getParameter(ParamID::Op::ar(op)));
-        float d1r = registerValue(parametersPtr->getParameter(ParamID::Op::d1r(op)));
-        float d1l = registerValue(parametersPtr->getParameter(ParamID::Op::d1l(op)));
-        float d2r = registerValue(parametersPtr->getParameter(ParamID::Op::d2r(op)));
-        float rr = registerValue(parametersPtr->getParameter(ParamID::Op::rr(op)));
-        float ks = registerValue(parametersPtr->getParameter(ParamID::Op::ks(op)));
-        float mul = registerValue(parametersPtr->getParameter(ParamID::Op::mul(op)));
-        float dt1 = registerValue(parametersPtr->getParameter(ParamID::Op::dt1(op)));
-        float dt2 = registerValue(parametersPtr->getParameter(ParamID::Op::dt2(op)));
-        float ams = registerValue(parametersPtr->getParameter(ParamID::Op::ams_en(op)));
-        
-        // Scale and apply to ymfm
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::TotalLevel, 
-            static_cast<uint8_t>(tl));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::AttackRate, 
-            static_cast<uint8_t>(ar));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Decay1Rate, 
-            static_cast<uint8_t>(d1r));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::SustainLevel, 
-            static_cast<uint8_t>(d1l));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Decay2Rate, 
-            static_cast<uint8_t>(d2r));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::ReleaseRate, 
-            static_cast<uint8_t>(rr));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::KeyScale, 
-            static_cast<uint8_t>(ks));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Multiple, 
-            static_cast<uint8_t>(mul));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Detune1, 
-            static_cast<uint8_t>(dt1));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Detune2, 
-            static_cast<uint8_t>(dt2));
-        
-        // AMS enable is handled separately as a boolean
-        ymfmWrapper.setOperatorAmsEnable(channel, opIndex, ams > 0.5f);
-    }
-    
-    // Skip individual channel pan when global pan is active
-    // Individual channel pan is only used when global pan is set to a "disabled" state
-    // For now, since all global pan modes (LEFT/CENTER/RIGHT/RANDOM) should override individual channel pan,
-    // we skip applying individual channel pan entirely
-    // Individual channel pan is disabled while global pan system is active
-}
-
 void ParameterManager::updateGlobalParameters()
 {
     if (!parametersPtr) {
         return;
     }
     
-    // Algorithm and Feedback
-    float algorithm = registerValue(parametersPtr->getParameter(ParamID::Global::Algorithm));
-    float feedback = registerValue(parametersPtr->getParameter(ParamID::Global::Feedback));
-    
-    uint8_t algorithmValue = static_cast<uint8_t>(algorithm);
-    uint8_t feedbackValue = static_cast<uint8_t>(feedback);
-    
-    CS_ASSERT_ALGORITHM(algorithmValue);
-    CS_ASSERT_FEEDBACK(feedbackValue);
-    
-    // Apply algorithm and feedback to all channels
-    for (int ch = 0; ch < 8; ++ch) {
-        ymfmWrapper.setAlgorithm(ch, algorithmValue);
-        ymfmWrapper.setFeedback(ch, feedbackValue);
+    std::array<int, NumGlobalParams> current {};
+    for (int i = 0; i < NumGlobalParams; ++i) {
+        auto* param = globalParamHandles[static_cast<size_t>(i)];
+        current[static_cast<size_t>(i)] = param ? static_cast<int>(registerValue(param)) : 0;
     }
+    auto changed = [&](GlobalParam g) { return current[g] != lastGlobalValues[g]; };
     
-    // LFO Parameters
-    float lfoRate = registerValue(parametersPtr->getParameter(ParamID::Global::LfoRate));
-    float lfoPmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoPmd));
-    float lfoAmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoAmd));
-    auto* lfoWaveformParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::LfoWaveform));
-    
-    uint8_t lfoWaveform = lfoWaveformParam ? static_cast<uint8_t>(lfoWaveformParam->getIndex()) : 0;
-    ymfmWrapper.setLfoParameters(
-        static_cast<uint8_t>(lfoRate),
-        static_cast<uint8_t>(lfoAmd),
-        static_cast<uint8_t>(lfoPmd),
-        lfoWaveform
-    );
-    
-    // Noise Parameters
-    auto* noiseEnableParam = static_cast<juce::AudioParameterBool*>(
-        parametersPtr->getParameter(ParamID::Global::NoiseEnable));
-    float noiseFreq = registerValue(parametersPtr->getParameter(ParamID::Global::NoiseFrequency));
-    
-    bool noiseEnable = noiseEnableParam ? noiseEnableParam->get() : false;
-    ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFreq));
+    if (changed(G_ALG) || changed(G_FB)) {
+        const auto algorithmValue = static_cast<uint8_t>(current[G_ALG]);
+        const auto feedbackValue = static_cast<uint8_t>(current[G_FB]);
+        CS_ASSERT_ALGORITHM(algorithmValue);
+        CS_ASSERT_FEEDBACK(feedbackValue);
+        for (uint8_t ch = 0; ch < 8; ++ch) {
+            if (changed(G_ALG)) ymfmWrapper.setAlgorithm(ch, algorithmValue);
+            if (changed(G_FB)) ymfmWrapper.setFeedback(ch, feedbackValue);
+        }
+    }
+    if (changed(G_LFO_RATE) || changed(G_LFO_AMD) || changed(G_LFO_PMD) || changed(G_LFO_WF)) {
+        ymfmWrapper.setLfoParameters(static_cast<uint8_t>(current[G_LFO_RATE]),
+                                     static_cast<uint8_t>(current[G_LFO_AMD]),
+                                     static_cast<uint8_t>(current[G_LFO_PMD]),
+                                     static_cast<uint8_t>(current[G_LFO_WF]));
+    }
+    if (changed(G_NOISE_EN) || changed(G_NOISE_FREQ)) {
+        ymfmWrapper.setNoiseParameters(current[G_NOISE_EN] > 0, static_cast<uint8_t>(current[G_NOISE_FREQ]));
+    }
+    lastGlobalValues = current;
 }
 
 void ParameterManager::validateParameterRange(float value, float min, float max, const juce::String& paramName) const
