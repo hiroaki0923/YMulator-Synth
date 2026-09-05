@@ -128,6 +128,7 @@ if(GTest_FOUND)
         unit/RegisterGoldenTest.cpp
         unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
+        unit/LfoWiringTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -178,6 +179,7 @@ if(GTest_FOUND)
         unit/RegisterGoldenTest.cpp
         unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
+        unit/LfoWiringTest.cpp
         unit/MacroMapperTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp

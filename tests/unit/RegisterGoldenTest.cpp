@@ -61,6 +61,14 @@ protected:
         EXPECT_EQ(r(w, YM2151Regs::REG_KEY_CODE_BASE + ch), kExpectedKeyCode) << "key code";
         EXPECT_EQ(r(w, YM2151Regs::REG_KEY_FRACTION_BASE + ch), 0) << "key fraction";
         
+        EXPECT_EQ(r(w, YM2151Regs::REG_LFO_RATE), static_cast<uint8_t>(preset->lfo.rate)) << "LFO rate";
+        EXPECT_EQ(r(w, YM2151Regs::REG_LFO_DEPTH), static_cast<uint8_t>(YM2151Regs::LFO_DEPTH_SELECT_PMD | preset->lfo.pmd)) << "PMD is the last depth written";
+        EXPECT_EQ(r(w, YM2151Regs::REG_LFO_WAVEFORM) & YM2151Regs::MASK_LFO_WAVEFORM, preset->lfo.waveform) << "LFO waveform";
+        EXPECT_EQ(r(w, YM2151Regs::REG_LFO_AMS_PMS_BASE + ch),
+                  static_cast<uint8_t>((preset->channels[0].pms << YM2151Regs::SHIFT_LFO_PMS) | preset->channels[0].ams)) << "AMS/PMS";
+        EXPECT_EQ(r(w, YM2151Regs::REG_NOISE_CONTROL),
+                  static_cast<uint8_t>((preset->channels[0].noiseEnable ? YM2151Regs::MASK_NOISE_ENABLE : 0) | preset->lfo.noiseFreq)) << "noise";
+        
         for (int op = 0; op < 4; ++op) {
             SCOPED_TRACE("operator " + std::to_string(op + 1));
             const auto& o = preset->operators[op];

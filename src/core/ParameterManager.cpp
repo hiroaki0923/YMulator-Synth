@@ -143,6 +143,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     juce::StringArray lfoWaveforms = {"Sawtooth", "Square", "Triangle", "Noise"};
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Global::LfoWaveform, "LFO Waveform", lfoWaveforms, 0));
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoAms, "LFO AMS", 0, 3, 0));
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        ParamID::Global::LfoPms, "LFO PMS", 0, 7, 0));
         
     // Noise Enable (boolean)
     layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -265,6 +269,8 @@ void ParameterManager::cacheParameterHandles()
     globalParamHandles[G_LFO_AMD]    = parametersPtr->getParameter(ParamID::Global::LfoAmd);
     globalParamHandles[G_LFO_PMD]    = parametersPtr->getParameter(ParamID::Global::LfoPmd);
     globalParamHandles[G_LFO_WF]     = parametersPtr->getParameter(ParamID::Global::LfoWaveform);
+    globalParamHandles[G_LFO_AMS]    = parametersPtr->getParameter(ParamID::Global::LfoAms);
+    globalParamHandles[G_LFO_PMS]    = parametersPtr->getParameter(ParamID::Global::LfoPms);
     globalParamHandles[G_NOISE_EN]   = parametersPtr->getParameter(ParamID::Global::NoiseEnable);
     globalParamHandles[G_NOISE_FREQ] = parametersPtr->getParameter(ParamID::Global::NoiseFrequency);
 }
@@ -415,6 +421,19 @@ void ParameterManager::loadPresetParameters(const Preset* preset, float& preserv
             parametersPtr->getParameter(ParamID::Global::Algorithm)->convertTo0to1(static_cast<float>(preset->algorithm)));
     parametersPtr->getParameter(ParamID::Global::Feedback)->setValueNotifyingHost(
             parametersPtr->getParameter(ParamID::Global::Feedback)->convertTo0to1(static_cast<float>(preset->feedback)));
+    
+    // LFO, channel sensitivity and noise (VOPM keeps one value for all channels)
+    auto setInt = [this](const char* id, int value) {
+        if (auto* p = parametersPtr->getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(value)));
+    };
+    setInt(ParamID::Global::LfoRate, preset->lfo.rate);
+    setInt(ParamID::Global::LfoAmd, preset->lfo.amd);
+    setInt(ParamID::Global::LfoPmd, preset->lfo.pmd);
+    setInt(ParamID::Global::LfoWaveform, preset->lfo.waveform);
+    setInt(ParamID::Global::LfoAms, preset->channels[0].ams);
+    setInt(ParamID::Global::LfoPms, preset->channels[0].pms);
+    setInt(ParamID::Global::NoiseEnable, preset->channels[0].noiseEnable ? 1 : 0);
+    setInt(ParamID::Global::NoiseFrequency, preset->lfo.noiseFreq);
         
     // Re-enable listeners
     setupParameterListeners(true);
@@ -517,6 +536,18 @@ void ParameterManager::extractCurrentParameterValues(Preset& preset) const
         registerValue(parametersPtr->getParameter(ParamID::Global::Algorithm)));
     preset.feedback = static_cast<uint8_t>(
         registerValue(parametersPtr->getParameter(ParamID::Global::Feedback)));
+    
+    auto value = [this](const char* id) { return static_cast<int>(registerValue(parametersPtr->getParameter(id))); };
+    preset.lfo.rate = value(ParamID::Global::LfoRate);
+    preset.lfo.amd = value(ParamID::Global::LfoAmd);
+    preset.lfo.pmd = value(ParamID::Global::LfoPmd);
+    preset.lfo.waveform = value(ParamID::Global::LfoWaveform);
+    preset.lfo.noiseFreq = value(ParamID::Global::NoiseFrequency);
+    for (auto& channel : preset.channels) {
+        channel.ams = value(ParamID::Global::LfoAms);
+        channel.pms = value(ParamID::Global::LfoPms);
+        channel.noiseEnable = value(ParamID::Global::NoiseEnable) > 0 ? 1 : 0;
+    }
     
     CS_DBG("Parameter extraction completed");
 }
@@ -663,6 +694,10 @@ void ParameterManager::updateGlobalParameters()
                                      static_cast<uint8_t>(current[G_LFO_AMD]),
                                      static_cast<uint8_t>(current[G_LFO_PMD]),
                                      static_cast<uint8_t>(current[G_LFO_WF]));
+    }
+    if (changed(G_LFO_AMS) || changed(G_LFO_PMS)) {
+        for (uint8_t ch = 0; ch < 8; ++ch)
+            ymfmWrapper.setChannelAmsPms(ch, static_cast<uint8_t>(current[G_LFO_AMS]), static_cast<uint8_t>(current[G_LFO_PMS]));
     }
     if (changed(G_NOISE_EN) || changed(G_NOISE_FREQ)) {
         ymfmWrapper.setNoiseParameters(current[G_NOISE_EN] > 0, static_cast<uint8_t>(current[G_NOISE_FREQ]));

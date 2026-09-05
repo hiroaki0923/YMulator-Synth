@@ -33,8 +33,9 @@ constexpr uint8_t REG_NOISE_CONTROL = 0x0F;          // Noise enable and frequen
 
 // LFO Control Registers
 constexpr uint8_t REG_LFO_RATE = 0x18;               // LFO frequency (0-255)
-constexpr uint8_t REG_LFO_AMD = 0x19;                // LFO amplitude modulation depth (0-127)
-constexpr uint8_t REG_LFO_PMD = 0x1A;                // LFO phase modulation depth (0-127)
+constexpr uint8_t REG_LFO_DEPTH = 0x19;              // AMD (bit 7 clear) or PMD (bit 7 set), 7-bit depth
+constexpr uint8_t LFO_DEPTH_SELECT_PMD = 0x80;       // Written with the depth to address PMD instead of AMD
+constexpr uint8_t MASK_LFO_DEPTH = 0x7F;
 constexpr uint8_t REG_LFO_WAVEFORM = 0x1B;           // LFO waveform select (bits 0-1)
 constexpr uint8_t REG_LFO_CT_CONTROL = 0x1B;         // Also contains CT1/CT2 output control
 constexpr uint8_t REG_LFO_AMS_PMS_BASE = 0x38;       // 0x38 + channel: AMS/PMS settings

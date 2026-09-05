@@ -625,11 +625,9 @@ void YmfmWrapper::setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8
         // Write LFO frequency
         writeRegister(YM2151Regs::REG_LFO_RATE, rate);
         
-        // Write amplitude modulation depth (7-bit value)
-        writeRegister(YM2151Regs::REG_LFO_AMD, amd & 0x7F);
-        
-        // Write phase modulation depth (7-bit value)
-        writeRegister(YM2151Regs::REG_LFO_PMD, pmd & 0x7F);
+        // AMD and PMD share one register; bit 7 selects which depth the write sets
+        writeRegister(YM2151Regs::REG_LFO_DEPTH, amd & YM2151Regs::MASK_LFO_DEPTH);
+        writeRegister(YM2151Regs::REG_LFO_DEPTH, YM2151Regs::LFO_DEPTH_SELECT_PMD | (pmd & YM2151Regs::MASK_LFO_DEPTH));
         
         // Read current waveform register to preserve CT1/CT2 bits
         uint8_t currentWaveform = readCurrentRegister(YM2151Regs::REG_LFO_WAVEFORM);

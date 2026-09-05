@@ -34,6 +34,8 @@ namespace Global {
     constexpr const char* LfoAmd = "lfo_amd";
     constexpr const char* LfoPmd = "lfo_pmd";
     constexpr const char* LfoWaveform = "lfo_waveform";
+    constexpr const char* LfoAms = "lfo_ams";          // channel AMS sensitivity, shared by all channels
+    constexpr const char* LfoPms = "lfo_pms";          // channel PMS sensitivity, shared by all channels
     
     // Noise parameters
     constexpr const char* NoiseEnable = "noise_enable";
