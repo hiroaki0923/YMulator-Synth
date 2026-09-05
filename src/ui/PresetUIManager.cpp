@@ -220,16 +220,16 @@ void PresetUIManager::updatePresetComboBox()
         }
     }
     
-    if (!needsUpdate && !audioProcessor.isInCustomMode()) {
-        return; // Already up to date
-    }
-    
-    // Rebuild preset list
-    presetComboBox->clear();
-    
-    for (int i = 0; i < presetNames.size(); ++i)
+    // Rebuild the list only when it changed; the selection below must always be
+    // refreshed so a preset change within the same bank is reflected.
+    if (needsUpdate || audioProcessor.isInCustomMode())
     {
-        presetComboBox->addItem(presetNames[i], i + 1);
+        presetComboBox->clear();
+        
+        for (int i = 0; i < presetNames.size(); ++i)
+        {
+            presetComboBox->addItem(presetNames[i], i + 1);
+        }
     }
     
     // Set current selection (if not in custom mode)

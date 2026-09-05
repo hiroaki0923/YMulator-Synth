@@ -20,6 +20,8 @@
 - ✅ **KC ノートコード修正** - キーコード表が C 始まりで割り当てられており全音が 1 半音シャープだった。YM2151 仕様（C# 始まり、C は下オクターブのコード 14）に修正
 - ✅ **出力クリップ修正** - processBlock の固定 2.0 倍ゲインにより 1 音でもピークが 1.44 に達していた。ゲインを除去（出力は約 6dB 下がる）
 - ✅ **ピッチ回帰テスト追加** - `tests/unit/PitchAccuracyTest.cpp`（ラッパー単体 / プロセッサ経由 / ピッチベンド）
+- ✅ **バンク／プリセット選択の永続化修正** - `currentBankIndex` / `currentPresetInBank` がどこにも書かれておらず、エディタを開き直すと常に Init 表示、DAW プロジェクトの再読込やホストのプログラムチェンジにもコンボが追従しなかった。StateManager がプリセット読込時に state プロパティへ記録し、PresetUIManager は一覧が同じでも選択を更新するよう修正。テスト 3 件追加
+- ✅ **UI スナップショットツール追加** - `tools/ui_snapshot.cpp`（`YMulatorSynthAU_UISnapshot`）。ホスト無しでエディタを PNG に描画し、状態とコンボ内容をダンプできる
 
 **未着手（次の候補）:**
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
