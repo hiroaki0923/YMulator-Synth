@@ -3,14 +3,14 @@
 <path d="M80,19.0 V21.0"/>
 <path d="M80,40.0 V42.0"/>
 <path d="M80,61.0 V63.0"/>
-<path d="M76,5.0 C76,-6.0 55.0,-6.0 55.0,12 L60.0,12" stroke="#5f7269"/>
+<path d="M76,5.0 C76,-6.0 55.0,-6.0 55.0,12 L60.0,12" stroke="#ffb454"/>
 <path d="M80,82.0 V93"/>
 <path d="M80,93 H89"/>
 </g>
 <path d="M77,21.0 L83,21.0 L80,26.0 Z" fill="#5f7269"/>
 <path d="M77,42.0 L83,42.0 L80,47.0 Z" fill="#5f7269"/>
 <path d="M77,63.0 L83,63.0 L80,68.0 Z" fill="#5f7269"/>
-<path d="M60.0,9 L60.0,15 L65.0,12 Z" fill="#5f7269"/>
+<path d="M60.0,9 L60.0,15 L65.0,12 Z" fill="#ffb454"/>
 <path d="M89,90 L89,96 L94,93 Z" fill="#5f7269"/>
 <text x="98" y="96" font-family="Menlo, monospace" font-size="7" fill="#9fb3a8">OUT</text>
 <rect x="66.0" y="5.0" width="28" height="14" rx="3" fill="#c76aa3"/>

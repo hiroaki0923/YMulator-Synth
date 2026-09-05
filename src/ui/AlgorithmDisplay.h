@@ -8,7 +8,7 @@
  * Shows the current YM2151 algorithm as a diagram: carriers in blue,
  * modulators in magenta, arrows for modulation and the output bus. The
  * drawings are the SVGs in resources/algorithms (see tools/gen_algorithm_svg.py),
- * embedded as binary data and scaled to fit.
+ * embedded as binary data and scaled to fit; the feedback loop is lit when feedback > 0.
  */
 class AlgorithmDisplay : public juce::Component
 {
@@ -25,7 +25,8 @@ public:
 private:
     int currentAlgorithm = 0;  // 0-7
     int currentFeedback = 0;   // 0-7
-    std::array<std::unique_ptr<juce::Drawable>, 8> diagrams;
+    std::array<std::unique_ptr<juce::Drawable>, 8> diagrams;        // feedback loop muted
+    std::array<std::unique_ptr<juce::Drawable>, 8> diagramsWithFb;  // feedback loop lit
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AlgorithmDisplay)
 };

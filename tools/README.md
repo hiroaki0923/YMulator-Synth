@@ -25,7 +25,7 @@ macro's target knobs, the way touching the TONE knob does).
 
 ## gen_algorithm_svg.py
 
-Writes `resources/algorithms/algorithm0..7.svg`, the algorithm diagrams the editor shows
+Writes `resources/algorithms/algorithm0..7.svg` and `algorithm0..7_fb.svg` (feedback loop lit), the algorithm diagrams the editor shows
 (embedded through `juce_add_binary_data`). Roles and edges follow `src/dsp/AlgorithmInfo.h`;
 only the box positions live in the script. Re-run it from the repository root after changing
 either, then rebuild.

@@ -113,6 +113,14 @@ juce_add_binary_data(YMulator-Synth_Resources
         ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm5.svg
         ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm6.svg
         ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm7.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm0_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm1_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm2_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm3_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm4_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm5_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm6_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm7_fb.svg
 )
 
 # Link resources to the plugin

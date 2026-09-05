@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Generates resources/algorithms/algorithm{0..7}.svg, the YM2151 algorithm
-diagrams shown in the editor. Operators are in voice order (1 = M1, 2 = C1,
+"""Generates resources/algorithms/algorithm{0..7}.svg and algorithm{0..7}_fb.svg,
+the YM2151 algorithm diagrams shown in the editor; the _fb variant lights the
+feedback loop in amber for feedback > 0. Operators are in voice order (1 = M1, 2 = C1,
 3 = M2, 4 = C2). Edges and roles mirror src/dsp/AlgorithmInfo.h; only the
 box positions live here. Run from the repository root after changing either.
 """
@@ -11,6 +12,7 @@ MODULATOR = "#c76aa3"
 LINE = "#5f7269"
 INK = "#0b0f12"
 MUTED = "#9fb3a8"
+AMBER = "#ffb454"
 W, H = 160, 100
 BW, BH = 28, 14
 
@@ -50,9 +52,10 @@ def edge(src, dst):
     return f'<path d="{line}"/>', arrow_down(tx, top)
 
 
-def svg(index):
+def svg(index, feedback_on):
     carrier_mask, edges, pos = ALGORITHMS[index]
     lines, heads = [], []
+    fb_colour = AMBER if feedback_on else LINE
     for s, d in edges:
         line, head = edge(pos[s], pos[d])
         lines.append(line)
@@ -61,8 +64,8 @@ def svg(index):
     x, y = pos[0]
     left = x - BW / 2
     lines.append(f'<path d="M{x - 4},{y - BH / 2} C{x - 4},{y - BH / 2 - 11} {left - 11},{y - BH / 2 - 11} '
-                 f'{left - 11},{y} L{left - ARROW - 1},{y}"/>')
-    heads.append(arrow_right(left - 1, y))
+                 f'{left - 11},{y} L{left - ARROW - 1},{y}" stroke="{fb_colour}"/>')
+    heads.append(arrow_right(left - 1, y).replace(f'fill="{LINE}"', f'fill="{fb_colour}"'))
     # carriers drop onto a shared output bus
     carriers = [i for i in range(4) if (carrier_mask >> i) & 1]
     bus_y = 93
@@ -93,5 +96,7 @@ if __name__ == "__main__":
     os.makedirs(target, exist_ok=True)
     for i in range(8):
         with open(os.path.join(target, f"algorithm{i}.svg"), "w") as f:
-            f.write(svg(i))
-    print(f"wrote 8 diagrams to {target}")
+            f.write(svg(i, False))
+        with open(os.path.join(target, f"algorithm{i}_fb.svg"), "w") as f:
+            f.write(svg(i, True))
+    print(f"wrote 16 diagrams to {target}")
