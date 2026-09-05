@@ -18,14 +18,14 @@ BW, BH = 28, 14
 
 # (carrierMask, edges, positions of operator centres 1-4)
 ALGORITHMS = [
-    (0x08, [(0, 1), (1, 2), (2, 3)], [(80, 12), (80, 33), (80, 54), (80, 75)]),
-    (0x08, [(0, 2), (1, 2), (2, 3)], [(60, 12), (100, 12), (80, 43), (80, 75)]),
-    (0x08, [(0, 3), (1, 2), (2, 3)], [(60, 43), (100, 12), (100, 43), (80, 75)]),
-    (0x08, [(0, 1), (1, 3), (2, 3)], [(60, 12), (60, 43), (100, 43), (80, 75)]),
+    (0x08, [(0, 1), (1, 2), (2, 3)], [(80, 17), (80, 37), (80, 57), (80, 77)]),
+    (0x08, [(0, 2), (1, 2), (2, 3)], [(60, 17), (100, 17), (80, 46), (80, 75)]),
+    (0x08, [(0, 3), (1, 2), (2, 3)], [(60, 46), (100, 17), (100, 46), (80, 75)]),
+    (0x08, [(0, 1), (1, 3), (2, 3)], [(60, 17), (60, 46), (100, 46), (80, 75)]),
     (0x0A, [(0, 1), (2, 3)],         [(56, 43), (56, 75), (104, 43), (104, 75)]),
-    (0x0E, [(0, 1), (0, 2), (0, 3)], [(80, 12), (44, 75), (80, 75), (116, 75)]),
+    (0x0E, [(0, 1), (0, 2), (0, 3)], [(80, 17), (44, 75), (80, 75), (116, 75)]),
     (0x0E, [(0, 1)],                 [(44, 43), (44, 75), (80, 75), (116, 75)]),
-    (0x0F, [],                       [(22, 75), (56, 75), (90, 75), (124, 75)]),
+    (0x0F, [],                       [(24, 75), (58, 75), (92, 75), (126, 75)]),
 ]
 
 
@@ -60,11 +60,11 @@ def svg(index, feedback_on):
         line, head = edge(pos[s], pos[d])
         lines.append(line)
         heads.append(head)
-    # feedback loop on the left of operator 1, returning into its left side
+    # feedback loop: up from operator 1, around its left side and back in, right-angled
     x, y = pos[0]
     left = x - BW / 2
-    lines.append(f'<path d="M{x - 4},{y - BH / 2} C{x - 4},{y - BH / 2 - 11} {left - 11},{y - BH / 2 - 11} '
-                 f'{left - 11},{y} L{left - ARROW - 1},{y}" stroke="{fb_colour}"/>')
+    top = y - BH / 2
+    lines.append(f'<path d="M{x - 4},{top} V{top - 8} H{left - 8} V{y} H{left - ARROW - 1}" stroke="{fb_colour}"/>')
     heads.append(arrow_right(left - 1, y).replace(f'fill="{LINE}"', f'fill="{fb_colour}"'))
     # carriers drop onto a shared output bus
     carriers = [i for i in range(4) if (carrier_mask >> i) & 1]
@@ -80,7 +80,7 @@ def svg(index, feedback_on):
     out += lines
     out.append('</g>')
     out += heads
-    out.append(f'<text x="{max(xs) + 18}" y="{bus_y + 3}" font-family="Menlo, monospace" font-size="7" fill="{MUTED}">OUT</text>')
+    out.append(f'<text x="{max(xs) + 17}" y="{bus_y + 3}" font-family="Menlo, monospace" font-size="7" fill="{MUTED}">OUT</text>')
     for i, (x, y) in enumerate(pos):
         colour = CARRIER if (carrier_mask >> i) & 1 else MODULATOR
         out.append(f'<rect x="{x - BW / 2}" y="{y - BH / 2}" width="{BW}" height="{BH}" rx="3" fill="{colour}"/>')
