@@ -271,7 +271,7 @@ if(GTest_FOUND)
             PRIVATE
                 JUCE_UNIT_TESTS=1
                 JUCE_STANDALONE_APPLICATION=0
-                JUCE_MAC=1
+                $<$<PLATFORM_ID:Darwin>:JUCE_MAC=1>
                 JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
                 JucePlugin_Name="YMulator Synth"
                 JucePlugin_Desc="YMulator Synth"
