@@ -152,6 +152,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2));
     
+    // ========================================================================
+    // Macro parameters: -50..+50 display, centre = preset unchanged
+    // ========================================================================
+    for (const char* id : { ParamID::Macro::Brightness, ParamID::Macro::Attack,
+                            ParamID::Macro::Decay, ParamID::Macro::Release, ParamID::Macro::Spread }) {
+        juce::String name = juce::String(id).replace("macro_", "").toUpperCase().substring(0, 1)
+                          + juce::String(id).replace("macro_", "").substring(1);
+        // Meta: moving a macro rewrites raw parameters (hosts and auval expect the flag)
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            id, name, juce::NormalisableRange<float>(-50.0f, 50.0f, 1.0f), 0.0f,
+            juce::AudioParameterFloatAttributes().withMeta(true)));
+    }
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Macro::Harmonics, "Harmonics",
+        juce::StringArray{"Preset", "Saw", "Square", "Pulse", "Bright", "Bell", "Metal", "Sub", "Octave"}, 0,
+        juce::AudioParameterChoiceAttributes().withMeta(true)));
+    
     CS_DBG("Created parameter layout successfully");
     return layout;
 }

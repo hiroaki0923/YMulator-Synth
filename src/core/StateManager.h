@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../core/PresetManagerInterface.h"
+#include "MacroMapper.h"
 
 namespace ymulatorsynth {
 
@@ -45,6 +46,9 @@ public:
     const juce::String getProgramName(int index);
     void changeProgramName(int index, const juce::String& newName);
     
+    /** Optional macro layer: anchors are captured on preset load and persisted with the state. */
+    void setMacroMapper(MacroMapper* mapper) { macroMapper = mapper; }
+    
     // State management utilities
     void loadPreset(int index);
     void saveCurrentState();
@@ -59,6 +63,7 @@ private:
     juce::AudioProcessorValueTreeState& parameters;
     PresetManagerInterface& presetManager;
     ParameterManager& parameterManager;
+    MacroMapper* macroMapper = nullptr;
     
     // Current state tracking
     int currentPreset{7}; // Default to init preset (index 7)

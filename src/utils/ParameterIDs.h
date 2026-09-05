@@ -41,6 +41,20 @@ namespace Global {
 } // namespace Global
 
 // =============================================================================
+// Macro Parameters (Quick panel). Offsets from the anchored preset values;
+// Feedback is shared with Global::Feedback. See docs/ymulatorsynth-quick-panel-design.md
+// =============================================================================
+
+namespace Macro {
+    constexpr const char* Brightness = "macro_brightness";
+    constexpr const char* Harmonics = "macro_harmonics";
+    constexpr const char* Attack = "macro_attack";
+    constexpr const char* Decay = "macro_decay";
+    constexpr const char* Release = "macro_release";
+    constexpr const char* Spread = "macro_spread";
+} // namespace Macro
+
+// =============================================================================
 // Channel-Specific Parameters
 // =============================================================================
 

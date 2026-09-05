@@ -22,6 +22,7 @@ StateManager::StateManager(juce::AudioProcessorValueTreeState& parameters,
 void StateManager::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+    if (macroMapper) macroMapper->writeAnchorTo(state);
     
     // Add current preset number and custom state to state
     state.setProperty("currentPreset", currentPreset, nullptr);
@@ -47,7 +48,12 @@ void StateManager::setStateInformation(const void* data, int sizeInBytes)
         if (xmlState->hasTagName(parameters.state.getType()))
         {
             auto newState = juce::ValueTree::fromXml(*xmlState);
+            if (macroMapper) macroMapper->setSuspended(true);
             parameters.replaceState(newState);
+            if (macroMapper) {
+                macroMapper->setSuspended(false);
+                macroMapper->restoreFromState(newState);
+            }
             
             // Restore preset state
             if (newState.hasProperty("currentPreset")) {
@@ -170,11 +176,18 @@ void StateManager::loadPresetInternal(int index, bool updateCurrentPreset)
     // Preserve global pan setting during preset loading
     float preservedGlobalPan = 0.0f;
     
-    // Load preset parameters through ParameterManager
+    // Load preset parameters through ParameterManager. The macro layer must
+    // not remap while the raw values are being replaced wholesale.
+    if (macroMapper) macroMapper->setSuspended(true);
     parameterManager.loadPresetParameters(preset, preservedGlobalPan);
     
     // Apply preset to sound generation engine
     parameterManager.applyPresetToYmfm(preset);
+    
+    if (macroMapper) {
+        macroMapper->setSuspended(false);
+        macroMapper->captureAnchor();
+    }
     
     // Exit custom mode when loading factory preset
     parameterManager.setCustomMode(false);

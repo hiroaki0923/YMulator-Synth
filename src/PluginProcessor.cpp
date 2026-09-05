@@ -26,6 +26,8 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     
     // Initialize StateManager with dependencies
     stateManager = std::make_unique<ymulatorsynth::StateManager>(parameters, *presetManager, *parameterManager);
+    macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
+    stateManager->setMacroMapper(macroMapper.get());
     
     // Initialize MidiProcessor after other components are ready
     midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
@@ -62,6 +64,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     if (parameterManager) {
         parameterManager->initializeParameters(parameters);
     }
+    macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
     
     // Initialize preset manager
     presetManager->initialize();
@@ -351,6 +354,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetAsOpm(const juce::File& file,
     if (success)
     {
         CS_DBG("Successfully saved preset as OPM file");
+        if (macroMapper) macroMapper->captureAnchor();
     }
     else
     {
@@ -464,6 +468,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String
         
         // Switch out of custom mode and to the newly saved preset
         if (parameterManager) parameterManager->setCustomMode(false);
+        if (macroMapper) macroMapper->captureAnchor();
         
         // Notify that preset list has been updated
         parameters.state.setProperty("presetListUpdated", juce::Random::getSystemRandom().nextInt(), nullptr);

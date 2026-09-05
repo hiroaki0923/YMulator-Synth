@@ -40,6 +40,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/MacroMapper.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
@@ -86,6 +87,7 @@ if(GTest_FOUND)
         test_main.cpp
         unit/ParameterManagerTest.cpp
         unit/ParameterStateIntegrationTest.cpp
+        unit/MacroMapperTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -173,6 +175,7 @@ if(GTest_FOUND)
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
         unit/RegisterUpdateTest.cpp
+        unit/MacroMapperTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring

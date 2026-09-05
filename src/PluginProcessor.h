@@ -9,6 +9,7 @@
 #include "core/MidiProcessorInterface.h"
 #include "core/ParameterManager.h"
 #include "core/StateManager.h"
+#include "core/MacroMapper.h"
 #include "core/PanProcessor.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
@@ -85,6 +86,8 @@ private:
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
+    // Declared after the parameter tree: it unregisters its listeners on destruction
+    std::unique_ptr<ymulatorsynth::MacroMapper> macroMapper;
     bool needsPresetReapply = false;
     
     // Per-instance initialisation state (must not be shared between instances)
@@ -164,6 +167,7 @@ public:
     // Testing interface
     ymulatorsynth::MidiProcessorInterface* getMidiProcessor() { return midiProcessor.get(); }
     const YmfmWrapperInterface& getYmfmWrapper() const { return *ymfmWrapper; }
+    ymulatorsynth::MacroMapper& getMacroMapper() { return *macroMapper; }
     
 private:
     

@@ -87,6 +87,8 @@ MUL' = clamp(round(MUL_target × r), 0, 15)。MUL_target が 0（×0.5）のと�
 - **アンカー** = マクロの基準となる生パラメータのスナップショット（4 op × TL, AR, D1R, D2R, RR, DT1, MUL ＋ FB）。
 - アンカーを取り直すタイミング: プリセット読込、ジェネレータの生成、A/B の復元、プリセット保存。いずれもマクロは中央（Harmonics は Preset）にリセットする。
 - **Detail で生パラメータを直接編集したとき**: そのパラメータ p について、マクロ値は変えずにアンカーを再基準化する。`anchor_p' = anchor_p + (raw_new − raw_before)`。clamp によってずれが出る場合は raw_new を優先する（次回マクロ操作時に再計算されるので、ずれは 1 ステップ以内）。
+- **アルゴリズム変更時**: 生パラメータは動かさない（Detail でアルゴリズムを回したときに他のノブが跳ねないようにする）。新しい役割集合は次にマクロを動かしたときから効く。
+- **ホストへの申告**: マクロ 6 パラメータは他パラメータを書き換えるため meta パラメータとして登録する（auval の「Parameter values are different since last set」検査の要件）。
 - **マクロ操作時**: MacroMapper が対象 raw を `setValueNotifyingHost` で書く。この間は再基準化を抑止するガードを立てる（ParameterManager の既存 `s_isProcessingParameterChange` と同型）。
 - **永続化**: マクロ 7 値は APVTS パラメータ（DAW オートメーション可、ID は `ParamID::Macro::*`）。アンカーは `parameters.state` の子ノード `macroAnchor` に保存し、`StateManager::getStateInformation` の既存経路で DAW プロジェクトに残す。復元時に `macroAnchor` が無ければ、現在の raw をアンカーにしてマクロを中央にする（旧バージョンとの互換）。
 - **プリセット保存（.opm / ユーザーバンク）**: 生パラメータを保存する。マクロは保存しない。保存後はアンカーを取り直す。
