@@ -79,8 +79,10 @@ void StateManager::setStateInformation(const void* data, int sizeInBytes)
 
 int StateManager::getNumPrograms()
 {
-    // Add 1 for custom preset if active
-    return presetManager.getNumPresets() + (parameterManager.isInCustomMode() ? 1 : 0);
+    // The program count must not change while the plugin runs: hosts cache it
+    // and some reset the program to 0 when it changes. The last slot is always
+    // the "Custom" (edited) program, whether or not custom mode is active.
+    return presetManager.getNumPresets() + 1;
 }
 
 int StateManager::getCurrentProgram()
@@ -96,10 +98,9 @@ void StateManager::setCurrentProgram(int index)
     CS_DBG("setCurrentProgram called with index: " + juce::String(index) + 
         ", current isCustomPreset: " + juce::String(parameterManager.isInCustomMode() ? "true" : "false"));
     
-    // Check if this is the custom preset index
-    if (index == presetManager.getNumPresets() && parameterManager.isInCustomMode()) {
-        // Stay in custom mode, don't change anything
-        CS_DBG("Staying in custom preset mode");
+    // The custom slot holds whatever is currently edited; selecting it never loads anything
+    if (index == presetManager.getNumPresets()) {
+        CS_DBG("Custom program slot selected - keeping current state");
         return;
     }
     
@@ -117,9 +118,10 @@ void StateManager::setCurrentProgram(int index)
 
 const juce::String StateManager::getProgramName(int index)
 {
-    // Handle custom preset case
-    if (index == presetManager.getNumPresets() && parameterManager.isInCustomMode()) {
-        return parameterManager.getCustomPresetName();
+    // Last slot: the custom (edited) program
+    if (index == presetManager.getNumPresets()) {
+        return parameterManager.isInCustomMode() ? parameterManager.getCustomPresetName()
+                                                 : juce::String("Custom");
     }
     
     // Validate preset index
