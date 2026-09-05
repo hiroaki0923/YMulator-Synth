@@ -547,8 +547,11 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
 {
     int globalIndex = presetManager->getGlobalPresetIndex(bankIndex, presetIndex);
     if (globalIndex >= 0) {
-        // StateManager records the bank/preset position in the state tree when the preset loads
         setCurrentProgram(globalIndex);
+        // The UI knows the exact bank; record it explicitly, because the same preset can be
+        // listed in more than one bank and the reverse lookup in StateManager picks the first.
+        parameters.state.setProperty(ParamID::Global::CurrentBankIndex, bankIndex, nullptr);
+        parameters.state.setProperty(ParamID::Global::CurrentPresetInBank, presetIndex, nullptr);
     }
 }
 

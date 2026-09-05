@@ -410,8 +410,11 @@ TEST_F(StateManagerTest, BankAndPresetSelectionIsStoredInState) {
 
 TEST_F(StateManagerTest, HostProgramChangeUpdatesBankAndPresetSelection) {
     const auto& presets = processor->getPresetManager();
+    // A host program change only carries the global index, so the bank is found by
+    // reverse lookup (first bank that lists the preset). Use the factory bank, whose
+    // presets are never duplicated in other banks.
     const int presetInBank = 3;
-    const int bank = pickTestBank(presets, presetInBank);
+    const int bank = 0;
     const int globalIndex = presets.getGlobalPresetIndex(bank, presetInBank);
     ASSERT_GE(globalIndex, 0);
     
