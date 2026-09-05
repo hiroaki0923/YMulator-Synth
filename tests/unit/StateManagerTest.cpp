@@ -384,3 +384,64 @@ TEST_F(StateManagerTest, ProcessorDestructionCleansUp) {
     EXPECT_NO_THROW(tempProcessor.reset());
     EXPECT_NO_THROW(tempHost.reset());
 }
+// ============================================================================
+// Bank / preset selection persistence
+// ============================================================================
+
+// Prefer a non-factory bank with enough presets so the test exercises a
+// non-zero bank index; fall back to the factory bank.
+static int pickTestBank(const PresetManagerInterface& presets, int neededPresets) {
+    const int numBanks = static_cast<int>(presets.getBanks().size());
+    for (int bank = numBanks - 1; bank > 0; --bank) {
+        if (presets.getPresetsForBank(bank).size() > neededPresets) return bank;
+    }
+    return 0;
+}
+
+TEST_F(StateManagerTest, BankAndPresetSelectionIsStoredInState) {
+    processor->setCurrentPresetInBank(0, 2);
+    
+    auto& state = processor->getParameters().state;
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentBankIndex)), 0);
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentPresetInBank)), 2);
+    EXPECT_EQ(processor->getCurrentProgram(), processor->getPresetManager().getGlobalPresetIndex(0, 2));
+}
+
+TEST_F(StateManagerTest, HostProgramChangeUpdatesBankAndPresetSelection) {
+    const auto& presets = processor->getPresetManager();
+    const int presetInBank = 3;
+    const int bank = pickTestBank(presets, presetInBank);
+    const int globalIndex = presets.getGlobalPresetIndex(bank, presetInBank);
+    ASSERT_GE(globalIndex, 0);
+    
+    processor->setCurrentProgram(globalIndex);
+    
+    auto& state = processor->getParameters().state;
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentBankIndex)), bank);
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentPresetInBank)), presetInBank);
+}
+
+TEST_F(StateManagerTest, BankAndPresetSelectionSurvivesStateReload) {
+    const auto& presets = processor->getPresetManager();
+    const int presetInBank = 5;
+    const int bank = pickTestBank(presets, presetInBank);
+    const int globalIndex = presets.getGlobalPresetIndex(bank, presetInBank);
+    ASSERT_GE(globalIndex, 0);
+    processor->setCurrentPresetInBank(bank, presetInBank);
+    const juce::String expectedName = processor->getProgramName(globalIndex);
+    
+    juce::MemoryBlock saved;
+    processor->getStateInformation(saved);
+    
+    auto restored = std::make_unique<YMulatorSynthAudioProcessor>();
+    host->initializeProcessor(*restored, 44100.0, 512, 2);
+    restored->setStateInformation(saved.getData(), static_cast<int>(saved.getSize()));
+    
+    auto& state = restored->getParameters().state;
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentBankIndex)), bank);
+    EXPECT_EQ(static_cast<int>(state.getProperty(ParamID::Global::CurrentPresetInBank)), presetInBank);
+    EXPECT_EQ(restored->getCurrentProgram(), globalIndex);
+    EXPECT_EQ(restored->getProgramName(restored->getCurrentProgram()), expectedName);
+    
+    restored->resetProcessBlockStaticState();
+}

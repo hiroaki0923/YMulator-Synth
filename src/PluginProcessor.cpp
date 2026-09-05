@@ -552,15 +552,7 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
 {
     int globalIndex = presetManager->getGlobalPresetIndex(bankIndex, presetIndex);
     if (globalIndex >= 0) {
-        // Save bank/preset state to ValueTreeState for DAW persistence
-        auto bankParam = parameters.getParameter(ParamID::Global::CurrentBankIndex);
-        auto presetParam = parameters.getParameter(ParamID::Global::CurrentPresetInBank);
-        
-        if (bankParam && presetParam) {
-            bankParam->setValueNotifyingHost(bankParam->convertTo0to1(static_cast<float>(bankIndex)));
-            presetParam->setValueNotifyingHost(presetParam->convertTo0to1(static_cast<float>(presetIndex)));
-        }
-        
+        // StateManager records the bank/preset position in the state tree when the preset loads
         setCurrentProgram(globalIndex);
     }
 }

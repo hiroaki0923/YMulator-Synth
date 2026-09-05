@@ -1,4 +1,5 @@
 #include "StateManager.h"
+#include "../utils/ParameterIDs.h"
 #include "ParameterManager.h"
 #include "../utils/Debug.h"
 
@@ -180,9 +181,28 @@ void StateManager::loadPresetInternal(int index, bool updateCurrentPreset)
     if (updateCurrentPreset) {
         currentPreset = index;
         hasUnsavedState = false;
+        storeBankAndPresetSelection(index);
     }
     
     CS_DBG("Preset loaded successfully: " + preset->name);
+}
+
+void StateManager::storeBankAndPresetSelection(int globalIndex)
+{
+    // The bank/preset combo boxes and DAW persistence read these two state
+    // properties; keep them in sync for both UI selection and host program changes.
+    const auto& banks = presetManager.getBanks();
+    for (int bank = 0; bank < static_cast<int>(banks.size()); ++bank) {
+        const int count = presetManager.getPresetsForBank(bank).size();
+        for (int presetInBank = 0; presetInBank < count; ++presetInBank) {
+            if (presetManager.getGlobalPresetIndex(bank, presetInBank) == globalIndex) {
+                parameters.state.setProperty(ParamID::Global::CurrentBankIndex, bank, nullptr);
+                parameters.state.setProperty(ParamID::Global::CurrentPresetInBank, presetInBank, nullptr);
+                return;
+            }
+        }
+    }
+    CS_DBG("No bank/preset position found for global preset index " + juce::String(globalIndex));
 }
 
 void StateManager::saveCurrentState()

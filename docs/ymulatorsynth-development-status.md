@@ -21,6 +21,8 @@
 - ✅ **出力クリップ修正** - processBlock の固定 2.0 倍ゲインにより 1 音でもピークが 1.44 に達していた。ゲインを除去（出力は約 6dB 下がる）
 - ✅ **ピッチ回帰テスト追加** - `tests/unit/PitchAccuracyTest.cpp`（ラッパー単体 / プロセッサ経由 / ピッチベンド）
 - ✅ **オペレータのスロット順修正** - Op1〜4（M1, C1, M2, C2 の VOPM 順）をレジスタ +0, +8, +16, +24 に順番に書いていたが、YM2151 のレジスタ順は M1, M2, C1, C2 で、C1 と M2 が入れ替わって鳴っていた。`YM2151Regs::OPERATOR_SLOT_OFFSET` で対応付け。回帰テスト `tests/unit/OperatorSlotOrderTest.cpp`（アルゴリズム 4 で M1→C1、M2→C2 を実測）
+- ✅ **バンク／プリセット選択の永続化修正** - `currentBankIndex` / `currentPresetInBank` がどこにも書かれておらず、エディタを開き直すと常に Init 表示、DAW プロジェクトの再読込やホストのプログラムチェンジにもコンボが追従しなかった。StateManager がプリセット読込時に state プロパティへ記録し、PresetUIManager は一覧が同じでも選択を更新するよう修正。テスト 3 件追加
+- ✅ **UI スナップショットツール追加** - `tools/ui_snapshot.cpp`（`YMulatorSynthAU_UISnapshot`）。ホスト無しでエディタを PNG に描画し、状態とコンボ内容をダンプできる
 
 **未着手（次の候補）:**
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理

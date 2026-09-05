@@ -73,6 +73,7 @@ private:
      * @param updateCurrentPreset Whether to update currentPreset variable
      */
     void loadPresetInternal(int index, bool updateCurrentPreset = true);
+    void storeBankAndPresetSelection(int globalIndex);
     
     /**
      * Update state tracking after parameter changes.
