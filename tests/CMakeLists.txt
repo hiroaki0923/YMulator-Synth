@@ -118,6 +118,7 @@ if(GTest_FOUND)
         test_main.cpp
         AudioQualityTest.cpp
         unit/PitchAccuracyTest.cpp
+        unit/OperatorSlotOrderTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -161,6 +162,7 @@ if(GTest_FOUND)
         PanModeRegressionTest.cpp
         AudioQualityTest.cpp
         unit/PitchAccuracyTest.cpp
+        unit/OperatorSlotOrderTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
@@ -170,8 +172,27 @@ if(GTest_FOUND)
     add_executable(YMulatorSynthAU_Tests ${UNIFIED_TEST_SOURCES})
     list(APPEND TEST_EXECUTABLES YMulatorSynthAU_Tests)
     
+    # ============ Developer tool: off-screen UI snapshot (not a test) ============
+    # Shares the test build configuration so it renders the same code the tests run.
+    add_executable(YMulatorSynthAU_UISnapshot
+        ${CMAKE_SOURCE_DIR}/tools/ui_snapshot.cpp
+        ${COMMON_SOURCES}
+    )
+    target_compile_definitions(YMulatorSynthAU_UISnapshot PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
+    target_link_libraries(YMulatorSynthAU_UISnapshot
+        PRIVATE
+            juce::juce_audio_processors
+            juce::juce_audio_utils
+            juce::juce_audio_basics
+            juce::juce_core
+            juce::juce_graphics
+            juce::juce_gui_basics
+            juce::juce_gui_extra
+    )
+    set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot)
+    
     # Configure each test executable
-    foreach(TEST_EXECUTABLE ${TEST_EXECUTABLES})
+    foreach(TEST_EXECUTABLE ${HOST_TARGETS})
         # Add JUCE binary data if it exists, otherwise use mock
         if(EXISTS "${JUCE_BINARY_DATA_FILE}")
             target_sources(${TEST_EXECUTABLE} PRIVATE "${JUCE_BINARY_DATA_FILE}")
@@ -188,7 +209,7 @@ if(GTest_FOUND)
     endif()
     
     # Configure include directories for all test executables
-    foreach(TEST_EXECUTABLE ${TEST_EXECUTABLES})
+    foreach(TEST_EXECUTABLE ${HOST_TARGETS})
         target_include_directories(${TEST_EXECUTABLE}
             PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}
@@ -239,7 +260,7 @@ if(GTest_FOUND)
     endforeach()
     
     # Define test-specific compile definitions for all test executables
-    foreach(TEST_EXECUTABLE ${TEST_EXECUTABLES})
+    foreach(TEST_EXECUTABLE ${HOST_TARGETS})
         target_compile_definitions(${TEST_EXECUTABLE}
             PRIVATE
                 JUCE_UNIT_TESTS=1
