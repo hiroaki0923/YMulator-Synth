@@ -33,8 +33,9 @@ constexpr uint8_t REG_NOISE_CONTROL = 0x0F;          // Noise enable and frequen
 
 // LFO Control Registers
 constexpr uint8_t REG_LFO_RATE = 0x18;               // LFO frequency (0-255)
-constexpr uint8_t REG_LFO_AMD = 0x19;                // LFO amplitude modulation depth (0-127)
-constexpr uint8_t REG_LFO_PMD = 0x1A;                // LFO phase modulation depth (0-127)
+constexpr uint8_t REG_LFO_DEPTH = 0x19;              // AMD (bit 7 clear) or PMD (bit 7 set), 7-bit depth
+constexpr uint8_t LFO_DEPTH_SELECT_PMD = 0x80;       // Written with the depth to address PMD instead of AMD
+constexpr uint8_t MASK_LFO_DEPTH = 0x7F;
 constexpr uint8_t REG_LFO_WAVEFORM = 0x1B;           // LFO waveform select (bits 0-1)
 constexpr uint8_t REG_LFO_CT_CONTROL = 0x1B;         // Also contains CT1/CT2 output control
 constexpr uint8_t REG_LFO_AMS_PMS_BASE = 0x38;       // 0x38 + channel: AMS/PMS settings
@@ -156,6 +157,21 @@ constexpr uint8_t OPERATOR_ADDRESS_STEP = 8;         // Address step between reg
 // The YM2151 register map is ordered M1, M2, C1, C2 (+0, +8, +16, +24), and the
 // algorithm chains pair M1->C1 and M2->C2, so C1 lives at +16 and M2 at +8.
 constexpr uint8_t OPERATOR_SLOT_OFFSET[MAX_OPERATORS_PER_VOICE] = {0, 16, 8, 24};
+// Hardware slot index (M1, M2, C1, C2 order) of each operator in voice order.
+// The key-on register enables slots in bits 3..6 in this hardware order.
+constexpr uint8_t OPERATOR_HW_SLOT[MAX_OPERATORS_PER_VOICE] = {0, 2, 1, 3};
+constexpr uint8_t SHIFT_KEY_ON_SLOTS = 3;
+constexpr uint8_t MASK_SLOT_ENABLE = 0x0F;
+
+/** Key-on register bits for a voice-order slot mask (bit n = operator n on). */
+constexpr uint8_t keyOnBitsForSlotMask(uint8_t voiceOrderMask)
+{
+    uint8_t bits = 0;
+    for (int op = 0; op < MAX_OPERATORS_PER_VOICE; ++op)
+        if ((voiceOrderMask >> op) & 1)
+            bits = static_cast<uint8_t>(bits | (1u << (SHIFT_KEY_ON_SLOTS + OPERATOR_HW_SLOT[op])));
+    return bits;
+}
 
 // =============================================================================
 // MIDI and Note Constants

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "YmfmWrapperInterface.h"
+#include "YM2151Registers.h"
 #include "ymfm_opm.h"
 #include "ymfm_opn.h"
 #include <array>
@@ -25,6 +26,7 @@ public:
     // MIDI interface - interface implementation
     void noteOn(uint8_t channel, uint8_t note, uint8_t velocity) override;
     void noteOff(uint8_t channel, uint8_t note) override;
+    void setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask) override;
     
     // Parameter control methods - interface implementation
     void setOperatorParameter(uint8_t channel, uint8_t operator_num, OperatorParameter param, uint8_t value) override;
@@ -113,6 +115,7 @@ private:
         uint8_t baseNote = 0;      // Original MIDI note
         float pitchBend = 0.0f;    // Current pitch bend in semitones
         bool active = false;       // Is this channel playing a note
+        uint8_t slotMask = YM2151Regs::MASK_SLOT_ENABLE;  // Operators keyed on, voice order
     };
     std::array<ChannelState, 8> channelStates;
     

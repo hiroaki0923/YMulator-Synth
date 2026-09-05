@@ -318,28 +318,8 @@ int VOPMParser::convertInternalAmeToOpm(int internalAme)
 
 int VOPMParser::convertOpmSlotToInternal(int opmSlot)
 {
-    // VOPMex OpMsk format investigation
-    // 120 = 01111000 should represent slot pattern
-    // Let's try different interpretations
-    
-    // Debug current conversion
-    int original = (opmSlot >> 3) & 0x0F;
-    
-    // Try bit reversal approach - VOPM might use upper bits
-    int reversed = 0;
-    if (opmSlot & 0x08) reversed |= 0x01;  // bit 3 -> bit 0
-    if (opmSlot & 0x10) reversed |= 0x02;  // bit 4 -> bit 1  
-    if (opmSlot & 0x20) reversed |= 0x04;  // bit 5 -> bit 2
-    if (opmSlot & 0x40) reversed |= 0x08;  // bit 6 -> bit 3
-    
-    // VOPMex standard: 120 means all slots enabled  
-    // Convert to our internal format (15 = all slots enabled)
-    if (opmSlot == 120) {
-        return 15;  // All slots on
-    }
-    
-    // For other values, use original conversion
-    return original;
+    // The .opm SLOT value is the key-on register byte: slots in bits 3..6 (M1, M2, C1, C2)
+    return (opmSlot >> 3) & 0x0F;
 }
 
 int VOPMParser::convertInternalSlotToOpm(int internalSlot)

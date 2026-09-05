@@ -1,4 +1,5 @@
 #include "PresetManager.h"
+#include "../dsp/YM2151Registers.h"
 #include "Debug.h"
 #include "VOPMParser.h"
 
@@ -157,8 +158,8 @@ Preset Preset::fromVOPM(const VOPMVoice& voice)
         preset.operators[i].releaseRate = static_cast<float>(op.releaseRate);
         preset.operators[i].sustainLevel = static_cast<float>(op.decay1Level);
         preset.operators[i].amsEnable = (op.amsEnable != 0);
-        // Extract SLOT enable from channel slotMask
-        preset.operators[i].slotEnable = (voice.channel.slotMask & (1 << i)) != 0;
+        // The SLOT mask is in hardware slot order (M1, M2, C1, C2); operators are in voice order
+        preset.operators[i].slotEnable = (voice.channel.slotMask & (1 << YM2151Regs::OPERATOR_HW_SLOT[i])) != 0;
     }
     return preset;
 }
@@ -176,7 +177,7 @@ VOPMVoice Preset::toVOPM() const
     int slotMask = 0;
     for (int i = 0; i < 4; ++i) {
         if (operators[i].slotEnable) {
-            slotMask |= (1 << i);
+            slotMask |= (1 << YM2151Regs::OPERATOR_HW_SLOT[i]);
         }
     }
     voice.channel.slotMask = slotMask;

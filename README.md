@@ -357,6 +357,11 @@ This project is actively developed with the following status:
 - **Phase 3+ (Quality Enhancement)**: ✅ 100% Complete (Global pan & DAW compatibility)
 - **Overall Progress**: 100% Complete
 
+### Version 0.0.8 Features (Released 2026-09-06)
+- **Working LFO**: Vibrato and tremolo from the hardware LFO now reach the chip, and presets bring their LFO settings with them
+- **SLOT Control Restored**: The per-operator on/off switches are connected again and follow the .opm SLOT mask
+- **Exact Preset Saving**: Saved presets carry the same values the chip plays
+
 ### Version 0.0.7 Features (Released 2026-09-05)
 - **Correct Pitch**: Chip output is resampled from its native 55.9 kHz to the host rate; notes are no longer several semitones flat
 - **Correct Operator Mapping**: C1 and M2 no longer swap places on the chip, so every preset sounds as its .opm file intends
@@ -392,6 +397,21 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **Phase 4 (Future)**: YM2608 (OPNA) support, S98 export, advanced editing features
 
 ## Changelog
+
+### Version 0.0.8 (2026-09-06)
+**Bug Fix Release: LFO, SLOT and Preset Saving**
+
+**🐛 Fixes:**
+- **LFO depth**: The phase modulation depth was written to an unused register address, so vibrato never sounded. On the YM2151 both depths share one register selected by bit 7; the write is corrected
+- **LFO settings from presets**: A preset's LFO rate, depths, waveform, noise and channel AMS/PMS sensitivity were never loaded into the parameters or sent to the chip. Two new parameters, LFO AMS and LFO PMS, carry the sensitivity for all channels. More than 20 of the bundled presets use the LFO and now sound as written
+- **SLOT (operator on/off)**: The per-operator enable parameters had been dropped from the parameter tree, leaving the checkboxes disconnected. They are back, drive the key-on register in hardware slot order, and the .opm SLOT mask maps to operators correctly
+- **Preset saving**: Both save paths built the preset by hand with truncating conversions; they now use the same extraction as the chip, so saved values match what was heard
+
+**⚠️ Change:**
+- Presets that use the LFO sound different from 0.0.7 and earlier because the LFO is now audible
+
+**🔧 Developer:**
+- Register golden test extended to LFO, sensitivity and noise registers; new tests render audio to confirm PMD/PMS and AMD/AMS take effect, and cover the key-on slot mask
 
 ### Version 0.0.7 (2026-09-05)
 **Bug Fix Release: Pitch, Operator Mapping, MIDI CC and Host Compatibility**
