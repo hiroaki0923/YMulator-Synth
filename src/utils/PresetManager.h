@@ -129,6 +129,7 @@ public:
 
 private:
     std::vector<Preset> presets;
+    int numBundledPresets = 0;  // presets loaded from the bundled collection (after the factory set)
     std::vector<Bank> banks;
     int userBankIndex = -1;  // Index of the User bank
     
