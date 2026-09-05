@@ -1,9 +1,10 @@
 #include "AlgorithmDisplay.h"
 #include "../dsp/AlgorithmInfo.h"
 #include "../utils/Debug.h"
+#include "UiTheme.h"
 
-const juce::Colour AlgorithmDisplay::carrierColour   { 0xff1f5fa8 };
-const juce::Colour AlgorithmDisplay::modulatorColour { 0xffa3457c };
+const juce::Colour AlgorithmDisplay::carrierColour   = UiTheme::carrier;
+const juce::Colour AlgorithmDisplay::modulatorColour = UiTheme::modulator;
 
 namespace {
 
@@ -20,12 +21,21 @@ const std::array<Layout, 8> kLayouts = {{
     {{ {0.125f, 0.5f}, {0.375f, 0.5f}, {0.625f, 0.5f}, {0.875f, 0.5f} }},   // 1+2+3+4
 }};
 
-constexpr float kBoxWidth = 30.0f;
-constexpr float kBoxHeight = 20.0f;
 
 } // namespace
 
 AlgorithmDisplay::AlgorithmDisplay() = default;
+
+float AlgorithmDisplay::boxWidth() const
+{
+    return juce::jlimit(14.0f, 30.0f, static_cast<float>(getWidth()) / 5.0f);
+}
+
+float AlgorithmDisplay::boxHeight() const
+{
+    // Four stacked rows must fit even in the compact TONE-row diagram
+    return juce::jmin(boxWidth() * 0.66f, static_cast<float>(getHeight()) / 4.6f);
+}
 
 void AlgorithmDisplay::setAlgorithm(int algorithmNumber)
 {
@@ -52,7 +62,7 @@ juce::Rectangle<float> AlgorithmDisplay::operatorBox(int op, const juce::Rectang
     const auto& p = kLayouts[static_cast<size_t>(currentAlgorithm)][static_cast<size_t>(op)];
     const juce::Point<float> centre(bounds.getX() + p.x * bounds.getWidth(),
                                     bounds.getY() + p.y * bounds.getHeight());
-    return juce::Rectangle<float>(kBoxWidth, kBoxHeight).withCentre(centre);
+    return juce::Rectangle<float>(boxWidth(), boxHeight()).withCentre(centre);
 }
 
 void AlgorithmDisplay::drawArrow(juce::Graphics& g, juce::Point<float> from, juce::Point<float> to) const
@@ -66,7 +76,8 @@ void AlgorithmDisplay::drawArrow(juce::Graphics& g, juce::Point<float> from, juc
 
 void AlgorithmDisplay::paint(juce::Graphics& g)
 {
-    const auto bounds = getLocalBounds().toFloat().reduced(kBoxWidth * 0.5f + 2.0f, kBoxHeight * 0.5f + 2.0f);
+    const auto bounds = getLocalBounds().toFloat().reduced(boxWidth() * 0.5f + 2.0f, boxHeight() * 0.5f + 2.0f);
+    const float kBoxHeight = boxHeight();
     const auto& info = ymulatorsynth::algorithmInfo(currentAlgorithm);
     
     // Modulation edges, drawn between box edges rather than centres
@@ -98,7 +109,7 @@ void AlgorithmDisplay::paint(juce::Graphics& g)
         g.setColour(info.isCarrier(op) ? carrierColour : modulatorColour);
         g.fillRoundedRectangle(box, 3.0f);
         g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(juce::FontOptions().withHeight(11.0f).withStyle("bold")));
+        g.setFont(UiTheme::mono(juce::jlimit(7.0f, 11.0f, boxHeight() * 0.7f), true));
         g.drawText(juce::String(op + 1), box, juce::Justification::centred);
     }
 }

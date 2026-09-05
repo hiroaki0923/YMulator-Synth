@@ -13,9 +13,12 @@ cmake --build . --target YMulatorSynthAU_UISnapshot
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 2               # via host program change
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --scale 1 --settle 500
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 2 --then-preset 5 --dump   # program change with the editor open
+./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 3 --focus-macro 0          # highlight the knobs a macro drives
 ```
 
 Options: `--out` (default `ui_snapshot.png`, relative to the working directory), `--preset`, `--bank`,
 `--then-preset` (a second program change after the editor exists), `--dump` (print state properties
 and every combo box text), `--scale` (render scale, default 2), `--settle` (milliseconds of
-message-loop time given to asynchronous UI updates before capture, default 300).
+message-loop time given to asynchronous UI updates before capture, default 300), `--focus-macro N`
+(0 Brightness, 1 Harmonics, 2 Attack, 3 Decay, 4 Release, 5 Spread: draws the amber rings on that
+macro's target knobs, the way touching the TONE knob does).

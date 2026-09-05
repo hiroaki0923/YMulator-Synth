@@ -5,6 +5,10 @@
 #include "../../src/ui/MainComponent.h"
 #include "../../src/ui/PresetUIManager.h"
 #include "../mocks/MockAudioProcessorHost.h"
+#include "../../src/core/MacroMapper.h"
+#include "../../src/dsp/AlgorithmInfo.h"
+#include "../../src/utils/ParameterIDs.h"
+#include <set>
 
 /**
  * MainComponentTest - UI Component Testing
@@ -34,7 +38,7 @@ protected:
         mainComponent = std::make_unique<MainComponent>(*processor);
         
         // Ensure UI is properly sized
-        mainComponent->setSize(1000, 635);
+        mainComponent->setSize(MainComponent::kWidth, MainComponent::kHeight);
     }
     
     void TearDown() override {
@@ -57,13 +61,13 @@ protected:
 TEST_F(MainComponentTest, ComponentInitialization) {
     EXPECT_NE(mainComponent.get(), nullptr);
     EXPECT_EQ(mainComponent->getWidth(), 1000);
-    EXPECT_EQ(mainComponent->getHeight(), 635);
+    EXPECT_EQ(mainComponent->getHeight(), 640);
 }
 
 TEST_F(MainComponentTest, ComponentHasRequiredChildren) {
     // Check that MainComponent has the expected number of child components
     int childCount = mainComponent->getNumChildComponents();
-    EXPECT_GT(childCount, 10) << "MainComponent should have multiple child components";
+    EXPECT_GE(childCount, 10) << "MainComponent should have multiple child components";
 }
 
 // =============================================================================
@@ -225,24 +229,19 @@ TEST_F(MainComponentTest, GlobalControlsExist) {
 // LFO and Noise Controls Tests
 // =============================================================================
 
+// Counts components of a type anywhere below the root
+template <typename T>
+static int countComponentsOfType(juce::Component* component) {
+    int count = dynamic_cast<T*>(component) != nullptr ? 1 : 0;
+    for (int i = 0; i < component->getNumChildComponents(); ++i)
+        count += countComponentsOfType<T>(component->getChildComponent(i));
+    return count;
+}
+
 TEST_F(MainComponentTest, LFOControlsExist) {
-    bool foundToggleButton = false;
-    int labelCount = 0;
-    
-    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
-        auto* child = mainComponent->getChildComponent(i);
-        
-        if (dynamic_cast<juce::ToggleButton*>(child) != nullptr) {
-            foundToggleButton = true;
-        }
-        
-        if (dynamic_cast<juce::Label*>(child) != nullptr) {
-            labelCount++;
-        }
-    }
-    
-    EXPECT_TRUE(foundToggleButton) << "Should have toggle button (likely for noise enable)";
-    EXPECT_GT(labelCount, 5) << "Should have multiple labels for controls";
+    // Noise enable, four slot toggles and four AMS toggles
+    EXPECT_GE(countComponentsOfType<juce::ToggleButton>(mainComponent.get()), 9);
+    EXPECT_GT(countComponentsOfType<juce::Label>(mainComponent.get()), 5) << "Should have multiple labels for controls";
 }
 
 // =============================================================================
@@ -346,7 +345,7 @@ TEST_F(MainComponentTest, ProcessorIntegration) {
 
 TEST_F(MainComponentTest, ComponentPainting) {
     // Test that component can paint without crashing
-    juce::Graphics g(juce::Image(juce::Image::RGB, 1000, 635, true));
+    juce::Graphics g(juce::Image(juce::Image::RGB, 1000, 640, true));
     
     EXPECT_NO_THROW({
         mainComponent->paint(g);
@@ -434,4 +433,52 @@ TEST_F(MainComponentTest, SaveButtonEnabledWhenCustomMode) {
             // but in testing this might not work due to async updates
         }
     }
+}
+// =============================================================================
+// Detail view: roles and macro highlight
+// =============================================================================
+
+TEST_F(MainComponentTest, OperatorRolesFollowAlgorithm) {
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    ASSERT_NE(algorithm, nullptr);
+    for (int alg = 0; alg < 8; ++alg) {
+        algorithm->setValueNotifyingHost(algorithm->convertTo0to1(static_cast<float>(alg)));
+        mainComponent->refreshRoles();
+        for (int op = 0; op < 4; ++op) {
+            const bool carrier = ymulatorsynth::kAlgorithms[static_cast<size_t>(alg)].isCarrier(op);
+            EXPECT_EQ(mainComponent->getOperatorPanel(op).getRole() == OperatorPanel::Role::Carrier, carrier)
+                << "algorithm " << alg << " operator " << op + 1;
+        }
+    }
+}
+
+TEST_F(MainComponentTest, NoiseTurnsOperator4IntoNoiseRole) {
+    auto* noise = processor->getParameters().getParameter(ParamID::Global::NoiseEnable);
+    ASSERT_NE(noise, nullptr);
+    noise->setValueNotifyingHost(1.0f);
+    mainComponent->refreshRoles();
+    EXPECT_EQ(mainComponent->getOperatorPanel(3).getRole(), OperatorPanel::Role::Noise);
+    noise->setValueNotifyingHost(0.0f);
+    mainComponent->refreshRoles();
+    EXPECT_NE(mainComponent->getOperatorPanel(3).getRole(), OperatorPanel::Role::Noise);
+}
+
+TEST_F(MainComponentTest, MacroFocusHighlightsExactlyItsTargets) {
+    using ymulatorsynth::Macro;
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    ASSERT_NE(algorithm, nullptr);
+    for (int alg = 0; alg < 8; ++alg) {
+        algorithm->setValueNotifyingHost(algorithm->convertTo0to1(static_cast<float>(alg)));
+        for (auto macro : { Macro::Brightness, Macro::Harmonics, Macro::Attack, Macro::Decay, Macro::Release, Macro::Spread }) {
+            mainComponent->setMacroFocus(macro);
+            const auto expectedList = ymulatorsynth::MacroMapper::targetsOf(macro, alg);
+            const std::set<std::string> expected(expectedList.begin(), expectedList.end());
+            const auto actualList = mainComponent->highlightedParameterIds();
+            const std::set<std::string> actual(actualList.begin(), actualList.end());
+            EXPECT_EQ(actual, expected) << "algorithm " << alg << " macro " << static_cast<int>(macro);
+            EXPECT_EQ(actualList.size(), expected.size()) << "no knob may be highlighted twice";
+        }
+    }
+    mainComponent->setMacroFocus(std::nullopt);
+    EXPECT_TRUE(mainComponent->highlightedParameterIds().empty());
 }

@@ -53,7 +53,7 @@ protected:
         uint8_t slotMask = 0;
         for (int op = 0; op < 4; ++op)
             if (preset->operators[op].slotEnable) slotMask |= static_cast<uint8_t>(1 << op);
-        EXPECT_EQ(keyOn, static_cast<uint8_t>((slotMask << 3) | ch)) << "key-on slot mask";
+        EXPECT_EQ(keyOn, static_cast<uint8_t>(YM2151Regs::keyOnBitsForSlotMask(slotMask) | ch)) << "key-on slot mask";
         
         EXPECT_EQ(r(w, YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch),
                   static_cast<uint8_t>(YM2151Regs::PAN_CENTER | (preset->feedback << YM2151Regs::SHIFT_FEEDBACK) | preset->algorithm))

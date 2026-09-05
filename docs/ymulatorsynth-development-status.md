@@ -34,6 +34,17 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
+## 🎛️ Quick パネル実装 (2026-09-06 進行中)
+
+仕様は [Quick パネル設計](ymulatorsynth-quick-panel-design.md)、決定は [ADR-010](ymulatorsynth-adr.md)。ブランチ `feature/quick-panel-step0`。
+
+- ✅ **ステップ 0: レジスタ差分送信** - `ParameterManager::updateYmfmParameters` がパラメータハンドルと前回書込値をキャッシュし、変化したものだけを 8 チャンネルへ書く。アイドル時の書込は 0（`tests/unit/RegisterUpdateTest.cpp`）。`YmfmWrapperInterface::getRegisterWriteCount()` を追加
+- ✅ **ステップ 0: AlgorithmInfo** - `src/dsp/AlgorithmInfo.h` に 8 アルゴリズムのキャリア／モジュレータ・結線・説明を constexpr 表で持ち、ymfm のビット表現と一致することをテスト。`AlgorithmDisplay` はこの表から描画
+- ✅ **ステップ 1: マクロ層** - `ParamID::Macro`（Brightness / Harmonics / Attack / Decay / Release / Spread、meta パラメータ）と `src/core/MacroMapper`。プリセット読込・保存・状態復元でアンカーを取り、Detail での直接編集はアンカーを再基準化。アンカーは state の `macroAnchor` ノードに永続化（`tests/unit/MacroMapperTest.cpp`）
+- ✅ **ステップ 2: Detail ビュー** - ヘッダ（モード切替・バンク/プリセット・EDITED・Save・Pan）、TONE 行（マクロ 7 ノブ＋アルゴリズム図と選択）、オペレータ 4 行（役割タグ MOD / CARRIER / NOISE、主ノブ Level・Ratio・Detune を人間向け表示＋生値の副表示、EG 表示と 5 ノブ、KS / DT2 / AMS）、LFO / ノイズ行。マクロに触れると対象ノブに琥珀の輪（`MacroMapper::targetsOf` と一致することをテスト）。新規 `UiTheme.h`, `YmLookAndFeel`, `KnobBinding.h`, `ToneStrip`, `LfoNoiseStrip`。エディタは 1000×640
+- ✅ **SLOT（オペレータ ON/OFF）の復旧** - 2025-06 に実装された SLOT 制御は、その後のパラメータ整理で `op*_slot_en` が APVTS から消え、UI のチェックボックスと保存経路だけが残っていた。パラメータを復活させ、キーオン時のスロットマスク（ハードウェア順 M1, M2, C1, C2 = bit 3〜6）へ配線。.opm の SLOT 値とオペレータ（音色順 M1, C1, M2, C2）の対応も修正（`tests/unit/SlotEnableTest.cpp`）
+- ⏳ 次: Layer 3「Motion」（唸り・自動パン・BPM 同期）の設計文書 → ステップ 3 Quick ビュー → ステップ 4 ジェネレータ / Undo / A-B → ステップ 5 出力波形
+
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 
 **主要な新機能:**
@@ -344,6 +355,8 @@
 
 ## 更新履歴
 
+- **2026-09-06**: Quick パネル ステップ 0〜2（差分送信、AlgorithmInfo、マクロ層、Detail ビュー）、SLOT 制御の復旧
+- **2026-09-05**: メンテナンス再開、v0.0.7 リリース（ピッチ・スロット順・CC マッピング等の修正）
 - **2025-06-23**: Phase 3+完了・Version 0.0.6準備（グローバルパン・DAW互換性向上実装完了）
 - **2025-06-23**: オーディオバッファ処理最適化とAudio Unit互換性向上実装
 - **2025-06-23**: プリセット名保持システム実装（グローバルパン変更時）

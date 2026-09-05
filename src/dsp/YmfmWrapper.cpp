@@ -232,8 +232,8 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Apply velocity sensitivity to channel before key on
         applyVelocityToChannel(channel, velocity);
         
-        // Key On (all operators enabled)
-        writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_ON_ALL_OPS | channel);
+        writeRegister(YM2151Regs::REG_KEY_ON_OFF,
+                      static_cast<uint8_t>(YM2151Regs::keyOnBitsForSlotMask(channelStates[channel].slotMask) | channel));
         
         // Key-on debug output disabled
         
@@ -252,6 +252,13 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Key On (all operators)
         writeRegister(YM2151Regs::REG_OPNA_KEY_ON_OFF, YM2151Regs::OPNA_KEY_ON_ALL_OPS | channel);
     }
+}
+
+void YmfmWrapper::setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    channelStates[channel].slotMask = static_cast<uint8_t>(voiceOrderMask & YM2151Regs::MASK_SLOT_ENABLE);
 }
 
 void YmfmWrapper::noteOff(uint8_t channel, uint8_t note)

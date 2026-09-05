@@ -45,6 +45,7 @@ private:
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
     std::unique_ptr<juce::TextButton> savePresetButton;
+    std::unique_ptr<juce::Label> editedTag;
     
     // UI state management
     bool isUpdatingFromState = false;

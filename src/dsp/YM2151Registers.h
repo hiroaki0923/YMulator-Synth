@@ -156,6 +156,21 @@ constexpr uint8_t OPERATOR_ADDRESS_STEP = 8;         // Address step between reg
 // The YM2151 register map is ordered M1, M2, C1, C2 (+0, +8, +16, +24), and the
 // algorithm chains pair M1->C1 and M2->C2, so C1 lives at +16 and M2 at +8.
 constexpr uint8_t OPERATOR_SLOT_OFFSET[MAX_OPERATORS_PER_VOICE] = {0, 16, 8, 24};
+// Hardware slot index (M1, M2, C1, C2 order) of each operator in voice order.
+// The key-on register enables slots in bits 3..6 in this hardware order.
+constexpr uint8_t OPERATOR_HW_SLOT[MAX_OPERATORS_PER_VOICE] = {0, 2, 1, 3};
+constexpr uint8_t SHIFT_KEY_ON_SLOTS = 3;
+constexpr uint8_t MASK_SLOT_ENABLE = 0x0F;
+
+/** Key-on register bits for a voice-order slot mask (bit n = operator n on). */
+constexpr uint8_t keyOnBitsForSlotMask(uint8_t voiceOrderMask)
+{
+    uint8_t bits = 0;
+    for (int op = 0; op < MAX_OPERATORS_PER_VOICE; ++op)
+        if ((voiceOrderMask >> op) & 1)
+            bits = static_cast<uint8_t>(bits | (1u << (SHIFT_KEY_ON_SLOTS + OPERATOR_HW_SLOT[op])));
+    return bits;
+}
 
 // =============================================================================
 // MIDI and Note Constants

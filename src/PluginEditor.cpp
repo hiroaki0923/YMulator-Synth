@@ -9,7 +9,7 @@ YMulatorSynthAudioProcessorEditor::YMulatorSynthAudioProcessorEditor(YMulatorSyn
     
     mainComponent = std::make_unique<MainComponent>(audioProcessor);
     addAndMakeVisible(*mainComponent);
-    setSize(800, 600);
+    setSize(1000, 640);
     
     CS_FILE_DBG("PluginEditor constructor completed");
 }

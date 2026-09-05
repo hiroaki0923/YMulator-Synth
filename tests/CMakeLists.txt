@@ -51,7 +51,9 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/AlgorithmDisplay.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/RotaryKnob.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/PresetUIManager.cpp
-        ${CMAKE_SOURCE_DIR}/src/ui/GlobalControlsPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/ToneStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/LfoNoiseStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/YmLookAndFeel.cpp
         
         # ymfm source files
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp
@@ -126,6 +128,7 @@ if(GTest_FOUND)
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
         unit/RegisterUpdateTest.cpp
+        unit/SlotEnableTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -175,6 +178,7 @@ if(GTest_FOUND)
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
         unit/RegisterUpdateTest.cpp
+        unit/SlotEnableTest.cpp
         unit/MacroMapperTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp

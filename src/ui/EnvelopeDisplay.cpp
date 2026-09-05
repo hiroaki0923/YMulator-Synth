@@ -1,5 +1,6 @@
 #include "EnvelopeDisplay.h"
 #include "../utils/Debug.h"
+#include "UiTheme.h"
 
 EnvelopeDisplay::EnvelopeDisplay()
 {
@@ -11,30 +12,26 @@ EnvelopeDisplay::~EnvelopeDisplay() = default;
 void EnvelopeDisplay::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
+    g.setColour(UiTheme::dark);
+    g.fillRoundedRectangle(bounds, 3.0f);
+    g.setColour(UiTheme::border);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 3.0f, 1.0f);
     
-    // Background
-    g.setColour(juce::Colour(0xff1a202c));
-    g.fillRoundedRectangle(bounds, 4.0f);
+    if (envelopePath.isEmpty()) return;
     
-    // Border
-    g.setColour(juce::Colour(0xff4a5568));
-    g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
-    
-    // Use full area for envelope display
-    auto contentBounds = bounds.reduced(8.0f, 8.0f);
-    
-    
-    // Draw envelope path
-    if (!envelopePath.isEmpty()) {
-        g.setColour(juce::Colour(0xff4ade80)); // Green
-        g.strokePath(envelopePath, juce::PathStrokeType(2.0f));
-        
-        // Add glow effect
-        g.setColour(juce::Colour(0xff4ade80).withAlpha(0.3f));
-        g.strokePath(envelopePath, juce::PathStrokeType(4.0f));
-    }
-    
-    
+    juce::Path filled(envelopePath);
+    filled.lineTo(envelopePath.getCurrentPosition().x, getLocalBounds().reduced(8, 8).toFloat().getBottom());
+    filled.closeSubPath();
+    g.setColour(lineColour.withAlpha(0.12f));
+    g.fillPath(filled);
+    g.setColour(lineColour);
+    g.strokePath(envelopePath, juce::PathStrokeType(1.5f));
+}
+
+void EnvelopeDisplay::setLineColour(juce::Colour colour)
+{
+    lineColour = colour;
+    repaint();
 }
 
 void EnvelopeDisplay::resized()

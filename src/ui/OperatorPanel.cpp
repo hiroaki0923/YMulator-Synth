@@ -1,243 +1,228 @@
 #include "OperatorPanel.h"
+#include "UiTheme.h"
 #include "../PluginProcessor.h"
+#include "../core/MacroMapper.h"
+#include "../utils/ParameterIDs.h"
+#include "../utils/Debug.h"
 
-// Static control specifications - defines all operator controls
-const std::vector<ControlSpec> OperatorPanel::controlSpecs = {
-    // ADSR-related parameters (left side, closer to graph)
-    {"_tl",  "TL",  0, 127, 0,   0, 0},  // Total Level
-    {"_ar",  "AR",  0, 31,  31,  0, 1},  // Attack Rate
-    {"_d1r", "D1R", 0, 31,  0,   0, 2},  // Decay 1 Rate  
-    {"_d1l", "D1L", 0, 15,  0,   0, 3},  // Sustain Level (Decay 1 Level)
-    {"_d2r", "D2R", 0, 31,  0,   0, 4},  // Decay 2 Rate
-    {"_rr",  "RR",  0, 15,  7,   0, 5},  // Release Rate
-    
-    // Other parameters (right side)
-    {"_mul", "MUL", 0, 15,  1,   0, 6},  // Multiple
-    {"_dt1", "DT1", 0, 7,   3,   0, 7},  // Detune 1
-    {"_dt2", "DT2", 0, 3,   0,   0, 8},  // Detune 2
-    {"_ks",  "KS",  0, 3,   0,   0, 9}   // Key Scale
+namespace {
+constexpr int kHeaderWidth = 96;
+constexpr int kGap = 12;
+constexpr int kPrimaryGap = 10;
+constexpr int kTinyGap = 8;
+constexpr int kEnvelopeWidth = 150;
+constexpr int kEnvelopeHeight = 58;
+constexpr int kAmsWidth = 34;
+
+juce::String levelText(double tl) { return juce::String(juce::roundToInt((127.0 - tl) * 100.0 / 127.0)); }
+juce::String ratioText(double mul) { return mul < 0.5 ? juce::String(juce::CharPointer_UTF8("\xc3\x97" "0.5")) : juce::String(juce::CharPointer_UTF8("\xc3\x97")) + juce::String(juce::roundToInt(mul)); }
+juce::String detuneText(double dt1)
+{
+    const int signedValue = ymulatorsynth::MacroMapper::decodeDetune1(juce::roundToInt(dt1));
+    if (signedValue == 0) return "0";
+    return (signedValue > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(signedValue));
+}
+}
+
+const std::vector<OperatorPanel::ControlSpec> OperatorPanel::controlSpecs = {
+    { ParamID::Op::TotalLevel,   "Level",  RotaryKnob::Style::Primary, 0 },
+    { ParamID::Op::Multiple,     "Ratio",  RotaryKnob::Style::Primary, 0 },
+    { ParamID::Op::Detune1,      "Detune", RotaryKnob::Style::Primary, 0 },
+    { ParamID::Op::AttackRate,   "AR",     RotaryKnob::Style::Tiny,    1 },
+    { ParamID::Op::Decay1Rate,   "D1R",    RotaryKnob::Style::Tiny,    1 },
+    { ParamID::Op::SustainLevel, "D1L",    RotaryKnob::Style::Tiny,    1 },
+    { ParamID::Op::Decay2Rate,   "D2R",    RotaryKnob::Style::Tiny,    1 },
+    { ParamID::Op::ReleaseRate,  "RR",     RotaryKnob::Style::Tiny,    1 },
+    { ParamID::Op::KeyScale,     "KS",     RotaryKnob::Style::Tiny,    2 },
+    { ParamID::Op::Detune2,      "DT2",    RotaryKnob::Style::Tiny,    2 },
 };
 
 OperatorPanel::OperatorPanel(YMulatorSynthAudioProcessor& processor, int operatorNumber)
     : audioProcessor(processor), operatorNum(operatorNumber)
 {
-    CS_ASSERT_OPERATOR(operatorNumber - 1); // operatorNumber is 1-based, assert 0-3
+    CS_ASSERT_OPERATOR(operatorNumber - 1);
     operatorId = "op" + juce::String(operatorNumber);
-    setupControls();
+    
+    slotEnableButton = std::make_unique<juce::ToggleButton>();
+    slotEnableButton->setTooltip("Operator on/off");
+    addAndMakeVisible(*slotEnableButton);
+    slotEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Op::slot_en(operatorNum), *slotEnableButton);
+    
+    for (const auto& spec : controlSpecs) createControl(spec);
+    
+    amsEnableButton = std::make_unique<juce::ToggleButton>();
+    amsEnableButton->setTooltip("Amplitude modulation from the LFO");
+    addAndMakeVisible(*amsEnableButton);
+    amsEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Op::ams_en(operatorNum), *amsEnableButton);
+    
+    envelopeDisplay = std::make_unique<EnvelopeDisplay>();
+    addAndMakeVisible(*envelopeDisplay);
+    
+    applyRoleColours();
+    updateSubLabels();
+    updateEnvelopeDisplay();
+}
+
+void OperatorPanel::createControl(const ControlSpec& spec)
+{
+    Control control;
+    control.spec = spec;
+    control.knob = std::make_unique<RotaryKnob>(spec.label, spec.style);
+    
+    const juce::String suffix(spec.suffix);
+    if (suffix == ParamID::Op::TotalLevel) {
+        control.knob->setInverted(true);
+        control.knob->setValueFormatter(levelText);
+    } else if (suffix == ParamID::Op::Multiple) {
+        control.knob->setValueFormatter(ratioText);
+    } else if (suffix == ParamID::Op::Detune1) {
+        control.knob->setValueFormatter(detuneText);
+    }
+    addAndMakeVisible(*control.knob);
+    
+    control.binding = KnobBinding::attach(audioProcessor.getParameters(), operatorId + suffix, *control.knob, *this,
+                                          [this]() { updateEnvelopeDisplay(); updateSubLabels(); });
+    controls.push_back(std::move(control));
+}
+
+juce::Colour OperatorPanel::roleColour() const
+{
+    return role == Role::Modulator ? UiTheme::modulator : UiTheme::carrier;
+}
+
+void OperatorPanel::applyRoleColours()
+{
+    for (auto& c : controls) {
+        if (c.spec.group == 0) c.knob->setAccentColour(roleColour());
+        else if (c.spec.group == 1) c.knob->setAccentColour(UiTheme::green);
+        else c.knob->setAccentColour(UiTheme::carrier);
+    }
+    if (envelopeDisplay) envelopeDisplay->setLineColour(role == Role::Modulator ? UiTheme::green : UiTheme::carrier);
+}
+
+void OperatorPanel::setRole(Role newRole, const juce::String& hint)
+{
+    if (role == newRole && roleHint == hint) return;
+    role = newRole;
+    roleHint = hint;
+    applyRoleColours();
+    repaint();
+}
+
+void OperatorPanel::setHighlightedParameters(const std::set<std::string>& parameterIds)
+{
+    for (auto& c : controls)
+        c.knob->setHighlighted(parameterIds.count((operatorId + c.spec.suffix).toStdString()) > 0);
+}
+
+std::vector<std::string> OperatorPanel::highlightedParameterIds() const
+{
+    std::vector<std::string> ids;
+    for (const auto& c : controls)
+        if (c.knob->isHighlighted()) ids.push_back((operatorId + c.spec.suffix).toStdString());
+    return ids;
 }
 
 void OperatorPanel::paint(juce::Graphics& g)
 {
-    auto bounds = getLocalBounds();
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour(UiTheme::panel);
+    g.fillRoundedRectangle(bounds, 6.0f);
+    g.setColour(role == Role::Modulator ? UiTheme::border : UiTheme::carrierEdge);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 6.0f, 1.0f);
     
-    // Panel background with border
-    g.setColour(juce::Colour(0xff374151));
-    g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
+    auto header = getLocalBounds().reduced(14, 0).removeFromLeft(kHeaderWidth).toFloat();
+    const float top = bounds.getCentreY() - 30.0f;
     
-    g.setColour(juce::Colour(0xff6b7280));
-    g.drawRoundedRectangle(bounds.toFloat().reduced(1), 5.0f, 1.0f);
+    g.setColour(UiTheme::text);
+    g.setFont(UiTheme::mono(13.0f, true));
+    g.drawText("OP " + juce::String(operatorNum), header.withY(top).withHeight(20.0f).withWidth(40.0f), juce::Justification::centredLeft);
     
-    // Operator title
-    auto titleArea = bounds.removeFromTop(25);
-    g.setColour(juce::Colour(0xff1f2937));
-    g.fillRoundedRectangle(titleArea.toFloat().reduced(2, 2), 3.0f);
+    const juce::String tagText = role == Role::Modulator ? "MOD" : (role == Role::Carrier ? "CARRIER" : "NOISE");
+    const auto tagColour = role == Role::Noise ? UiTheme::amber : roleColour();
+    g.setFont(UiTheme::mono(9.0f, true));
+    const float tagWidth = g.getCurrentFont().getStringWidthFloat(tagText) + 12.0f;
+    auto tag = juce::Rectangle<float>(header.getX(), top + 24.0f, tagWidth, 13.0f);
+    g.setColour(tagColour);
+    g.fillRoundedRectangle(tag, 2.0f);
+    g.setColour(UiTheme::dark);
+    g.drawText(tagText, tag, juce::Justification::centred);
     
-    // Draw title text (left side of title area, after SLOT checkbox)
-    auto textArea = titleArea.reduced(5, 0);
-    textArea.removeFromLeft(30); // Space for SLOT checkbox
-    textArea.removeFromRight(60); // Space for AMS Enable
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(14.0f).withStyle("bold")));
-    g.drawText("Operator " + juce::String(operatorNum), textArea, juce::Justification::centredLeft);
+    g.setColour(UiTheme::muted);
+    g.setFont(UiTheme::mono(9.0f));
+    g.drawFittedText(roleHint, header.withY(top + 41.0f).withHeight(22.0f).toNearestInt(), juce::Justification::topLeft, 2);
+    
+    g.setColour(UiTheme::border);
+    for (int x : separatorXs)
+        g.fillRect(static_cast<float>(x), bounds.getCentreY() - 30.0f, 1.0f, 60.0f);
 }
 
 void OperatorPanel::resized()
 {
-    auto bounds = getLocalBounds().reduced(5);
-    auto titleArea = bounds.removeFromTop(25); // Title area
-    
-    // Position SLOT checkbox in title bar (left side)
-    if (slotEnableButton != nullptr) {
-        auto checkboxArea = titleArea.removeFromLeft(25).reduced(2);
-        checkboxArea = checkboxArea.withY(checkboxArea.getY() - 5); // Move up by 5 pixels
-        slotEnableButton->setBounds(checkboxArea);
-    }
-    
-    // Position AMS enable button in title bar (right side)
-    if (amsEnableButton != nullptr) {
-        auto amsCheckboxArea = titleArea.removeFromRight(60).reduced(2);
-        amsCheckboxArea = amsCheckboxArea.withY(amsCheckboxArea.getY() - 5); // Move up by 5 pixels (1px more)
-        amsEnableButton->setBounds(amsCheckboxArea);
-    }
-    
-    // Split the panel: left for envelope display, right for knobs
-    auto envelopeArea = bounds.removeFromLeft(bounds.getWidth() * 0.25); // 25% for envelope
-    bounds.removeFromLeft(10); // Gap between envelope and knobs
-    auto knobArea = bounds; // Remaining 75% for knobs
-    
-    const int knobSize = 65;
-    const int spacing = 5;
-    
-    // Calculate grid layout for knobs (10 columns x 1 row)
-    int cols = 10;
-    int rows = 1;
-    int colWidth = (knobArea.getWidth() - (spacing * (cols - 1))) / cols;
-    int rowHeight = knobArea.getHeight(); // Full height since AMS moved to title
-    
-    // Layout knobs in grid
-    for (int i = 0; i < controls.size(); ++i) {
-        auto& control = controls[i];
-        int col = i % cols; // Which column (0-4)
-        int row = i / cols; // Which row (0-1)
-        
-        int x = knobArea.getX() + col * (colWidth + spacing);
-        int y = knobArea.getY() + row * (rowHeight + spacing);
-        
-        control.knob->setBounds(x, y, colWidth, juce::jmin(knobSize, rowHeight));
-    }
-    
-    // Position envelope display
-    if (envelopeDisplay != nullptr) {
-        envelopeDisplay->setBounds(envelopeArea.reduced(2)); // Small margin for border
-    }
-}
-
-void OperatorPanel::setupControls()
-{
-    // Create SLOT enable button (in title bar)
-    slotEnableButton = std::make_unique<juce::ToggleButton>();
-    slotEnableButton->setButtonText(""); // No text to avoid "..." display
-    slotEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    slotEnableButton->setColour(juce::ToggleButton::tickColourId, juce::Colour(0xff4ade80)); // Green when enabled
-    slotEnableButton->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colour(0xff6b7280)); // Gray when disabled
-    slotEnableButton->setToggleState(true, juce::dontSendNotification); // Default enabled
-    addAndMakeVisible(*slotEnableButton);
-    
-    // Attach SLOT parameter
-    slotEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.getParameters(), ParamID::Op::slot_en(operatorNum), *slotEnableButton);
-    
-    // Create controls from specifications
-    controls.reserve(controlSpecs.size());
-    
-    for (const auto& spec : controlSpecs) {
-        createControlFromSpec(spec);
-    }
-    
-    // Create AMS enable button
-    amsEnableButton = std::make_unique<juce::ToggleButton>("AMS");
-    amsEnableButton->setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    amsEnableButton->setColour(juce::ToggleButton::tickColourId, juce::Colour(0xff00bfff)); // Fluorescent blue when enabled
-    amsEnableButton->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colour(0xff6b7280)); // Gray when disabled
-    addAndMakeVisible(*amsEnableButton);
-    
-    // Attach to parameter
-    amsEnableAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.getParameters(), ParamID::Op::ams_en(operatorNum), *amsEnableButton);
-    
-    // Create envelope display
-    envelopeDisplay = std::make_unique<EnvelopeDisplay>();
-    addAndMakeVisible(*envelopeDisplay);
-    
-    // Update envelope display with current parameter values
-    updateEnvelopeDisplay();
-    
-}
-
-void OperatorPanel::createControlFromSpec(const ControlSpec& spec)
-{
-    CS_ASSERT_PARAMETER_RANGE(spec.minValue, 0, 255);
-    CS_ASSERT_PARAMETER_RANGE(spec.maxValue, spec.minValue, 255);
-    CS_ASSERT_PARAMETER_RANGE(spec.defaultValue, spec.minValue, spec.maxValue);
-    
-    // Create the control pair
-    ControlPair controlPair;
-    controlPair.spec = spec;
-    
-    // Create rotary knob
-    controlPair.knob = std::make_unique<RotaryKnob>(spec.labelText);
-    controlPair.knob->setRange(spec.minValue, spec.maxValue, 1.0);
-    controlPair.knob->setValue(spec.defaultValue);
-    
-    // Set accent colour based on parameter type
-    // ADSR parameters: green (default)
-    // Other parameters (MUL, DT1, DT2, KS): fluorescent blue
-    if (spec.paramIdSuffix == "_mul" || spec.paramIdSuffix == "_dt1" || 
-        spec.paramIdSuffix == "_dt2" || spec.paramIdSuffix == "_ks") {
-        controlPair.knob->setAccentColour(juce::Colour(0xff00bfff)); // Fluorescent blue
-    }
-    
-    addAndMakeVisible(*controlPair.knob);
-    
-    // Create hidden slider for parameter attachment
-    controlPair.hiddenSlider = std::make_unique<juce::Slider>();
-    controlPair.hiddenSlider->setRange(spec.minValue, spec.maxValue, 1);
-    controlPair.hiddenSlider->setValue(spec.defaultValue, juce::dontSendNotification);
-    controlPair.hiddenSlider->setVisible(false);
-    addAndMakeVisible(*controlPair.hiddenSlider);
-    
-    // Connect knob and slider bidirectionally
-    auto* sliderPtr = controlPair.hiddenSlider.get();
-    auto* knobPtr = controlPair.knob.get();
-    
-    controlPair.hiddenSlider->onValueChange = [knobPtr, sliderPtr, this]() {
-        knobPtr->setValue(sliderPtr->getValue(), juce::dontSendNotification);
-        updateEnvelopeDisplay();
+    auto bounds = getLocalBounds().reduced(14, 0);
+    const int centreY = bounds.getCentreY();
+    auto place = [&](juce::Component& c, int x, const juce::Rectangle<int>& size) {
+        c.setBounds(x, centreY - size.getHeight() / 2, size.getWidth(), size.getHeight());
+        return x + size.getWidth();
     };
     
-    controlPair.knob->onValueChange = [sliderPtr, this](double value) {
-        sliderPtr->setValue(value, juce::sendNotificationSync);
-        updateEnvelopeDisplay();
-    };
+    int x = bounds.getX();
+    slotEnableButton->setBounds(x + 44, centreY - 30, 32, 18);
+    x += kHeaderWidth + kGap;
     
-    // Add gesture support for custom preset detection  
-    controlPair.knob->onGestureStart = [this, paramIdSuffix = spec.paramIdSuffix]() {
-        juce::String paramId = operatorId + paramIdSuffix;
-        if (auto* param = audioProcessor.getParameters().getParameter(paramId)) {
-            param->beginChangeGesture();
-        }
-    };
+    for (auto& c : controls) {
+        if (c.spec.group != 0) continue;
+        x = place(*c.knob, x, RotaryKnob::preferredSize(c.spec.style, RotaryKnob::LabelPosition::Below, true, 52)) + kPrimaryGap;
+    }
+    separatorXs.clear();
+    separatorXs.push_back(x + kGap / 2);
+    x += kGap + 1;
     
-    controlPair.knob->onGestureEnd = [this, paramIdSuffix = spec.paramIdSuffix]() {
-        juce::String paramId = operatorId + paramIdSuffix;
-        if (auto* param = audioProcessor.getParameters().getParameter(paramId)) {
-            param->endChangeGesture();
-        }
-    };
+    envelopeDisplay->setBounds(x, centreY - kEnvelopeHeight / 2, kEnvelopeWidth, kEnvelopeHeight);
+    x += kEnvelopeWidth + kGap;
     
-    // Create parameter attachment
-    juce::String paramId = operatorId + spec.paramIdSuffix;
-    controlPair.attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.getParameters(), paramId, *controlPair.hiddenSlider);
+    for (auto& c : controls) {
+        if (c.spec.group != 1) continue;
+        x = place(*c.knob, x, RotaryKnob::preferredSize(c.spec.style, RotaryKnob::LabelPosition::Below, false, 36)) + kTinyGap;
+    }
+    separatorXs.push_back(x + kGap / 2);
+    x += kGap + 1;
     
-    // Add to controls vector
-    controls.push_back(std::move(controlPair));
-    
+    for (auto& c : controls) {
+        if (c.spec.group != 2) continue;
+        x = place(*c.knob, x, RotaryKnob::preferredSize(c.spec.style, RotaryKnob::LabelPosition::Below, false, 36)) + kTinyGap;
+    }
+    amsEnableButton->setButtonText("AMS");
+    amsEnableButton->setBounds(x, centreY - 9, kAmsWidth + 30, 18);
 }
 
 void OperatorPanel::updateEnvelopeDisplay()
 {
     if (!envelopeDisplay) return;
-    
-    // Find envelope-related controls and get their values
-    int tl = 0, ar = 31, d1r = 0, d1l = 0, d2r = 0, rr = 7; // Default values
-    
-    for (const auto& control : controls) {
-        if (control.spec.paramIdSuffix == "_tl") {
-            tl = static_cast<int>(control.knob->getValue());
-        } else if (control.spec.paramIdSuffix == "_ar") {
-            ar = static_cast<int>(control.knob->getValue());
-        } else if (control.spec.paramIdSuffix == "_d1r") {
-            d1r = static_cast<int>(control.knob->getValue());
-        } else if (control.spec.paramIdSuffix == "_d1l") {
-            d1l = static_cast<int>(control.knob->getValue());
-        } else if (control.spec.paramIdSuffix == "_d2r") {
-            d2r = static_cast<int>(control.knob->getValue());
-        } else if (control.spec.paramIdSuffix == "_rr") {
-            rr = static_cast<int>(control.knob->getValue());
-        }
+    int tl = 0, ar = 31, d1r = 0, d1l = 0, d2r = 0, rr = 7;
+    for (const auto& c : controls) {
+        const juce::String suffix(c.spec.suffix);
+        const int v = juce::roundToInt(c.knob->getValue());
+        if (suffix == ParamID::Op::TotalLevel) tl = v;
+        else if (suffix == ParamID::Op::AttackRate) ar = v;
+        else if (suffix == ParamID::Op::Decay1Rate) d1r = v;
+        else if (suffix == ParamID::Op::SustainLevel) d1l = v;
+        else if (suffix == ParamID::Op::Decay2Rate) d2r = v;
+        else if (suffix == ParamID::Op::ReleaseRate) rr = v;
     }
-    
-    // Update envelope display with YM2151 parameter values
     envelopeDisplay->setYM2151Parameters(tl, ar, d1r, d1l, d2r, rr);
+}
+
+void OperatorPanel::updateSubLabels()
+{
+    for (auto& c : controls) {
+        if (c.spec.group != 0) continue;
+        const juce::String suffix(c.spec.suffix);
+        const int v = juce::roundToInt(c.knob->getValue());
+        if (suffix == ParamID::Op::TotalLevel) c.knob->setSubLabel("TL " + juce::String(v));
+        else if (suffix == ParamID::Op::Multiple) c.knob->setSubLabel("MUL " + juce::String(v));
+        else if (suffix == ParamID::Op::Detune1) c.knob->setSubLabel("DT1 " + juce::String(v));
+    }
 }

@@ -2,7 +2,7 @@
 // without opening a host. Built as YMulatorSynthAU_UISnapshot (see tests/CMakeLists.txt).
 //
 //   YMulatorSynthAU_UISnapshot --out ui.png [--preset N | --bank B --preset P] [--then-preset N]
-//                              [--scale 2] [--settle 300] [--dump]
+//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N]
 //   YMulatorSynthAU_UISnapshot --list-presets
 //
 // --preset alone selects a global program index the way a host program change
@@ -13,6 +13,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
+#include "ui/MainComponent.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -28,6 +29,7 @@ struct Options {
     int settleMs = 300;
     bool listPresets = false;
     bool dump = false;
+    int focusMacro = -1;   // index into ymulatorsynth::Macro, highlights its targets
 };
 
 Options parseArgs(int argc, char** argv)
@@ -43,6 +45,7 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--settle") == 0) o.settleMs = std::atoi(next());
         else if (std::strcmp(argv[i], "--list-presets") == 0) o.listPresets = true;
         else if (std::strcmp(argv[i], "--dump") == 0) o.dump = true;
+        else if (std::strcmp(argv[i], "--focus-macro") == 0) o.focusMacro = std::atoi(next());
     }
     return o;
 }
@@ -107,6 +110,13 @@ int main(int argc, char** argv)
 
     if (options.thenPreset >= 0) {
         processor.setCurrentProgram(options.thenPreset);
+        pumpMessages(options.settleMs);
+    }
+
+    if (options.focusMacro >= 0) {
+        for (int i = 0; i < editor->getNumChildComponents(); ++i)
+            if (auto* main = dynamic_cast<MainComponent*>(editor->getChildComponent(i)))
+                main->setMacroFocus(static_cast<ymulatorsynth::Macro>(options.focusMacro));
         pumpMessages(options.settleMs);
     }
 

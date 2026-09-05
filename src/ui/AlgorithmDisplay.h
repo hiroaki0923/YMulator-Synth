@@ -28,6 +28,8 @@ private:
     int currentAlgorithm = 0;  // 0-7
     int currentFeedback = 0;   // 0-7
 
+    float boxWidth() const;
+    float boxHeight() const;
     juce::Rectangle<float> operatorBox(int op, const juce::Rectangle<float>& bounds) const;
     void drawArrow(juce::Graphics& g, juce::Point<float> from, juce::Point<float> to) const;
 

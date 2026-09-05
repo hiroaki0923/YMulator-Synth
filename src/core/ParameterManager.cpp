@@ -95,6 +95,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         // Amplitude Modulation Sensitivity (0-3)
         layout.add(std::make_unique<juce::AudioParameterInt>(
             ParamID::Op::ams_en(op), "Op" + juce::String(op) + " AMS", 0, 3, 0));
+        
+        // Slot enable: operator keyed on with the note (VOPM SLOT mask)
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            ParamID::Op::slot_en(op), "Op" + juce::String(op) + " Slot", true));
     }
     
     // ========================================================================
@@ -253,6 +257,7 @@ void ParameterManager::cacheParameterHandles()
         row[OP_DT1]    = parametersPtr->getParameter(ParamID::Op::dt1(op));
         row[OP_DT2]    = parametersPtr->getParameter(ParamID::Op::dt2(op));
         row[OP_AMS_EN] = parametersPtr->getParameter(ParamID::Op::ams_en(op));
+        row[OP_SLOT]   = parametersPtr->getParameter(ParamID::Op::slot_en(op));
     }
     globalParamHandles[G_ALG]        = parametersPtr->getParameter(ParamID::Global::Algorithm);
     globalParamHandles[G_FB]         = parametersPtr->getParameter(ParamID::Global::Feedback);
@@ -262,6 +267,16 @@ void ParameterManager::cacheParameterHandles()
     globalParamHandles[G_LFO_WF]     = parametersPtr->getParameter(ParamID::Global::LfoWaveform);
     globalParamHandles[G_NOISE_EN]   = parametersPtr->getParameter(ParamID::Global::NoiseEnable);
     globalParamHandles[G_NOISE_FREQ] = parametersPtr->getParameter(ParamID::Global::NoiseFrequency);
+}
+
+uint8_t ParameterManager::currentSlotMask() const
+{
+    uint8_t mask = 0;
+    for (int op = 0; op < 4; ++op) {
+        auto* param = opParamHandles[static_cast<size_t>(op)][OP_SLOT];
+        if (param == nullptr || registerValue(param) > 0.0f) mask = static_cast<uint8_t>(mask | (1u << op));
+    }
+    return mask;
 }
 
 void ParameterManager::writeOperatorParameterToAllChannels(int op, OpParam which, int value)
@@ -282,6 +297,7 @@ void ParameterManager::writeOperatorParameterToAllChannels(int op, OpParam which
             case OP_DT1:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune1, v); break;
             case OP_DT2:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune2, v); break;
             case OP_AMS_EN: ymfmWrapper.setOperatorAmsEnable(ch, opIndex, value > 0); break;
+            case OP_SLOT:   ymfmWrapper.setChannelSlotMask(ch, currentSlotMask()); break;
             default: break;
         }
     }
@@ -390,6 +406,8 @@ void ParameterManager::loadPresetParameters(const Preset* preset, float& preserv
             parametersPtr->getParameter(ParamID::Op::dt2(op))->convertTo0to1(static_cast<float>(preset->operators[opIndex].detune2)));
         parametersPtr->getParameter(ParamID::Op::ams_en(op))->setValueNotifyingHost(
             preset->operators[opIndex].amsEnable ? 1.0f : 0.0f);
+        parametersPtr->getParameter(ParamID::Op::slot_en(op))->setValueNotifyingHost(
+            preset->operators[opIndex].slotEnable ? 1.0f : 0.0f);
     }
     
     // Load global parameters
@@ -491,6 +509,7 @@ void ParameterManager::extractCurrentParameterValues(Preset& preset) const
         opParams.detune1 = registerValue(parametersPtr->getParameter(ParamID::Op::dt1(op)));
         opParams.detune2 = registerValue(parametersPtr->getParameter(ParamID::Op::dt2(op)));
         opParams.amsEnable = parametersPtr->getParameter(ParamID::Op::ams_en(op))->getValue() > 0.5f;
+        opParams.slotEnable = parametersPtr->getParameter(ParamID::Op::slot_en(op))->getValue() > 0.5f;
     }
     
     // Extract global parameters
