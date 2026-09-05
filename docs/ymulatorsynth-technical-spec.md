@@ -189,26 +189,17 @@ enum class VopmCC : uint8_t {
 ```
 
 #### 1.5.2 パラメータ変換仕様
+VOPMex では CC 値がそのままレジスタ値になる（TL 0〜127 は 0 が最大音量・127 が無音、MUL 0〜15、AR 0〜31、D1L/RR 0〜15 など）。本プラグインも同じ規則に従い、反転やスケーリングは行わない。範囲を超えた値はパラメータの上限に丸める。8 ビットの LFO 周波数（LFRQ）は CC 1 を上位 7 ビットとして 2 倍する。
+
 ```cpp
-class CCParameterConverter {
-public:
-    // VOPMexと同様に、一部パラメータは逆方向の値を採用
-    static uint8_t convertTL(uint8_t ccValue) {
-        // CC値0-127 → TL 127-0（逆方向）
-        return 127 - ccValue;
-    }
-    
-    static uint8_t convertEnvelope(uint8_t ccValue, uint8_t maxValue) {
-        // エンベロープも逆方向（アナログシンセ風）
-        return maxValue - (ccValue * maxValue / 127);
-    }
-    
-    static uint8_t convertDirect(uint8_t ccValue, uint8_t maxValue) {
-        // 直接マッピング
-        return ccValue * maxValue / 127;
-    }
-};
+// CC値 → レジスタ値 → 正規化値
+float registerValue = static_cast<float>(ccValue);
+if (cc == LfoRate) registerValue *= 2.0f;                 // 7bit CC → 8bit LFRQ
+registerValue = juce::jlimit(range.start, range.end, registerValue);
+param->setValueNotifyingHost(range.convertTo0to1(registerValue));
 ```
+
+旧バージョン（0.0.6 以前）の CC 番号 76〜79（LFO）と 81（ノイズ周波数）は互換のため引き続き受け付ける。
 
 #### 1.5.3 MIDI処理実装
 ```cpp

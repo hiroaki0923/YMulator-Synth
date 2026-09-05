@@ -234,8 +234,17 @@ cmake --install .
 | 43-46 | AR OP1-4 | 0-31 | Attack Rate per operator |
 | 47-50 | D1R OP1-4 | 0-31 | Decay 1 Rate per operator |
 | 51-54 | D2R OP1-4 | 0-31 | Decay 2 Rate per operator |
-| 55-58 | RR OP1-4 | 0-15 | Release Rate per operator |
-| 59-62 | D1L OP1-4 | 0-15 | Sustain Level per operator |
+| 55-58 | D1L OP1-4 | 0-15 | Sustain Level per operator |
+| 59-62 | RR OP1-4 | 0-15 | Release Rate per operator |
+| 70-73 | AME OP1-4 | 0-1 | AMS enable per operator |
+| 1 | LFO Frequency | 0-127 | Upper 7 bits of the 8-bit LFRQ register (76 also accepted) |
+| 2 | LFO PMD | 0-127 | Pitch modulation depth (78 also accepted) |
+| 3 | LFO AMD | 0-127 | Amplitude modulation depth (77 also accepted) |
+| 12 | LFO Waveform | 0-3 | Saw / Square / Triangle / Noise (79 also accepted) |
+| 80 | Noise Enable | 0 / 1-127 | Channel 8 noise on/off |
+| 82 | Noise Frequency | 0-31 | NFRQ (81 also accepted) |
+
+The CC value is the register value itself, as in VOPMex: TL 0 is loudest and 127 is silent, MUL is 0-15, AR is 0-31, and so on. Values above a parameter's range are clamped.
 
 ### Factory Presets
 | # | Name | Algorithm | Features |
@@ -348,6 +357,13 @@ This project is actively developed with the following status:
 - **Phase 3+ (Quality Enhancement)**: ✅ 100% Complete (Global pan & DAW compatibility)
 - **Overall Progress**: 100% Complete
 
+### Version 0.0.7 Features (Released 2026-09-05)
+- **Correct Pitch**: Chip output is resampled from its native 55.9 kHz to the host rate; notes are no longer several semitones flat
+- **Correct Operator Mapping**: C1 and M2 no longer swap places on the chip, so every preset sounds as its .opm file intends
+- **Host Compatibility**: Bank/preset selection restores with DAW projects, follows host program changes, and parameter edits no longer reset the program in VST3 hosts that cache the program list
+- **Multiple Instances**: A second instance on the same thread now produces sound
+- **VOPMex CC Mapping**: One CC per parameter and operator with register values (see MIDI Implementation)
+
 ### Version 0.0.6 Features (Released 2025-06-23)
 - **Global Pan System**: LEFT/CENTER/RIGHT/RANDOM panning modes with preset name preservation
 - **Enhanced DAW Compatibility**: GarageBand stability improvements and audio buffer optimization
@@ -376,6 +392,24 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **Phase 4 (Future)**: YM2608 (OPNA) support, S98 export, advanced editing features
 
 ## Changelog
+
+### Version 0.0.7 (2026-09-05)
+**Bug Fix Release: Pitch, Operator Mapping, MIDI CC and Host Compatibility**
+
+**🐛 Fixes:**
+- **Pitch**: Notes played about 3 semitones flat at 44.1 kHz (no resampling from the chip's 55.9 kHz rate, and a key-code table one semitone sharp)
+- **Operator mapping**: C1 and M2 were written to each other's register slots, so every preset played with its second carrier and second modulator exchanged (harsh, noisy timbres compared with VOPM)
+- **Preset selection**: Bank/preset choice was never saved; the preset box showed "Init" on reopening and DAW projects did not restore it
+- **Multiple instances**: The second instance of the plugin on the same thread was silent
+- **VST3 hosts**: Editing a parameter changed the program count, which made some hosts reset to program 0; the count is now fixed and the last program is "Custom"
+- **MIDI CC**: The mapping now matches VOPMex (one CC per parameter and operator, CC value = register value, D1L 55-58, RR 59-62, AME 70-73, LFO 1/2/3/12, noise 80/82); the previous build used per-operator CC blocks and scaled values
+
+**⚠️ Change:**
+- A fixed 2x output gain that clipped single notes was removed; output is about 6 dB lower than 0.0.6
+
+**🔧 Developer:**
+- `tools/ui_snapshot`: renders the editor off-screen to a PNG for review without a host
+- New regression tests for pitch, operator slot order, preset persistence, multiple instances, program count and CC mapping
 
 ### Version 0.0.6 (2025-06-23)
 **Quality Enhancement Release: Global Pan & DAW Compatibility**
