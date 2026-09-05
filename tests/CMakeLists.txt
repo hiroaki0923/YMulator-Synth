@@ -117,6 +117,7 @@ if(GTest_FOUND)
     add_executable(YMulatorSynthAU_QualityTests
         test_main.cpp
         AudioQualityTest.cpp
+        unit/PitchAccuracyTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -159,6 +160,7 @@ if(GTest_FOUND)
         RandomPanOutputTest.cpp
         PanModeRegressionTest.cpp
         AudioQualityTest.cpp
+        unit/PitchAccuracyTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
