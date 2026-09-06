@@ -220,8 +220,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::VelBright, "Velocity Brightness", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        ParamID::Motion::ArpMode, "Arpeggio", juce::StringArray{ "Off", "Up", "Down", "Up Down" }, 0));
+        ParamID::Motion::ArpMode, "Arpeggio", juce::StringArray{ "Off", "Up", "Down", "Up Down", "Random", "As Played" }, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::ArpDiv, "Arpeggio Step", divisions, 9));
+    layout.add(std::make_unique<juce::AudioParameterInt>(ParamID::Motion::ArpOctaves, "Arpeggio Octaves", 1, 4, 1));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::ArpRetrigger, "Arpeggio Retrigger", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::ArpGate, "Arpeggio Gate", juce::NormalisableRange<float>(10.0f, 100.0f, 5.0f), 70.0f));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::ArpLatch, "Arpeggio Latch", false));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::ArpChord, "Arpeggio Chord",
+        juce::StringArray{ "None", "Major", "Minor", "7th", "m7", "Maj7", "Sus4", "Sus2", "Dim", "Aug", "5th", "Octave" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::ArpAccent, "Arpeggio Accent", juce::StringArray{ "Off", "Beat", "2 steps", "3 steps", "4 steps" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::ArpAccentDepth, "Arpeggio Accent Depth", juce::NormalisableRange<float>(0.0f, 24.0f, 1.0f), 6.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::LevelAttack, "Level EG Attack", juce::NormalisableRange<float>(0.0f, 3000.0f, 10.0f, 0.5f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(

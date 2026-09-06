@@ -68,6 +68,7 @@ target_sources(YMulator-Synth
         ui/OutputScope.cpp
         ui/MotionPanel.cpp
         ui/MotionStrip.cpp
+        ui/ArpSettingsPanel.cpp
         ui/LfoNoiseStrip.cpp
         ui/YmLookAndFeel.cpp
         utils/PresetManager.cpp

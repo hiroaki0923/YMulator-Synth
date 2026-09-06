@@ -2,6 +2,7 @@
 #include "../utils/ParameterIDs.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace ymulatorsynth {
 
@@ -41,6 +42,13 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     velBright = parameters.getParameter(ParamID::Motion::VelBright);
     arpMode = parameters.getParameter(ParamID::Motion::ArpMode);
     arpDiv = parameters.getParameter(ParamID::Motion::ArpDiv);
+    arpOctaves = parameters.getParameter(ParamID::Motion::ArpOctaves);
+    arpRetrigger = parameters.getParameter(ParamID::Motion::ArpRetrigger);
+    arpGate = parameters.getParameter(ParamID::Motion::ArpGate);
+    arpLatch = parameters.getParameter(ParamID::Motion::ArpLatch);
+    arpChord = parameters.getParameter(ParamID::Motion::ArpChord);
+    arpAccent = parameters.getParameter(ParamID::Motion::ArpAccent);
+    arpAccentDepth = parameters.getParameter(ParamID::Motion::ArpAccentDepth);
     levelAttack = parameters.getParameter(ParamID::Motion::LevelAttack);
     levelDecay = parameters.getParameter(ParamID::Motion::LevelDecay);
     levelSustain = parameters.getParameter(ParamID::Motion::LevelSustain);
@@ -202,27 +210,7 @@ void MotionEngine::tick(int numSamples)
     const float brightness = read(velBright, 0.0f) / 100.0f;
     if (brightness != lastVelBright) { lastVelBright = brightness; ymfm.setVelocityBrightness(brightness); }
     
-    // Arpeggio: the held notes take turns on the one sounding channel, one per step
-    const int arp = juce::roundToInt(read(arpMode, 0.0f));
-    if (arp > 0 && heldNotes != nullptr && heldNotes->count >= 2 && heldNotes->channel >= 0) {
-        std::array<uint8_t, 16> sorted {};
-        const int count = heldNotes->count;
-        for (int i = 0; i < count; ++i) sorted[static_cast<size_t>(i)] = heldNotes->notes[static_cast<size_t>(i)];
-        std::sort(sorted.begin(), sorted.begin() + count);
-        const double beats = beatsForDivision(juce::roundToInt(read(arpDiv, 9.0f)));
-        const int step = static_cast<int>(std::floor(beat / beats));
-        int index = 0;
-        if (arp == 1) index = step % count;
-        else if (arp == 2) index = count - 1 - (step % count);
-        else { const int cycle = juce::jmax(1, 2 * count - 2); const int s = step % cycle; index = s < count ? s : cycle - s; }
-        const uint8_t target = sorted[static_cast<size_t>(index)];
-        const int ch = heldNotes->channel;
-        if (voices.getNoteForChannel(ch) != target) {
-            ymfm.retuneChannel(static_cast<uint8_t>(ch), target);
-            voices.setNoteForChannel(ch, target);
-            channels[static_cast<size_t>(ch)].note = target;   // an arpeggio step is not a glide
-        }
-    }
+    runArpeggio(beat);
     
     for (int ch = 0; ch < 8; ++ch) {
         auto& c = channels[static_cast<size_t>(ch)];
@@ -325,6 +313,7 @@ void MotionEngine::tick(int numSamples)
                 const double dip = 0.5 - 0.5 * std::cos(juce::MathConstants<double>::twoPi * c.tremoloPhase);   // 0 .. 1, starts loud
                 carrierSteps = juce::roundToInt(static_cast<double>(tremoloSteps) * dip);
             }
+            if (ch == arpChannel) carrierSteps += arpAccentSteps;   // unaccented arpeggio steps sit a little back
         }
         if (carrierSteps != c.carrierSteps || modulatorSteps != c.modulatorSteps) {
             c.carrierSteps = carrierSteps;
@@ -332,6 +321,131 @@ void MotionEngine::tick(int numSamples)
             ymfm.setChannelLevelMotion(static_cast<uint8_t>(ch), carrierSteps, modulatorSteps);
         }
     }
+}
+
+namespace {
+// Chord tables applied to a single held note, as trackers do: semitones above the root
+const std::vector<std::vector<int>> kChordTables = {
+    {},                  // None
+    { 0, 4, 7 },         // Major
+    { 0, 3, 7 },         // Minor
+    { 0, 4, 7, 10 },     // 7th
+    { 0, 3, 7, 10 },     // m7
+    { 0, 4, 7, 11 },     // Maj7
+    { 0, 5, 7 },         // Sus4
+    { 0, 2, 7 },         // Sus2
+    { 0, 3, 6 },         // Dim
+    { 0, 4, 8 },         // Aug
+    { 0, 7 },            // 5th
+    { 0, 12 },           // Octave
+};
+}
+
+void MotionEngine::runArpeggio(double beat)
+{
+    // Latch switched off: hand the held chord back to the MIDI processor to release
+    const bool latch = read(arpLatch, 0.0f) > 0.5f;
+    if (lastArpLatch && !latch && onLatchOff) onLatchOff();
+    lastArpLatch = latch;
+    
+    const int arp = juce::roundToInt(read(arpMode, 0.0f));
+    const bool running = arp > 0 && heldNotes != nullptr && heldNotes->count >= 1 && heldNotes->channel >= 0;
+    if (!running) {
+        arpLastStep = -1;
+        arpGateClosed = false;
+        if (arpAccentSteps != 0 || arpChannel >= 0) { arpAccentSteps = 0; arpChannel = -1; }
+        return;
+    }
+    
+    // The notes to cycle: a chord table on a single note, otherwise the held notes, then more octaves
+    std::vector<uint8_t> notes;
+    const int chord = juce::roundToInt(read(arpChord, 0.0f));
+    if (heldNotes->count == 1 && chord > 0 && chord < static_cast<int>(kChordTables.size())) {
+        for (int semis : kChordTables[static_cast<size_t>(chord)]) {
+            const int n = heldNotes->notes[0] + semis;
+            if (n <= 127) notes.push_back(static_cast<uint8_t>(n));
+        }
+    } else {
+        for (int i = 0; i < heldNotes->count; ++i) notes.push_back(heldNotes->notes[static_cast<size_t>(i)]);
+    }
+    const int octaves = juce::jlimit(1, 4, juce::roundToInt(read(arpOctaves, 1.0f)));
+    const size_t baseCount = notes.size();
+    for (int o = 1; o < octaves; ++o)
+        for (size_t i = 0; i < baseCount; ++i)
+            if (notes[i] + 12 * o <= 127) notes.push_back(static_cast<uint8_t>(notes[i] + 12 * o));
+    if (arp != 5) std::sort(notes.begin(), notes.end());   // "As Played" keeps the order the keys went down
+    const int count = static_cast<int>(notes.size());
+    if (count < 2) return;
+    
+    const double beats = beatsForDivision(juce::roundToInt(read(arpDiv, 9.0f)));
+    const double stepPosition = beat / beats;
+    const int step = static_cast<int>(std::floor(stepPosition));
+    // A new chord (or a transport jump backwards) restarts the pattern from its first note. Hosts hand over
+    // the notes of a bar in the block that contains the bar line, a few milliseconds early, so a chord that
+    // arrives in the second half of a step belongs to the step about to start.
+    const bool restarted = heldNotes->version != arpHeldVersion || step + 1 < arpOrigin;
+    if (restarted) {
+        arpHeldVersion = heldNotes->version;
+        arpOrigin = (stepPosition - static_cast<double>(step) >= 0.5) ? step + 1 : step;
+        arpLastStep = -1;
+        arpGateClosed = false;
+    }
+    const int rel = juce::jmax(0, step - arpOrigin);
+    
+    int index = 0;
+    if (arp == 1 || arp == 5) index = rel % count;
+    else if (arp == 2) index = count - 1 - (rel % count);
+    else if (arp == 3) { const int cycle = juce::jmax(1, 2 * count - 2); const int s = rel % cycle; index = s < count ? s : cycle - s; }
+    else {
+        if (step != arpLastStep) {
+            // xorshift, never the same note twice in a row
+            do {
+                arpRandomState ^= arpRandomState << 13; arpRandomState ^= arpRandomState >> 17; arpRandomState ^= arpRandomState << 5;
+                index = static_cast<int>(arpRandomState % static_cast<uint32_t>(count));
+            } while (index == arpRandomIndex && count > 1);
+            arpRandomIndex = index;
+        } else index = arpRandomIndex;
+    }
+    const uint8_t target = notes[static_cast<size_t>(index)];
+    const int ch = heldNotes->channel;
+    arpChannel = ch;
+    
+    const bool retrigger = read(arpRetrigger, 0.0f) > 0.5f;
+    const bool newStep = step != arpLastStep;
+    if (newStep) {
+        arpLastStep = step;
+        arpGateClosed = false;
+        const uint8_t current = voices.getNoteForChannel(ch);
+        // The first step of a new chord was keyed by the note-on itself; later steps are keyed again when retriggering
+        if (retrigger && !restarted && step >= arpOrigin) {
+            ymfm.noteOff(static_cast<uint8_t>(ch), current);
+            ymfm.noteOn(static_cast<uint8_t>(ch), target, voices.getVelocityForChannel(ch));
+            voices.setNoteForChannel(ch, target);
+            channels[static_cast<size_t>(ch)].note = target;
+        } else if (current != target) {
+            ymfm.retuneChannel(static_cast<uint8_t>(ch), target);
+            voices.setNoteForChannel(ch, target);
+            channels[static_cast<size_t>(ch)].note = target;   // an arpeggio step is not a glide
+        }
+    }
+    // Gate: a retriggered step lets go part way through, so the next step has an attack of its own
+    if (retrigger && !arpGateClosed) {
+        const double gate = read(arpGate, 70.0f) / 100.0;
+        if (gate < 1.0 && stepPosition - static_cast<double>(step) >= gate) {
+            ymfm.noteOff(static_cast<uint8_t>(ch), voices.getNoteForChannel(ch));
+            arpGateClosed = true;
+        }
+    }
+    // Accent: steps on the beat (or every n-th step) keep their level, the others sit back by the depth
+    const int accent = juce::roundToInt(read(arpAccent, 0.0f));
+    bool accented = true;
+    if (accent == 1) {
+        const int stepsPerBeat = juce::jmax(1, juce::roundToInt(1.0 / beats));
+        accented = (step % stepsPerBeat) == 0;
+    } else if (accent >= 2) {
+        accented = (rel % accent) == 0;
+    }
+    arpAccentSteps = accented ? 0 : juce::roundToInt(read(arpAccentDepth, 6.0f));
 }
 
 } // namespace ymulatorsynth

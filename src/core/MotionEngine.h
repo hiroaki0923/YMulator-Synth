@@ -33,6 +33,8 @@ public:
     
     /** Called when pan motion switches off so the global pan can be put back. */
     std::function<void()> onPanMotionOff;
+    /** Called when the arpeggio latch parameter goes off, so a latched chord can be let go. */
+    std::function<void()> onLatchOff;
     /** Where the MIDI processor keeps the notes held in mono / arpeggio mode. */
     void setHeldNotes(const HeldNotes* notes) { heldNotes = notes; }
     
@@ -105,6 +107,24 @@ private:
     const juce::RangedAudioParameter* velBright = nullptr;
     const juce::RangedAudioParameter* arpMode = nullptr;
     const juce::RangedAudioParameter* arpDiv = nullptr;
+    const juce::RangedAudioParameter* arpOctaves = nullptr;
+    const juce::RangedAudioParameter* arpRetrigger = nullptr;
+    const juce::RangedAudioParameter* arpGate = nullptr;
+    const juce::RangedAudioParameter* arpLatch = nullptr;
+    const juce::RangedAudioParameter* arpChord = nullptr;
+    const juce::RangedAudioParameter* arpAccent = nullptr;
+    const juce::RangedAudioParameter* arpAccentDepth = nullptr;
+    // Arpeggio state: the step the current chord started on, the last step played, the gate, the accent
+    uint32_t arpHeldVersion = 0;
+    int arpOrigin = 0;
+    int arpLastStep = -1;
+    bool arpGateClosed = false;
+    int arpChannel = -1;
+    int arpAccentSteps = 0;      // TL steps taken off the sounding channel on an unaccented step
+    int arpRandomIndex = -1;
+    uint32_t arpRandomState = 0x2545F491u;
+    bool lastArpLatch = false;
+    void runArpeggio(double beat);
     const juce::RangedAudioParameter* levelAttack = nullptr;
     const juce::RangedAudioParameter* levelDecay = nullptr;
     const juce::RangedAudioParameter* levelSustain = nullptr;

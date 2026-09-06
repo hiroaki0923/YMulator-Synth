@@ -50,6 +50,9 @@ public:
      * Called during initialization to establish CC routing.
      */
     virtual void setupCCMapping() = 0;
+    
+    /** Arpeggio latch was switched off: release a chord nobody is holding any more. */
+    virtual void releaseLatchedNotes() {}
 };
 
 } // namespace ymulatorsynth

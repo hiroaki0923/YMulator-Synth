@@ -62,6 +62,9 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     // Mono / arpeggio: held notes share one channel; a second note retunes it (legato) or joins the arpeggio
     const bool mono = monoModeOn(), arp = arpeggioOn();
     if (mono || arp) {
+        // A latched chord is replaced by the first note of the next one; the channel keeps sounding
+        if (arp && arpLatchOn() && keysDown == 0 && held.count > 0) { held.count = 0; ++held.version; }
+        ++keysDown;
         held.add(static_cast<uint8_t>(message.getNoteNumber()));
         if (held.channel >= 0 && voiceManager.isVoiceActive(held.channel)) {
             if (!arp) {
@@ -72,6 +75,7 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
         }
     } else if (held.count > 0) {
         held.clear();
+        keysDown = 0;
     }
     
     // Check if current preset needs noise (has noise enabled)
@@ -105,6 +109,24 @@ bool MidiProcessor::arpeggioOn() const
     return p != nullptr && juce::roundToInt(p->convertFrom0to1(p->getValue())) > 0;
 }
 
+bool MidiProcessor::arpLatchOn() const
+{
+    auto* p = parameters.getParameter(ParamID::Motion::ArpLatch);
+    return p != nullptr && p->getValue() > 0.5f;
+}
+
+void MidiProcessor::releaseLatchedNotes()
+{
+    if (keysDown > 0 || held.channel < 0) return;
+    const int ch = held.channel;
+    if (voiceManager.isVoiceActive(ch)) {
+        const uint8_t sounding = voiceManager.getNoteForChannel(ch);
+        ymfmWrapper.noteOff(static_cast<uint8_t>(ch), sounding);
+        voiceManager.releaseVoice(sounding);
+    }
+    held.clear();
+}
+
 void MidiProcessor::processMidiNoteOff(const juce::MidiMessage& message)
 {
     // Assert valid MIDI note
@@ -116,6 +138,9 @@ void MidiProcessor::processMidiNoteOff(const juce::MidiMessage& message)
     // Mono / arpeggio: only the last held note releases the channel; otherwise fall back to an earlier note
     if (held.channel >= 0 && held.contains(static_cast<uint8_t>(message.getNoteNumber()))) {
         const int ch = held.channel;
+        keysDown = juce::jmax(0, keysDown - 1);
+        // Latched: the chord stays in the arpeggio until the next chord starts
+        if (arpeggioOn() && arpLatchOn()) return;
         held.remove(static_cast<uint8_t>(message.getNoteNumber()));
         if (held.count == 0) {
             const uint8_t sounding = voiceManager.getNoteForChannel(ch);
@@ -277,6 +302,9 @@ void MidiProcessor::setupCCMapping()
     position(MIDI_CC::MotionPorta, Motion::PortaTime);
     position(MIDI_CC::MotionPitch, Motion::PitchEnv);
     position(MIDI_CC::MotionVelBright, Motion::VelBright);
+    position(MIDI_CC::ArpChord, Motion::ArpChord);
+    position(MIDI_CC::ArpOctaves, Motion::ArpOctaves);
+    position(MIDI_CC::ArpGate, Motion::ArpGate);
     
     // Noise
     direct(MIDI_CC::NoiseEnable, Global::NoiseEnable);

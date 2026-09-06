@@ -174,3 +174,12 @@ TEST_F(MidiCcMappingTest, ExpressiveModeRoutesWheelAndPressure)
     processor.processBlock(buffer, midi);
     EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), 50.0f) << "full pressure opens Brightness fully";
 }
+
+TEST_F(MidiCcMappingTest, ArpeggioCcsArePositions)
+{
+    using namespace ParamID;
+    sendCC(MIDI_CC::ArpChord, 127);   EXPECT_FLOAT_EQ(registerValue(Motion::ArpChord), 11.0f) << "last chord table";
+    sendCC(MIDI_CC::ArpChord, 0);     EXPECT_FLOAT_EQ(registerValue(Motion::ArpChord), 0.0f);
+    sendCC(MIDI_CC::ArpOctaves, 127); EXPECT_FLOAT_EQ(registerValue(Motion::ArpOctaves), 4.0f);
+    sendCC(MIDI_CC::ArpGate, 0);      EXPECT_FLOAT_EQ(registerValue(Motion::ArpGate), 10.0f);
+}

@@ -68,7 +68,7 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*panModeBox);
     panModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), PanMode, *panModeBox);
     arpModeBox = std::make_unique<juce::ComboBox>();
-    arpModeBox->addItemList({ "Arp off", "Up", "Down", "Up Down" }, 1);
+    arpModeBox->addItemList({ "Arp off", "Up", "Down", "Up Down", "Random", "As played" }, 1);
     arpModeBox->setTooltip("Held notes take turns on one channel");
     addAndMakeVisible(*arpModeBox);
     arpModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), ArpMode, *arpModeBox);

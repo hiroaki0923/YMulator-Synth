@@ -18,7 +18,8 @@ YMulator Synth is a YM2151 (OPM) FM synthesizer plugin, the chip behind the X680
 - **Two views of one sound**: the **Quick** view works in musical terms; the **Detail** view shows the registers. They are the same parameters, so nothing changes when you switch.
 - **TONE macros**: Brightness, Harmonics, Attack, Decay, Release, Spread and Feedback move the operators relative to the loaded preset, so a preset keeps its character while you push it. Editing a register in Detail re-bases the macros around the new value.
 - **RECIPE**: pick a category (Bass, Lead, Brass, E.Piano, Bell, Pad, SE, Any) and six directions, press Generate. Undo and A/B let you compare with what you had.
-- **Motion**: the tricks of the era, done for you: Wide (a second chip slightly detuned on the other side, all 8 voices kept), Echo (a delayed, quieter copy on alternating sides), vibrato with delay and rise, timbre LFO, tremolo, pan motion, two-stage pitch envelope for drums, brightness sweep, level envelope, portamento / legato, chip arpeggio and velocity-to-brightness. Rates can follow the host tempo as note values.
+- **Motion**: the tricks of the era, done for you: Wide (a second chip slightly detuned on the other side, all 8 voices kept), Echo (a delayed, quieter copy on alternating sides), vibrato with delay and rise, timbre LFO, tremolo, pan motion, two-stage pitch envelope for drums, brightness sweep, level envelope, portamento / legato and velocity-to-brightness. Rates can follow the host tempo as note values.
+- **Arpeggiator**: Up, Down, Up-Down, Random or As played over the held notes, across up to four octaves, either chip style (one channel, only the pitch changes, down to 1/64) or retriggered with a gate; a chord table (Major, Minor, 7th, ...) turns a single note into a chord, Latch keeps the pattern going, and an accent leans on the beat.
 - **OUTPUT**: the current sound is rendered on a private chip and played back visually, waveform over level envelope, from key-on through release. When a patch is silent, it says why.
 - **Presets**: 8 factory presets plus a 64-voice collection, import of VOPM `.opm` banks, and saving your own. Bank and preset choice survive with the DAW project.
 - **MIDI**: VOPMex-compatible CCs for every register, CCs for the macros and Motion amounts, and an optional expressive mode for the mod wheel and aftertouch.
@@ -68,7 +69,7 @@ If macOS does not list the Audio Unit right away, run `killall -9 AudioComponent
 
 - The TONE row stays at the top. Touching a TONE knob puts an amber ring on the operator knobs it moves.
 - Each operator row shows its role (MOD or CARRIER, NOISE when the noise generator is on), the three knobs that matter most (Level, Ratio, Detune) in musical units with the register value underneath, the envelope, the five envelope knobs, KS, DT2 and AMS. The switch turns the operator on or off (the .opm SLOT mask).
-- The MOTION row has every Motion parameter: vibrato delay, rise and waveform, Wide amount and placement (L / R or Centre), timbre and tremolo depth and rate, pan mode and step, echo level and time, sweep, the two-stage pitch envelope, legato and portamento time, velocity brightness, arpeggio mode and step, the level envelope, LFO waveforms and one-shot. With Sync on, every rate knob turns into a note-value box.
+- The MOTION row has every Motion parameter in four cards: LFO (vibrato with delay, rise and waveform; timbre LFO and tremolo), ENVELOPE (the two-stage pitch envelope; sweep and the level envelope), SPACE (Wide amount and placement, echo level and time; pan mode and step) and PLAY (legato and portamento, velocity brightness; arpeggio mode and step, with a "..." button for the chord table, octaves, retrigger and gate, latch and accent). With Sync on, every rate knob turns into a note-value box.
 - The bottom row has the hardware LFO (rate, AMD, PMD, waveform), the noise generator (on / off and frequency) and the Expressive MIDI switch.
 
 ### Presets and .opm files
@@ -110,6 +111,9 @@ Pitch bend (range 1 to 12 semitones, default 2), velocity on the carriers, chann
 | 82 | Noise Frequency | 0-31 | NFRQ (81 also accepted) |
 | 102-107 | Quick macros | position | Brightness, Harmonics, Attack, Decay, Release, Spread (64 = centre) |
 | 110-118 | Motion amounts | position | Wide, Vibrato, Timbre, Echo, Sweep, Swell, Porta, Pitch, Velocity brightness |
+| 108 | Arpeggio chord | position | None, Major, Minor, 7th, m7, Maj7, Sus4, Sus2, Dim, Aug, 5th, Octave |
+| 109 | Arpeggio octaves | position | 1-4 |
+| 119 | Arpeggio gate | position | 10-100 % of the step (with Retrigger) |
 | 121 | Reset All Controllers | - | Back to natural mode and macros to centre |
 
 Macro CCs move the sound relative to the values the register CCs set: a register CC re-bases the macro, a macro CC works around that base, so both can be used together. Motion CCs never touch the register parameters. The **Expressive MIDI** switch (Detail view, bottom row) turns CC 1 into vibrato depth and aftertouch into Brightness.

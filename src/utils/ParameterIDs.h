@@ -80,8 +80,15 @@ namespace Motion {
     constexpr const char* Mono = "motion_mono";                 // legato: held notes retune one channel
     constexpr const char* PortaTime = "motion_porta_time";      // ms to glide from the previous note, 0 off
     constexpr const char* VelBright = "motion_vel_bright";      // velocity also darkens the modulators, 0-100
-    constexpr const char* ArpMode = "motion_arp_mode";          // Off / Up / Down / UpDown
+    constexpr const char* ArpMode = "motion_arp_mode";          // Off / Up / Down / UpDown / Random / As played
     constexpr const char* ArpDiv = "motion_arp_div";            // note value per step
+    constexpr const char* ArpOctaves = "motion_arp_octaves";    // 1..4: the held notes repeated in higher octaves
+    constexpr const char* ArpRetrigger = "motion_arp_retrig";   // key each step on again (off: chip style, pitch only)
+    constexpr const char* ArpGate = "motion_arp_gate";          // % of the step a retriggered note is held
+    constexpr const char* ArpLatch = "motion_arp_latch";        // the chord keeps playing after the keys are released
+    constexpr const char* ArpChord = "motion_arp_chord";        // chord table applied to a single held note
+    constexpr const char* ArpAccent = "motion_arp_accent";      // Off / Beat / every 2 / 3 / 4 steps
+    constexpr const char* ArpAccentDepth = "motion_arp_accent_depth"; // TL steps taken off the unaccented steps
     constexpr const char* LevelAttack = "motion_level_attack";  // ms: carriers swell in from -40 steps
     constexpr const char* LevelDecay = "motion_level_decay";    // ms: then fall to the sustain attenuation
     constexpr const char* LevelSustain = "motion_level_sustain";// TL steps held after the decay
@@ -270,6 +277,9 @@ namespace MIDI_CC {
     constexpr int MotionPorta = 116;
     constexpr int MotionPitch = 117;
     constexpr int MotionVelBright = 118;
+    constexpr int ArpChord = 108;             // chord table (position over the list)
+    constexpr int ArpOctaves = 109;
+    constexpr int ArpGate = 119;
     constexpr int ModWheel = 1;               // vibrato depth in expressive mode
     
     // NRPN used by VOPMex to switch how CC values are interpreted
