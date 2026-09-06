@@ -176,6 +176,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::VibratoDelay, "Vibrato Delay", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::VibratoRise, "Vibrato Rise", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 300.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::Wide, "Wide", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::WidePan, "Wide Pan", juce::StringArray{ "L / R", "Center" }, 0));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

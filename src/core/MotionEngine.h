@@ -19,6 +19,7 @@ class MotionEngine
 public:
     static constexpr int kChunk = 64;
     static constexpr float kMaxVibratoCents = 50.0f;   // depth 100 = +/- 50 cents
+    static constexpr float kMaxWideCents = 25.0f;      // wide 100 = +/- 25 cents between the chips
     
     MotionEngine(YmfmWrapperInterface& ymfm, VoiceManagerInterface& voices);
     
@@ -48,6 +49,11 @@ private:
     const juce::RangedAudioParameter* vibratoRate = nullptr;
     const juce::RangedAudioParameter* vibratoDelay = nullptr;
     const juce::RangedAudioParameter* vibratoRise = nullptr;
+    const juce::RangedAudioParameter* wide = nullptr;
+    const juce::RangedAudioParameter* widePan = nullptr;
+    bool lastWideEnabled = false;
+    float lastWideCents = -1.0f;
+    int lastWidePan = -1;
 };
 
 } // namespace ymulatorsynth

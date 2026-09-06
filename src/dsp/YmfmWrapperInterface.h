@@ -65,6 +65,13 @@ public:
     virtual void setPitchBend(uint8_t channel, float semitones) = 0;
     /** Extra pitch offset from the motion engine (vibrato, pitch envelope), on top of the pitch bend. */
     virtual void setChannelPitchOffset(uint8_t channel, float semitones) { (void) channel; (void) semitones; }
+    
+    /** Wide: a second chip plays every note detuned the other way, panned apart or both centred. */
+    enum class WidePan { LeftRight, Centre };
+    virtual void setWide(bool enabled, float detuneCents, WidePan pan) { (void) enabled; (void) detuneCents; (void) pan; }
+    virtual bool isWideEnabled() const { return false; }
+    /** Register cache of the second chip (diagnostics and tests). */
+    virtual uint8_t readShadowRegister(int address) const { (void) address; return 0; }
     virtual void setChannelPan(uint8_t channel, float panValue) = 0;
     virtual void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) = 0;
     virtual void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) = 0;

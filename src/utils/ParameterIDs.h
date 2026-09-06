@@ -53,6 +53,8 @@ namespace Motion {
     constexpr const char* VibratoRate = "motion_vib_rate";     // Hz
     constexpr const char* VibratoDelay = "motion_vib_delay";   // ms from note on
     constexpr const char* VibratoRise = "motion_vib_rise";     // ms to full depth
+    constexpr const char* Wide = "motion_wide";                // 0-100 -> 0-25 cents between the two chips
+    constexpr const char* WidePan = "motion_wide_pan";         // 0 = L / R, 1 = both centre
 } // namespace Motion
 
 // =============================================================================

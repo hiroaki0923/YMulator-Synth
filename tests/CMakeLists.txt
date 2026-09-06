@@ -141,6 +141,7 @@ if(GTest_FOUND)
         unit/VelocityTest.cpp
         unit/ScopeBufferTest.cpp
         unit/MotionEngineTest.cpp
+        unit/WideTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -196,6 +197,7 @@ if(GTest_FOUND)
         unit/VelocityTest.cpp
         unit/ScopeBufferTest.cpp
         unit/MotionEngineTest.cpp
+        unit/WideTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

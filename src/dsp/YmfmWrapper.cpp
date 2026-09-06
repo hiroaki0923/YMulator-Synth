@@ -50,8 +50,10 @@ void YmfmWrapper::reset()
 {
     // The chip forgets everything on reset; so must the register cache and the per-channel state
     std::memset(currentRegisters, 0, sizeof(currentRegisters));
+    std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
     for (auto& state : channelStates) state = ChannelState {};
     velocityAttenuation.fill(0);
+    if (shadowChip) shadowChip->reset();
     if (chipType == ChipType::OPM && opmChip) {
         opmChip->reset();
         initializeOPM();
@@ -83,6 +85,13 @@ void YmfmWrapper::renderNativeSample()
         // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
         left = static_cast<float>(opmOutput.data[0]) * scaleFactor;
         right = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+        if (wideEnabled && shadowChip) {
+            shadowChip->generate(&shadowOutput, 1);
+            // Panned apart each side carries one chip; centred, both share each side at -3 dB
+            const float mix = widePan == WidePan::Centre ? 0.70710678f : 1.0f;
+            left = left * mix + static_cast<float>(shadowOutput.data[0]) * scaleFactor * mix;
+            right = right * mix + static_cast<float>(shadowOutput.data[1]) * scaleFactor * mix;
+        }
     } else if (chipType == ChipType::OPNA && opnaChip) {
         opnaChip->generate(&opnaOutput, 1);
         left = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
@@ -102,9 +111,12 @@ void YmfmWrapper::initializeOPM()
     // Creating OPM chip instance
     
     opmChip = std::make_unique<ymfm::ym2151>(*this);
+    shadowChip = std::make_unique<ymfm::ym2151>(*this);
     
     // Resetting OPM chip
     opmChip->reset();
+    shadowChip->reset();
+    std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
     
     // OPM chip reset complete, setting up voice
     
@@ -139,12 +151,11 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     ++registerWriteCount;
     
     if (chipType == ChipType::OPM && opmChip) {
-        // DEBUG: Enable register write logging for investigation
-        // Register write debug output disabled for performance
-        
-        // Use write_address and write_data like sample code
         opmChip->write_address(addr);
-        opmChip->write_data(data);
+        opmChip->write_data(panForChip(addr, data, false));
+        // Pitch registers are written per chip by writePitch (the two chips are detuned apart)
+        const bool pitchRegister = addr >= YM2151Regs::REG_KEY_CODE_BASE && addr < YM2151Regs::REG_KEY_FRACTION_BASE + YM2151Regs::MAX_OPM_CHANNELS;
+        if (!pitchRegister) writeShadow(addr, panForChip(addr, data, true));
     } else if (chipType == ChipType::OPNA && opnaChip) {
         // OPNA register write debug output disabled
         
@@ -161,6 +172,47 @@ uint8_t YmfmWrapper::readCurrentRegister(int address) const
 void YmfmWrapper::updateRegisterCache(uint8_t address, uint8_t value)
 {
     currentRegisters[address] = value;
+}
+
+void YmfmWrapper::writeShadow(uint8_t address, uint8_t data)
+{
+    shadowRegisters[address] = data;
+    if (shadowChip) {
+        shadowChip->write_address(address);
+        shadowChip->write_data(data);
+    }
+}
+
+uint8_t YmfmWrapper::panForChip(uint8_t address, uint8_t data, bool shadow) const
+{
+    // With Wide panned apart, the main chip takes the left and the shadow the right
+    const bool panRegister = address >= YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE
+                          && address < YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + YM2151Regs::MAX_OPM_CHANNELS;
+    if (!panRegister || !wideEnabled || widePan != WidePan::LeftRight) return data;
+    return static_cast<uint8_t>((data & ~YM2151Regs::MASK_PAN_LR) | (shadow ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_LEFT_ONLY));
+}
+
+void YmfmWrapper::refreshPansForWide()
+{
+    for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch) {
+        const uint8_t addr = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch;
+        const uint8_t data = currentRegisters[addr];
+        if (opmChip) { opmChip->write_address(addr); opmChip->write_data(panForChip(addr, data, false)); }
+        writeShadow(addr, panForChip(addr, data, true));
+    }
+}
+
+void YmfmWrapper::setWide(bool enabled, float detuneCents, WidePan pan)
+{
+    const float detune = detuneCents / 100.0f;
+    if (enabled == wideEnabled && detune == wideDetuneSemitones && pan == widePan) return;
+    wideEnabled = enabled;
+    wideDetuneSemitones = detune;
+    widePan = pan;
+    if (chipType != ChipType::OPM) return;
+    refreshPansForWide();
+    for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch)
+        if (channelStates[ch].active) writePitch(ch);
 }
 
 void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples)
@@ -578,13 +630,26 @@ void YmfmWrapper::writePitch(uint8_t channel)
 {
     if (chipType != ChipType::OPM) return;
     const auto& state = channelStates[channel];
-    const uint16_t fnum = noteToFnumWithPitchBend(state.baseNote, state.pitchBend + state.motionOffset);
-    const uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
-    const uint8_t kf = static_cast<uint8_t>((fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION);
+    const float pitch = state.pitchBend + state.motionOffset;
+    const float spread = wideEnabled ? wideDetuneSemitones : 0.0f;
+    
+    auto split = [](uint16_t fnum, uint8_t& kc, uint8_t& kf) {
+        kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
+        kf = static_cast<uint8_t>((fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION);
+    };
+    uint8_t kc, kf;
+    split(noteToFnumWithPitchBend(state.baseNote, pitch - spread), kc, kf);
     if (currentRegisters[YM2151Regs::REG_KEY_CODE_BASE + channel] != kc)
         writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
     if (currentRegisters[YM2151Regs::REG_KEY_FRACTION_BASE + channel] != kf)
         writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
+    
+    uint8_t shadowKc, shadowKf;
+    split(noteToFnumWithPitchBend(state.baseNote, pitch + spread), shadowKc, shadowKf);
+    if (shadowRegisters[YM2151Regs::REG_KEY_CODE_BASE + channel] != shadowKc)
+        writeShadow(static_cast<uint8_t>(YM2151Regs::REG_KEY_CODE_BASE + channel), shadowKc);
+    if (shadowRegisters[YM2151Regs::REG_KEY_FRACTION_BASE + channel] != shadowKf)
+        writeShadow(static_cast<uint8_t>(YM2151Regs::REG_KEY_FRACTION_BASE + channel), shadowKf);
 }
 
 void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)

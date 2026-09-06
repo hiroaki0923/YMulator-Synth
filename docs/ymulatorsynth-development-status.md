@@ -57,7 +57,8 @@
 - ✅ **ステップ 4: ジェネレータ / Undo / A-B** - `src/core/PatchGenerator`（カテゴリ表＋方向 6 本から決定的に生成、最初のキャリアは必ず可聴）、`SnapshotStore`（Undo 16 段、A/B スロット）、`PatchWorkspace`（適用・復元・アンカー再取得、TONE 操作前と生成前に Undo 点）。UI は `GeneratorPanel`（カテゴリチップ、スライダー 6 本。設定は state の `generator` ノードに永続化）と COMPARE カードの A/B
 - ✅ **ステップ 5: 出力波形** - `src/dsp/ScopeBuffer.h`（オーディオスレッドが書き、UI が読むロックフリーのリング）と `src/ui/OutputScope`（立ち上がりゼロクロスでトリガ、ピーク正規化、実レベルのバー）。スナップショットツールは `--note N` で音を鳴らしてから撮影できる
 - ✅ **Motion 1: Vibrato** - `src/core/MotionEngine`。processBlock が 64 サンプルごとに `tick()` を挟んで音を生成する制御レート構造。ボイスごとに遅延・立ち上がり・深さ（最大 ±50 セント）・レートを持ち、`YmfmWrapper::setChannelPitchOffset` 経由で KC/KF を書く（ベンドとは別のオフセット）。パラメータ `motion_vib_*`。リセット時にレジスタキャッシュとチャンネル状態を消すよう修正（`tests/unit/MotionEngineTest.cpp`）
-- ⏳ 次: Motion 2〜6（Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
+- ✅ **Motion 2: Wide** - `YmfmWrapper` が 2 つ目の `ymfm::ym2151`（シャドウチップ）を持ち、全レジスタ書込を複製。KC/KF は主 −d / シャドウ +d（最大 ±25 セント）、パンは L/R 配置なら主 L・シャドウ R（メイン側のキャッシュはパラメータどおりの値を保ち、差し替えはチップ書込時のみ）、Center 配置は両方 −3 dB で混合。同時発音 8 を維持。パラメータ `motion_wide` / `motion_wide_pan`（`tests/unit/WideTest.cpp`）
+- ⏳ 次: Motion 3〜6（Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 

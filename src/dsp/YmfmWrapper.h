@@ -37,6 +37,9 @@ public:
     // Advanced features - interface implementation
     void setPitchBend(uint8_t channel, float semitones) override;
     void setChannelPitchOffset(uint8_t channel, float semitones) override;
+    void setWide(bool enabled, float detuneCents, WidePan pan) override;
+    bool isWideEnabled() const override { return wideEnabled; }
+    uint8_t readShadowRegister(int address) const override { return shadowRegisters[static_cast<uint8_t>(address)]; }
     void setChannelPan(uint8_t channel, float panValue) override;
     void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) override;
     void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) override;
@@ -95,6 +98,13 @@ private:
     
     // ymfm chip instances
     std::unique_ptr<ymfm::ym2151> opmChip;
+    // Second OPM that mirrors every register write; sounds only while Wide is on
+    std::unique_ptr<ymfm::ym2151> shadowChip;
+    ymfm::ym2151::output_data shadowOutput;
+    uint8_t shadowRegisters[256] = {};
+    bool wideEnabled = false;
+    float wideDetuneSemitones = 0.0f;
+    WidePan widePan = WidePan::LeftRight;
     std::unique_ptr<ymfm::ym2608> opnaChip;
     
     // Output data holders
@@ -135,6 +145,9 @@ private:
     uint16_t noteToFnum(uint8_t note);
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
     void writePitch(uint8_t channel);   // KC/KF from base note + bend + motion offset
+    void writeShadow(uint8_t address, uint8_t data);
+    uint8_t panForChip(uint8_t address, uint8_t data, bool shadow) const;
+    void refreshPansForWide();
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
     void updateRegisterCache(uint8_t address, uint8_t value);
