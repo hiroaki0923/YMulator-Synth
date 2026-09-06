@@ -4,7 +4,11 @@
 
 A modern FM synthesis Audio Unit plugin for macOS, bringing the authentic sound of the classic YM2151 (OPM) chip to your DAW with an intuitive 4-operator interface.
 
-![YMulator Synth Screenshot](docs/images/screenshot.png)
+![YMulator Synth Quick view](docs/images/screenshot.png)
+
+*Quick view: TONE macros, a recipe-driven generator, Motion and the output of the current sound. The Detail view exposes every register:*
+
+![YMulator Synth Detail view](docs/images/screenshot-detail.png)
 
 ## Features
 

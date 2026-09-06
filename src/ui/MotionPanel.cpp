@@ -186,7 +186,8 @@ void MotionPanel::resized()
         return row;
     };
     const auto rowA = placeRow({ &wide, &vibrato, &timbre, &echo, &rate });
-    rateDivisionBox->setBounds(rate.knob->getBounds().withHeight(24).withY(rowA.getY() + 8).expanded(4, 0));
+    // The note-value box needs room for "1/16T" plus the arrow; it takes the whole last slot
+    rateDivisionBox->setBounds(juce::Rectangle<int>(58, 24).withRightX(rowA.getRight()).withY(rowA.getY() + 8));
     bounds.removeFromTop(4);
     placeRow({ &sweep, &swell, &porta, &pitch, &bright });
     bounds.removeFromTop(6);
