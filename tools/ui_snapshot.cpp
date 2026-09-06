@@ -2,7 +2,7 @@
 // without opening a host. Built as YMulatorSynthAU_UISnapshot (see tests/CMakeLists.txt).
 //
 //   YMulatorSynthAU_UISnapshot --out ui.png [--preset N | --bank B --preset P] [--then-preset N]
-//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N]
+//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N] [--note N]
 //   YMulatorSynthAU_UISnapshot --list-presets
 //
 // --preset alone selects a global program index the way a host program change
@@ -30,6 +30,7 @@ struct Options {
     bool listPresets = false;
     bool dump = false;
     int focusMacro = -1;   // index into ymulatorsynth::Macro, highlights its targets
+    int note = -1;         // MIDI note to hold while capturing (fills the output scope)
 };
 
 Options parseArgs(int argc, char** argv)
@@ -46,6 +47,7 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--list-presets") == 0) o.listPresets = true;
         else if (std::strcmp(argv[i], "--dump") == 0) o.dump = true;
         else if (std::strcmp(argv[i], "--focus-macro") == 0) o.focusMacro = std::atoi(next());
+        else if (std::strcmp(argv[i], "--note") == 0) o.note = std::atoi(next());
     }
     return o;
 }
@@ -110,6 +112,17 @@ int main(int argc, char** argv)
 
     if (options.thenPreset >= 0) {
         processor.setCurrentProgram(options.thenPreset);
+        pumpMessages(options.settleMs);
+    }
+
+    if (options.note >= 0) {
+        juce::AudioBuffer<float> audio(2, 512);
+        juce::MidiBuffer midi;
+        midi.addEvent(juce::MidiMessage::noteOn(1, options.note, static_cast<juce::uint8>(100)), 0);
+        for (int block = 0; block < 40; ++block) {
+            processor.processBlock(audio, midi);
+            midi.clear();
+        }
         pumpMessages(options.settleMs);
     }
 

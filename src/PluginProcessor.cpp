@@ -441,6 +441,7 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
         float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
         
         ymfmWrapper->generateSamples(leftBuffer, rightBuffer, numSamples);
+        scopeBuffer.push(leftBuffer, rightBuffer, numSamples);
         
         // DEBUG: Measure left/right channel levels for pan analysis
         static int panDebugCounter = 0;

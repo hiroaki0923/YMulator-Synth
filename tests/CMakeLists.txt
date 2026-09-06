@@ -55,6 +55,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/ToneStrip.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/QuickView.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/GeneratorPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/OutputScope.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/LfoNoiseStrip.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/YmLookAndFeel.cpp
         
@@ -137,6 +138,7 @@ if(GTest_FOUND)
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
+        unit/ScopeBufferTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -190,6 +192,7 @@ if(GTest_FOUND)
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
+        unit/ScopeBufferTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

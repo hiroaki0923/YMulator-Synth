@@ -150,8 +150,10 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     compareCard->addAndMakeVisible(*compareNote);
     motionCard = std::make_unique<Card>("MOTION", "Wide, vibrato and pan motion arrive with the motion engine.");
     addAndMakeVisible(*motionCard);
-    outputCard = std::make_unique<Card>("OUTPUT", "Waveform display arrives in a later step.");
+    outputCard = std::make_unique<Card>("OUTPUT", "");
     addAndMakeVisible(*outputCard);
+    outputScope = std::make_unique<OutputScope>(processor.getScopeBuffer());
+    outputCard->addAndMakeVisible(*outputScope);
     
     detailLink = std::make_unique<juce::TextButton>(juce::String("DETAIL ") + juce::String(juce::CharPointer_UTF8("\xe2\x96\xb8")));
     detailLink->setTooltip("Open the full operator view");
@@ -334,6 +336,7 @@ void QuickView::resized()
         generatorPanel->setBounds(generateCard->bodyBounds().withTrimmedTop(6));
     }
     outputCard->setBounds(side.removeFromBottom(96));
+    outputScope->setBounds(outputCard->bodyBounds());
     side.removeFromBottom(10);
     motionCard->setBounds(side.removeFromBottom(110));
     side.removeFromBottom(10);
