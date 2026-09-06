@@ -92,6 +92,7 @@ private:
     std::unique_ptr<ymulatorsynth::MacroMapper> macroMapper;
     std::unique_ptr<ymulatorsynth::PatchWorkspace> patchWorkspace;
     ymulatorsynth::ScopeBuffer scopeBuffer;
+    std::atomic<float> scopeFrequencyHz { 0.0f };   // lowest sounding note, for the scope's time base
     bool needsPresetReapply = false;
     
     // Per-instance initialisation state (must not be shared between instances)
@@ -174,6 +175,8 @@ public:
     ymulatorsynth::MacroMapper& getMacroMapper() { return *macroMapper; }
     ymulatorsynth::PatchWorkspace& getPatchWorkspace() { return *patchWorkspace; }
     const ymulatorsynth::ScopeBuffer& getScopeBuffer() const { return scopeBuffer; }
+    /** Frequency of the lowest sounding note, 0 when silent. */
+    float getScopeFrequencyHz() const { return scopeFrequencyHz.load(std::memory_order_relaxed); }
     
 private:
     

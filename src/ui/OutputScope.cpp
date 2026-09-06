@@ -4,11 +4,12 @@
 
 namespace {
 constexpr int kSearch = 1024;          // samples scanned for a trigger point before the window
+constexpr int kMinPeriod = 24;         // narrowest window, about 2 kHz at 48 kHz
 constexpr float kSilence = 1.0e-4f;
 }
 
-OutputScope::OutputScope(const ymulatorsynth::ScopeBuffer& buffer)
-    : scope(buffer), frame(static_cast<size_t>(kWindow), 0.0f), latest(static_cast<size_t>(kWindow + kSearch), 0.0f)
+OutputScope::OutputScope(const ymulatorsynth::ScopeBuffer& buffer, std::function<double()> period)
+    : scope(buffer), periodInSamples(std::move(period)), frame(static_cast<size_t>(kMaxWindow), 0.0f), latest(static_cast<size_t>(kCapture), 0.0f)
 {
     setInterceptsMouseClicks(false, false);
 }
@@ -31,16 +32,20 @@ void OutputScope::timerCallback()
     
     scope.readLatest(latest.data(), latest.size());
     
+    const int period = periodInSamples ? juce::roundToInt(periodInSamples()) : 0;
+    int window = period > 0 ? period * kPeriods : kMaxWindow;
+    if (window > kMaxWindow && period > 0) window = period * 2;
+    window = juce::jlimit(kMinPeriod, kMaxWindow, window);
+    
     // Trigger: the last rising zero crossing that still leaves a full window after it
-    size_t start = static_cast<size_t>(kSearch);
-    for (size_t i = static_cast<size_t>(kSearch); i > 1; --i) {
+    const size_t limit = latest.size() - static_cast<size_t>(window);
+    size_t start = limit;
+    for (size_t i = limit; i > 1; --i) {
         if (latest[i - 1] < 0.0f && latest[i] >= 0.0f) { start = i; break; }
     }
+    frame.assign(latest.begin() + static_cast<long>(start), latest.begin() + static_cast<long>(start) + window);
     float p = 0.0f;
-    for (size_t i = 0; i < frame.size(); ++i) {
-        frame[i] = latest[start + i];
-        p = std::max(p, std::abs(frame[i]));
-    }
+    for (float v : frame) p = std::max(p, std::abs(v));
     peak = p;
     repaint();
 }

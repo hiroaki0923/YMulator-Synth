@@ -443,6 +443,12 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
         ymfmWrapper->generateSamples(leftBuffer, rightBuffer, numSamples);
         scopeBuffer.push(leftBuffer, rightBuffer, numSamples);
         
+        int lowestNote = 128;
+        for (int ch = 0; ch < 8; ++ch)
+            if (voiceManager->isVoiceActive(ch)) lowestNote = juce::jmin(lowestNote, static_cast<int>(voiceManager->getNoteForChannel(ch)));
+        scopeFrequencyHz.store(lowestNote < 128 ? static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(lowestNote)) : 0.0f,
+                               std::memory_order_relaxed);
+        
         // DEBUG: Measure left/right channel levels for pan analysis
         static int panDebugCounter = 0;
         

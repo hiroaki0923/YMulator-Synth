@@ -152,7 +152,10 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*motionCard);
     outputCard = std::make_unique<Card>("OUTPUT", "");
     addAndMakeVisible(*outputCard);
-    outputScope = std::make_unique<OutputScope>(processor.getScopeBuffer());
+    outputScope = std::make_unique<OutputScope>(processor.getScopeBuffer(), [this]() {
+        const double hz = audioProcessor.getScopeFrequencyHz();
+        return hz > 0.0 ? audioProcessor.getSampleRate() / hz : 0.0;
+    });
     outputCard->addAndMakeVisible(*outputScope);
     
     detailLink = std::make_unique<juce::TextButton>(juce::String("DETAIL ") + juce::String(juce::CharPointer_UTF8("\xe2\x96\xb8")));
