@@ -2,7 +2,11 @@
 
 クラシックなYM2151 (OPM) チップの本格的なサウンドを、直感的な4オペレーター・インターフェースでDAWに提供する、モダンなFMシンセシス Audio Unit プラグインです。
 
-![YMulator Synth Screenshot](docs/images/screenshot.png)
+![YMulator Synth Quick 画面](docs/images/screenshot.png)
+
+*Quick 画面: TONE マクロ、レシピから作るジェネレーター、Motion、現在の音の出力。Detail 画面では全レジスタを扱えます:*
+
+![YMulator Synth Detail 画面](docs/images/screenshot-detail.png)
 
 ## 機能
 
