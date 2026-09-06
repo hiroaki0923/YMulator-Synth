@@ -318,7 +318,7 @@ int VOPMParser::convertInternalAmeToOpm(int internalAme)
 
 int VOPMParser::convertOpmSlotToInternal(int opmSlot)
 {
-    // The .opm SLOT value is the key-on register byte: slots in bits 3..6 (M1, M2, C1, C2)
+    // The .opm SLOT value is the key-on register byte: slots in bits 3..6 (M1, C1, M2, C2, the voice order)
     return (opmSlot >> 3) & 0x0F;
 }
 

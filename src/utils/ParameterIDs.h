@@ -40,7 +40,69 @@ namespace Global {
     // Noise parameters
     constexpr const char* NoiseEnable = "noise_enable";
     constexpr const char* NoiseFrequency = "noise_frequency";
+    
+    // MIDI behaviour: mod wheel -> vibrato depth and aftertouch -> Brightness instead of the compatible map
+    constexpr const char* Expressive = "midi_expressive";
 } // namespace Global
+
+// =============================================================================
+// Motion (Layer 3): driver-style expression on top of the raw sound.
+// See docs/ymulatorsynth-motion-design.md
+// =============================================================================
+
+namespace Motion {
+    constexpr const char* Prefix = "motion_";
+    constexpr const char* VibratoDepth = "motion_vib_depth";   // 0-100 -> 0-50 cents
+    constexpr const char* VibratoRate = "motion_vib_rate";     // Hz
+    constexpr const char* VibratoDelay = "motion_vib_delay";   // ms from note on
+    constexpr const char* VibratoRise = "motion_vib_rise";     // ms to full depth
+    constexpr const char* Wide = "motion_wide";                // 0-100 -> 0-25 cents between the two chips
+    constexpr const char* WidePan = "motion_wide_pan";         // 0 = L / R, 1 = both centre
+    constexpr const char* TimbreDepth = "motion_timbre_depth"; // modulator TL swing, 0-40 steps
+    constexpr const char* TimbreRate = "motion_timbre_rate";   // Hz
+    constexpr const char* TremoloDepth = "motion_trem_depth";  // carrier TL attenuation, 0-24 steps
+    constexpr const char* TremoloRate = "motion_trem_rate";    // Hz
+    constexpr const char* PanMode = "motion_pan_mode";         // Off / Alternate / Step
+    constexpr const char* PanRate = "motion_pan_rate";         // note value for Step
+    constexpr const char* Sync = "motion_sync";                // LFO rates follow the host tempo
+    constexpr const char* VibratoDiv = "motion_vib_div";       // note value when synced
+    constexpr const char* TimbreDiv = "motion_timbre_div";
+    constexpr const char* TremoloDiv = "motion_trem_div";
+    constexpr const char* PitchEnv = "motion_pitch_env";        // cents at the key-on, -2400..+2400
+    constexpr const char* PitchTime = "motion_pitch_time";      // ms to reach the second point
+    constexpr const char* PitchEnv2 = "motion_pitch_env2";      // cents at the second point
+    constexpr const char* PitchTime2 = "motion_pitch_time2";    // ms from the second point to the note
+    constexpr const char* EchoLevel = "motion_echo_level";      // 0 off .. 100 as loud as the note
+    constexpr const char* EchoTime = "motion_echo_time";        // ms
+    constexpr const char* EchoDiv = "motion_echo_div";          // note value when synced
+    constexpr const char* SweepAmount = "motion_sweep_amount";  // modulator TL at the key-on, -40 (bright) .. +40 (dark)
+    constexpr const char* SweepTime = "motion_sweep_time";      // ms to reach the patch brightness
+    constexpr const char* Mono = "motion_mono";                 // legato: held notes retune one channel
+    constexpr const char* PortaTime = "motion_porta_time";      // ms to glide from the previous note, 0 off
+    constexpr const char* VelBright = "motion_vel_bright";      // velocity also darkens the modulators, 0-100
+    constexpr const char* ArpMode = "motion_arp_mode";          // Off / Up / Down / UpDown
+    constexpr const char* ArpDiv = "motion_arp_div";            // note value per step
+    constexpr const char* LevelAttack = "motion_level_attack";  // ms: carriers swell in from -40 steps
+    constexpr const char* LevelDecay = "motion_level_decay";    // ms: then fall to the sustain attenuation
+    constexpr const char* LevelSustain = "motion_level_sustain";// TL steps held after the decay
+    constexpr const char* VibratoWave = "motion_vib_wave";      // Sine / Triangle / Saw / Square / Random
+    constexpr const char* TimbreWave = "motion_timbre_wave";
+    constexpr const char* LfoOneShot = "motion_lfo_oneshot";    // vibrato and timbre LFO stop after one cycle
+} // namespace Motion
+
+// =============================================================================
+// Macro Parameters (Quick panel). Offsets from the anchored preset values;
+// Feedback is shared with Global::Feedback. See docs/ymulatorsynth-quick-panel-design.md
+// =============================================================================
+
+namespace Macro {
+    constexpr const char* Brightness = "macro_brightness";
+    constexpr const char* Harmonics = "macro_harmonics";
+    constexpr const char* Attack = "macro_attack";
+    constexpr const char* Decay = "macro_decay";
+    constexpr const char* Release = "macro_release";
+    constexpr const char* Spread = "macro_spread";
+} // namespace Macro
 
 // =============================================================================
 // Channel-Specific Parameters
@@ -187,10 +249,28 @@ namespace MIDI_CC {
     constexpr int LfoWaveform = 12;   // LFO waveform (0-3)
     
     // Legacy YMulator numbers for the same LFO parameters (kept for old projects)
-    constexpr int LegacyLfoRate = 76;
-    constexpr int LegacyLfoAmd = 77;
-    constexpr int LegacyLfoPmd = 78;
-    constexpr int LegacyLfoWaveform = 79;
+    // Channel LFO sensitivity, shared by all channels (VOPMex numbers)
+    constexpr int LfoPms = 75;
+    constexpr int LfoAms = 76;
+    
+    // Quick view: macros and motion amounts on the undefined 102-118 range.
+    // Values are positions in the parameter's range (64 = macro centre).
+    constexpr int QuickBrightness = 102;
+    constexpr int QuickHarmonics = 103;
+    constexpr int QuickAttack = 104;
+    constexpr int QuickDecay = 105;
+    constexpr int QuickRelease = 106;
+    constexpr int QuickSpread = 107;
+    constexpr int MotionWide = 110;
+    constexpr int MotionVibrato = 111;
+    constexpr int MotionTimbre = 112;
+    constexpr int MotionEcho = 113;
+    constexpr int MotionSweep = 114;
+    constexpr int MotionSwell = 115;
+    constexpr int MotionPorta = 116;
+    constexpr int MotionPitch = 117;
+    constexpr int MotionVelBright = 118;
+    constexpr int ModWheel = 1;               // vibrato depth in expressive mode
     
     // NRPN used by VOPMex to switch how CC values are interpreted
     constexpr int NrpnMsb = 99;

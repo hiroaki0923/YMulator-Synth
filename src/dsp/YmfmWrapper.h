@@ -36,6 +36,17 @@ public:
     
     // Advanced features - interface implementation
     void setPitchBend(uint8_t channel, float semitones) override;
+    void setChannelPitchOffset(uint8_t channel, float semitones) override;
+    void retuneChannel(uint8_t channel, uint8_t note) override;
+    uint32_t getNoteOnCount(uint8_t channel) const override { return channel < 8 ? channelStates[channel].noteOnCount : 0; }
+    void setVelocityBrightness(float amount) override;
+    float getVelocityBrightness() const override { return velocityBrightness; }
+    void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) override;
+    void setWide(bool enabled, float detuneCents, WidePan pan) override;
+    bool isWideEnabled() const override { return wideEnabled; }
+    void setEcho(bool enabled, double delaySeconds, int attenuationSteps) override;
+    bool isEchoEnabled() const override { return echoEnabled; }
+    uint8_t readShadowRegister(int address) const override { return shadowRegisters[static_cast<uint8_t>(address)]; }
     void setChannelPan(uint8_t channel, float panValue) override;
     void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) override;
     void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) override;
@@ -61,6 +72,7 @@ public:
     
     // Register access - interface implementation
     void writeRegister(int address, uint8_t data) override;
+    uint64_t getRegisterWriteCount() const override { return registerWriteCount; }
     uint8_t readCurrentRegister(int address) const override;
     
     // Batch operations for efficiency - interface implementation
@@ -86,12 +98,35 @@ private:
     uint32_t outputSampleRate;
     uint32_t internalSampleRate;
     bool initialized = false;
+    uint64_t registerWriteCount = 0;
     
     // ymfm interface - no longer needed since we inherit from ymfm_interface
     // YMulatorSynthInterface interface;
     
     // ymfm chip instances
     std::unique_ptr<ymfm::ym2151> opmChip;
+    // Second OPM that mirrors every register write; sounds only while Wide is on
+    std::unique_ptr<ymfm::ym2151> shadowChip;
+    ymfm::ym2151::output_data shadowOutput;
+    uint8_t shadowRegisters[256] = {};
+    bool wideEnabled = false;
+    float wideDetuneSemitones = 0.0f;
+    WidePan widePan = WidePan::LeftRight;
+    // Echo: key-on, pitch and level writes reach the shadow chip late, carriers quieter
+    struct PendingWrite { uint64_t due; uint8_t address, data; };
+    std::array<PendingWrite, 8192> echoQueue {};
+    size_t echoHead = 0, echoTail = 0;
+    bool echoEnabled = false;
+    uint64_t echoDelaySamples = 0;
+    int echoAttenuation = 0;
+    // With Echo panned apart the note keeps its own pan and each echo takes a side in turn
+    uint8_t echoSide[8] = {};
+    bool nextEchoRight = true;
+    uint64_t nativeSampleCount = 0;
+    bool shadowActive() const { return wideEnabled || echoEnabled; }
+    bool isEchoDelayedRegister(uint8_t address) const;
+    uint8_t echoAttenuated(uint8_t address, uint8_t data) const;
+    void flushEcho(bool everything);
     std::unique_ptr<ymfm::ym2608> opnaChip;
     
     // Output data holders
@@ -113,6 +148,8 @@ private:
     struct ChannelState {
         uint8_t baseNote = 0;      // Original MIDI note
         float pitchBend = 0.0f;    // Current pitch bend in semitones
+        float motionOffset = 0.0f; // Vibrato / pitch envelope, semitones
+        uint32_t noteOnCount = 0;  // Key-ons so far
         bool active = false;       // Is this channel playing a note
         uint8_t slotMask = YM2151Regs::MASK_SLOT_ENABLE;  // Operators keyed on, voice order
     };
@@ -122,6 +159,10 @@ private:
     // Carriers are written as base + attenuation so velocity survives parameter rewrites.
     std::array<std::array<uint8_t, 4>, 8> baseTotalLevel {};
     std::array<uint8_t, 8> velocityAttenuation {};
+    std::array<uint8_t, 8> velocityModulatorAttenuation {};   // velocity brightness, TL steps on modulators
+    float velocityBrightness = 0.0f;
+    std::array<int, 8> carrierMotion {};      // tremolo, TL steps
+    std::array<int, 8> modulatorMotion {};    // timbre LFO, TL steps (may be negative)
     bool isCarrier(uint8_t channel, uint8_t operator_num) const;
     void writeTotalLevel(uint8_t channel, uint8_t operator_num);
     
@@ -130,6 +171,11 @@ private:
     void initializeOPNA();
     uint16_t noteToFnum(uint8_t note);
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
+    void writePitch(uint8_t channel);   // KC/KF from base note + bend + motion offset
+    void writeShadow(uint8_t address, uint8_t data);
+    void writeShadowNow(uint8_t address, uint8_t data);
+    uint8_t panForChip(uint8_t address, uint8_t data, bool shadow) const;
+    void refreshPansForWide();
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
     void updateRegisterCache(uint8_t address, uint8_t value);

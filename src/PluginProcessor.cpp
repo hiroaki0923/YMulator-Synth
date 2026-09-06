@@ -26,9 +26,19 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     
     // Initialize StateManager with dependencies
     stateManager = std::make_unique<ymulatorsynth::StateManager>(parameters, *presetManager, *parameterManager);
+    macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
+    stateManager->setMacroMapper(macroMapper.get());
+    motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
+    motionEngine->bindParameters(parameters);
+    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
+    patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
+        ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
+                                                  [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
     
     // Initialize MidiProcessor after other components are ready
-    midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
+    auto midi = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
+    motionEngine->setHeldNotes(&midi->getHeldNotes());
+    midiProcessor = std::move(midi);
     
     // Initialize preset manager
     presetManager->initialize();
@@ -62,6 +72,13 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     if (parameterManager) {
         parameterManager->initializeParameters(parameters);
     }
+    macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
+    motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
+    motionEngine->bindParameters(parameters);
+    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
+    patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
+        ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
+                                                  [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
     
     // Initialize preset manager
     presetManager->initialize();
@@ -118,6 +135,7 @@ double YMulatorSynthAudioProcessor::getTailLengthSeconds() const
 
 void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    if (motionEngine) motionEngine->prepare(sampleRate);
     // Assert valid sample rate and buffer size
     CS_ASSERT_SAMPLE_RATE(sampleRate);
     CS_ASSERT_BUFFER_SIZE(samplesPerBlock);
@@ -139,6 +157,9 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
         updateYmfmParameters();
         CS_DBG("Initial parameters applied");
     }
+    
+    // The chip may have been reset or recreated; rewrite every parameter on the next block
+    if (parameterManager) parameterManager->invalidateRegisterCache();
     
     // If a preset was set before ymfm was initialized, apply it now
     if (needsPresetReapply) {
@@ -193,6 +214,20 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     // Process all MIDI events through MidiProcessor
     midiProcessor->processMidiMessages(midiMessages);
+    
+    if (motionEngine) {
+        double bpm = 120.0, ppq = 0.0;
+        bool playing = false, known = false;
+        if (auto* playHead = getPlayHead()) {
+            if (const auto position = playHead->getPosition()) {
+                known = position->getBpm().hasValue() && position->getPpqPosition().hasValue();
+                bpm = position->getBpm().orFallback(120.0);
+                ppq = position->getPpqPosition().orFallback(0.0);
+                playing = position->getIsPlaying();
+            }
+        }
+        motionEngine->setTransport(bpm, ppq, playing, known);
+    }
     
     // Update parameters periodically (rate limiting handled by ParameterManager)
     updateYmfmParameters();
@@ -265,6 +300,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetAsOpm(const juce::File& file,
     if (success)
     {
         CS_DBG("Successfully saved preset as OPM file");
+        if (macroMapper) macroMapper->captureAnchor();
     }
     else
     {
@@ -295,6 +331,7 @@ bool YMulatorSynthAudioProcessor::saveCurrentPresetToUserBank(const juce::String
         
         // Switch out of custom mode and to the newly saved preset
         if (parameterManager) parameterManager->setCustomMode(false);
+        if (macroMapper) macroMapper->captureAnchor();
         
         // Notify that preset list has been updated
         parameters.state.setProperty("presetListUpdated", juce::Random::getSystemRandom().nextInt(), nullptr);
@@ -426,7 +463,13 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
         float* leftBuffer = buffer.getWritePointer(0);
         float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
         
-        ymfmWrapper->generateSamples(leftBuffer, rightBuffer, numSamples);
+        // The motion engine runs at control rate between short chunks of audio
+        for (int done = 0; done < numSamples;) {
+            const int chunk = juce::jmin(ymulatorsynth::MotionEngine::kChunk, numSamples - done);
+            if (motionEngine) motionEngine->tick(chunk);
+            ymfmWrapper->generateSamples(leftBuffer + done, rightBuffer + done, chunk);
+            done += chunk;
+        }
         
         // DEBUG: Measure left/right channel levels for pan analysis
         static int panDebugCounter = 0;

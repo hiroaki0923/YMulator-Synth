@@ -101,7 +101,7 @@ See [Building](#building) section below.
 1. **Load the plugin** in your DAW's instrument track (Music Effect category)
 2. **Choose a preset** from the 8 built-in factory presets
 3. **Play** using your MIDI keyboard or DAW's piano roll
-4. **Adjust parameters** using the intuitive 4-operator interface
+4. **Adjust parameters** using the intuitive 4-operator interface. Knobs move by dragging up or down; hold Shift for ten times finer steps, or use the scroll wheel
 5. **Experiment** with DT2, Key Scale, and Feedback for unique sounds
 
 ## Building
@@ -237,12 +237,19 @@ cmake --install .
 | 55-58 | D1L OP1-4 | 0-15 | Sustain Level per operator |
 | 59-62 | RR OP1-4 | 0-15 | Release Rate per operator |
 | 70-73 | AME OP1-4 | 0-1 | AMS enable per operator |
-| 1 | LFO Frequency | 0-127 | Upper 7 bits of the 8-bit LFRQ register (76 also accepted) |
-| 2 | LFO PMD | 0-127 | Pitch modulation depth (78 also accepted) |
-| 3 | LFO AMD | 0-127 | Amplitude modulation depth (77 also accepted) |
-| 12 | LFO Waveform | 0-3 | Saw / Square / Triangle / Noise (79 also accepted) |
+| 1 | LFO Frequency | 0-127 | Upper 7 bits of the 8-bit LFRQ register; CC 33 carries the lowest bit |
+| 2 | LFO PMD | 0-127 | Pitch modulation depth |
+| 3 | LFO AMD | 0-127 | Amplitude modulation depth |
+| 12 | LFO Waveform | 0-3 | Saw / Square / Triangle / Noise |
 | 80 | Noise Enable | 0 / 1-127 | Channel 8 noise on/off |
+| 75 | LFO PMS | 0-7 | Pitch modulation sensitivity, all channels |
+| 76 | LFO AMS | 0-3 | Amplitude modulation sensitivity, all channels |
 | 82 | Noise Frequency | 0-31 | NFRQ (81 also accepted) |
+| 102-107 | Quick macros | position | Brightness, Harmonics, Attack, Decay, Release, Spread (64 = centre) |
+| 110-118 | Motion amounts | position | Wide, Vibrato, Timbre, Echo, Sweep, Swell, Porta, Pitch, Velocity brightness |
+| 121 | Reset All Controllers | - | Back to natural mode and macros to centre |
+
+Macro CCs move the sound relative to the values the register CCs set: a register CC re-bases the macro, a macro CC works around that base, so both can be used together. Motion CCs never touch the register parameters. The optional **Expressive MIDI** switch (Detail view, bottom row) turns CC 1 into vibrato depth and aftertouch into Brightness.
 
 By default (VOPMex "natural" mode) the 0-127 CC value is scaled to the parameter's range, and TL, AR, D1R, D1L, D2R and RR run opposite to the register (CC 127 = loudest / fastest), like an analogue synth. Send NRPN 126/127 with data 127 (CC 99=126, CC 98=127, CC 6=127) to switch to register-value input, where the CC value is the register value; data 0 returns to natural mode.
 
@@ -357,6 +364,12 @@ This project is actively developed with the following status:
 - **Phase 3+ (Quality Enhancement)**: ✅ 100% Complete (Global pan & DAW compatibility)
 - **Overall Progress**: 100% Complete
 
+### Version 0.1.0 Features (Released 2026-09-06)
+- **Quick view**: seven TONE macros, a recipe-driven patch generator with Undo and A/B, algorithm diagrams and an animated OUTPUT view of the current sound
+- **Motion**: tempo-syncable vibrato, timbre LFO, tremolo, pan motion, pitch envelopes, sweep, level envelope, portamento, chip arpeggio, Wide (a second chip, all 8 voices kept) and Echo
+- **MIDI**: CCs for the macros and Motion amounts, VOPMex PMS/AMS numbers, optional mod wheel / aftertouch expression
+- **Fixes**: operator on/off keys the right operator, Init preset at the right octave
+
 ### Version 0.0.8 Features (Released 2026-09-06)
 - **Working LFO**: Vibrato and tremolo from the hardware LFO now reach the chip, and presets bring their LFO settings with them
 - **SLOT Control Restored**: The per-operator on/off switches are connected again and follow the .opm SLOT mask
@@ -399,131 +412,7 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 
 ## Changelog
 
-### Version 0.0.8 (2026-09-06)
-**Bug Fix Release: LFO, SLOT and Preset Saving**
-
-**🐛 Fixes:**
-- **LFO depth**: The phase modulation depth was written to an unused register address, so vibrato never sounded. On the YM2151 both depths share one register selected by bit 7; the write is corrected
-- **LFO settings from presets**: A preset's LFO rate, depths, waveform, noise and channel AMS/PMS sensitivity were never loaded into the parameters or sent to the chip. Two new parameters, LFO AMS and LFO PMS, carry the sensitivity for all channels. More than 20 of the bundled presets use the LFO and now sound as written
-- **SLOT (operator on/off)**: The per-operator enable parameters had been dropped from the parameter tree, leaving the checkboxes disconnected. They are back, drive the key-on register in hardware slot order, and the .opm SLOT mask maps to operators correctly
-- **Preset saving**: Both save paths built the preset by hand with truncating conversions; they now use the same extraction as the chip, so saved values match what was heard
-- **MIDI CC 33**: The LFO rate LSB was swallowed by a leftover per-channel pan handler on CC 32-39. Those eight per-channel pan parameters never reached the chip (voices are allocated dynamically) and are removed together with their CCs
-- **AMS enable**: The per-operator AM enable was a 0-3 integer parameter; it is now a switch
-- **Velocity**: MIDI velocity had no effect. It now attenuates the carriers linearly by up to 32 TL steps (about 24 dB) while modulators keep their level, so quieter notes keep their timbre
-
-**⚠️ Change:**
-- Presets that use the LFO sound different from 0.0.7 and earlier because the LFO is now audible
-- Notes below velocity 127 are quieter than before; velocity 127 is unchanged
-
-**🔧 Developer:**
-- Register golden test extended to LFO, sensitivity and noise registers; new tests render audio to confirm PMD/PMS and AMD/AMS take effect, and cover the key-on slot mask
-- New test asserts that every parameter changes a chip register, so a parameter can no longer be exposed and ignored
-
-### Version 0.0.7 (2026-09-05)
-**Bug Fix Release: Pitch, Operator Mapping, MIDI CC and Host Compatibility**
-
-**🐛 Fixes:**
-- **Pitch**: Notes played about 3 semitones flat at 44.1 kHz (no resampling from the chip's 55.9 kHz rate, and a key-code table one semitone sharp)
-- **Operator mapping**: C1 and M2 were written to each other's register slots, so every preset played with its second carrier and second modulator exchanged (harsh, noisy timbres compared with VOPM)
-- **Preset selection**: Bank/preset choice was never saved; the preset box showed "Init" on reopening and DAW projects did not restore it
-- **Multiple instances**: The second instance of the plugin on the same thread was silent
-- **VST3 hosts**: Editing a parameter changed the program count, which made some hosts reset to program 0; the count is now fixed and the last program is "Custom"
-- **MIDI CC**: The mapping now matches VOPMex (one CC per parameter and operator, CC value = register value, D1L 55-58, RR 59-62, AME 70-73, LFO 1/2/3/12, noise 80/82); the previous build used per-operator CC blocks and scaled values
-- **Preset values**: Release Rate (and any parameter whose range does not start at 0) was written one step low because of normalised-value truncation; RR now spans 0-15 as in VOPM
-- **Bundled collection**: The 64 bundled presets were not registered in any bank and could not be chosen from the Bank/Preset menus; they now appear as the "Collection" bank
-
-**⚠️ Change:**
-- A fixed 2x output gain that clipped single notes was removed; output is about 6 dB lower than 0.0.6
-
-**🔧 Developer:**
-- `tools/ui_snapshot`: renders the editor off-screen to a PNG for review without a host
-- New regression tests for pitch, operator slot order, preset persistence, multiple instances, program count and CC mapping
-
-### Version 0.0.6 (2025-06-23)
-**Quality Enhancement Release: Global Pan & DAW Compatibility**
-
-**🎵 New Features:**
-- **Global Pan System**: LEFT/CENTER/RIGHT/RANDOM panning modes for enhanced stereo control
-- **Preset Name Preservation**: Global pan changes no longer switch to "Custom" mode
-- **Enhanced DAW Compatibility**: Improved GarageBand integration and stability
-- **Audio Buffer Optimization**: Fixed duplicate sound and playback delay issues
-- **Performance Improvements**: Optimized real-time processing with reduced CPU load
-
-**🔧 Technical Improvements:**
-- **Correct ymfm Output Handling**: Fixed audio buffer interpretation (data[0]=left, data[1]=right)
-- **Buffer Management**: Implemented proper buffer clearing to prevent audio artifacts
-- **Parameter Exception Handling**: Global pan parameters bypass custom preset mode switching
-- **YM2151 Register Control**: Accurate panning register manipulation with bit-level precision
-- **Resource Management**: Enhanced Audio Unit resource cleanup for stable operation
-
-**🐛 Bug Fixes:**
-- Fixed duplicate/overlapping notes during playback
-- Resolved 1-2 second audio delay after stopping playback
-- Fixed sample rate synchronization issues with various DAWs
-- Eliminated audio artifacts from residual buffer data
-
-### Version 0.0.5 (2025-06-16)
-**Cross-Platform Release**
-
-**🎵 New Features:**
-- **Multi-Platform Support**: Windows, macOS, and Linux binaries
-- **Multiple Plugin Formats**: VST3, AU, AUv3, and Standalone versions
-- **Enhanced Distribution**: Comprehensive installer packages for all platforms
-
-### Version 0.0.4 (2025-06-15)
-**Major Release: Complete Preset Management System**
-
-**🎵 New Features:**
-- **Bank/Preset Dual ComboBox System**: Hierarchical preset organization with Factory and imported banks
-- **OPM File Import**: Full support for .opm preset files exported from VOPM and compatible applications
-- **DAW Project Persistence**: Bank and preset selections automatically restored after DAW restart
-- **Enhanced User Experience**: Streamlined UI with File menu removal and optimized layout
-
-**🔧 Technical Improvements:**
-- **OPM Parser Robustness**: Fixed whitespace normalization for reliable SLOT mask and noise enable parsing
-- **Performance Optimization**: Reduced debug output while maintaining comprehensive error reporting
-- **State Management**: ValueTreeState integration for seamless DAW project save/load
-- **Memory Management**: Duplicate bank prevention and efficient user data persistence
-
-**🐛 Bug Fixes:**
-- Fixed OPM parser handling of multiple spaces/tabs causing incorrect parameter parsing
-- Resolved UI layout spacing issues after File menu removal
-- Fixed DAW project restore order to load user data before applying presets
-
-### Version 0.0.3 (2025-06-12)
-**UI Enhancement Release**
-
-**🎵 New Features:**
-- **SLOT Control System**: Individual operator enable/disable via title bar checkboxes
-- **OPM File Compatibility**: Full SLOT mask compatibility with existing .opm preset files
-- **Visual Feedback**: Clear indication of enabled/disabled operators
-
-**🔧 Technical Improvements:**
-- **Backward Compatibility**: All existing presets remain fully functional
-- **UI Integration**: Seamless SLOT control integration with parameter system
-
-### Version 0.0.2 (2025-06-11)
-**Core Audio Enhancement Release**
-
-**🎵 New Features:**
-- **YM2151 Noise Generator**: Hardware-accurate noise synthesis on channel 7
-- **LFO Complete Implementation**: 4 waveforms with AMS/PMS modulation
-- **Enhanced Envelope System**: Velocity sensitivity and batch optimization
-
-**🔧 Technical Improvements:**
-- **Hardware Constraints**: Full YM2151 hardware limitation compliance
-- **Performance Optimization**: Efficient envelope processing
-- **MIDI CC Expansion**: Additional controllers for noise and LFO parameters
-
-### Version 0.0.1 (2025-06-08)
-**Initial Release**
-
-**🎵 Core Features:**
-- **YM2151 (OPM) Emulation**: 8-voice polyphonic FM synthesis
-- **Professional Interface**: Intuitive 4-operator layout with all parameters
-- **8 Factory Presets**: Professional-quality starting sounds
-- **MIDI Integration**: Full Note On/Off, CC, and pitch bend support
-- **Audio Unit Compatibility**: Native macOS plugin integration
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

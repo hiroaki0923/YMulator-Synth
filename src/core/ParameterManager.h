@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 
 #include "../dsp/YmfmWrapperInterface.h"
 #include "../utils/ParameterIDs.h"
@@ -72,6 +73,12 @@ public:
      * Called periodically from audio processing loop with rate limiting
      */
     void updateYmfmParameters();
+    
+    /**
+     * Forces every parameter to be rewritten on the next update. Call after the
+     * chip has been reset or written to directly (preset application).
+     */
+    void invalidateRegisterCache();
     
     /**
      * AudioProcessorParameter::Listener implementation
@@ -219,15 +226,22 @@ private:
     // Internal Helper Methods
     // =========================================================================
     
-    /**
-     * Updates a single channel's parameters to ymfm
-     * @param channel Channel number (0-7)
-     */
-    void updateChannelParameters(int channel);
+    // =========================================================================
+    // Register write minimisation
+    // Parameter handles are looked up once; each block compares the current
+    // register value of every parameter with the value last written and only
+    // touches the chip for the ones that changed.
+    // =========================================================================
+    enum OpParam { OP_TL, OP_AR, OP_D1R, OP_D1L, OP_D2R, OP_RR, OP_KS, OP_MUL, OP_DT1, OP_DT2, OP_AMS_EN, OP_SLOT, NumOpParams };
+    enum GlobalParam { G_ALG, G_FB, G_LFO_RATE, G_LFO_AMD, G_LFO_PMD, G_LFO_WF, G_LFO_AMS, G_LFO_PMS, G_NOISE_EN, G_NOISE_FREQ, NumGlobalParams };
+    std::array<std::array<juce::RangedAudioParameter*, NumOpParams>, 4> opParamHandles {};
+    std::array<std::array<int, NumOpParams>, 4> lastOpValues {};
+    std::array<juce::RangedAudioParameter*, NumGlobalParams> globalParamHandles {};
+    std::array<int, NumGlobalParams> lastGlobalValues {};
     
-    /**
-     * Updates global parameters (LFO, noise, etc.) to ymfm
-     */
+    void cacheParameterHandles();
+    void writeOperatorParameterToAllChannels(int op, OpParam which, int value);
+    uint8_t currentSlotMask() const;
     void updateGlobalParameters();
     
     /**

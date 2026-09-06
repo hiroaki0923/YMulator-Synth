@@ -39,18 +39,23 @@ TEST_F(ParameterReachTest, EveryParameterChangesARegister)
         if (ranged == nullptr) continue;
         const std::string id = ranged->paramID.toStdString();
         if (id == ParamID::Global::PitchBendRange) continue;      // only audible with a pitch bend (PitchAccuracyTest)
+        if (id == ParamID::Global::Expressive) continue;          // MIDI behaviour, not sound
         if (id == ParamID::Global::LfoAmd) continue;              // shares 0x19 with PMD; LfoWiringTest hears it
         if (id.find("_slot_en") != std::string::npos) continue;   // key-on register only (SlotEnableTest)
+        if (id.rfind(ParamID::Motion::Prefix, 0) == 0) continue;    // acts on sounding notes only (MotionEngineTest)
         
         const float original = ranged->getValue();
         const auto before = registers();
-        // Move to the far end of the range from where it is
-        const float target = original < 0.5f ? 1.0f : 0.0f;
-        ranged->setValueNotifyingHost(target);
-        runBlock();
-        const bool changed = registers() != before;
-        ranged->setValueNotifyingHost(original);
-        runBlock();
+        // Try both ends of the range: a relative macro may already sit at one limit
+        bool changed = false;
+        for (float target : { 1.0f, 0.0f }) {
+            if (target == original) continue;
+            ranged->setValueNotifyingHost(target);
+            runBlock();
+            changed = changed || registers() != before;
+            ranged->setValueNotifyingHost(original);
+            runBlock();
+        }
         if (!changed) unreached.push_back(id);
     }
     EXPECT_TRUE(unreached.empty()) << "parameters that never reach the chip: " << [&]{ std::string s; for (auto& u : unreached) s += u + " "; return s; }();

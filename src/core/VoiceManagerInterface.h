@@ -22,6 +22,8 @@ public:
     virtual uint8_t getNoteForChannel(int channel) const = 0;
     virtual uint8_t getVelocityForChannel(int channel) const = 0;
     virtual int getChannelForNote(uint8_t note) const = 0;
+    /** Retunes a sounding voice to another note without re-allocating (legato, arpeggio). */
+    virtual void setNoteForChannel(int channel, uint8_t note) { (void) channel; (void) note; }
     
     // Voice stealing policy
     enum class StealingPolicy {

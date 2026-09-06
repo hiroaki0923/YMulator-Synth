@@ -1,226 +1,190 @@
 #include "RotaryKnob.h"
-#include "../utils/Debug.h"
+#include "UiTheme.h"
 
-RotaryKnob::RotaryKnob(const juce::String& labelText)
-    : label(labelText)
+namespace {
+constexpr float kRingPadding = 3.0f;      // room for the highlight ring
+constexpr int kLabelHeight = 13;
+constexpr int kSubLabelHeight = 11;
+}
+
+RotaryKnob::RotaryKnob(const juce::String& labelText, Style knobStyle)
+    : label(labelText), style(knobStyle)
 {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
 
 RotaryKnob::~RotaryKnob() = default;
 
+int RotaryKnob::dialDiameter(Style s)
+{
+    switch (s) {
+        case Style::Large:   return 84;
+        case Style::Primary: return 48;
+        case Style::Small:   return 36;
+        default:             return 30;
+    }
+}
+
+juce::Rectangle<int> RotaryKnob::preferredSize(Style s, LabelPosition position, bool hasSubLabel, int labelWidth)
+{
+    const int d = dialDiameter(s) + static_cast<int>(kRingPadding * 2.0f);
+    switch (position) {
+        case LabelPosition::Below:
+            return { 0, 0, juce::jmax(d, labelWidth), d + kLabelHeight + (hasSubLabel ? kSubLabelHeight : 0) };
+        case LabelPosition::Right:
+            return { 0, 0, d + 6 + labelWidth, d };
+        default:
+            return { 0, 0, d, d };
+    }
+}
+
+juce::Rectangle<float> RotaryKnob::dialBounds() const
+{
+    const float d = static_cast<float>(dialDiameter(style));
+    auto bounds = getLocalBounds().toFloat();
+    switch (labelPosition) {
+        case LabelPosition::Below:
+            return juce::Rectangle<float>(d, d).withCentre({ bounds.getCentreX(), kRingPadding + d * 0.5f });
+        case LabelPosition::Right:
+            return juce::Rectangle<float>(d, d).withCentre({ kRingPadding + d * 0.5f, bounds.getCentreY() });
+        default:
+            return juce::Rectangle<float>(d, d).withCentre(bounds.getCentre());
+    }
+}
+
 void RotaryKnob::paint(juce::Graphics& g)
 {
-    auto bounds = getLocalBounds().toFloat();
-    auto drawingBounds = bounds;
+    const auto dial = dialBounds();
+    const float d = dial.getWidth();
+    const auto centre = dial.getCentre();
+    const float ringRadius = d * 0.5f - 2.0f;
+    const double displayNorm = displayNormalized();
+    const double endAngle = startAngle + displayNorm * rotationRange;
     
-    // If this is an LFO, Noise, or FB label, reserve space on the left
-    if (!label.isEmpty() && (label.contains("LFO") || label.contains("Noise") || label == "FB")) {
-        drawingBounds.removeFromLeft(35.0f);
-    }
+    juce::Path track;
+    track.addCentredArc(centre.x, centre.y, ringRadius, ringRadius, 0.0f,
+                        static_cast<float>(startAngle), static_cast<float>(startAngle + rotationRange), true);
+    g.setColour(UiTheme::border);
+    g.strokePath(track, juce::PathStrokeType(3.0f));
     
-    auto center = drawingBounds.getCentre();
-    
-    // Calculate knob area (square, taking the smaller dimension)
-    float knobSize = juce::jmin(drawingBounds.getWidth(), drawingBounds.getHeight());
-    if (!label.isEmpty() && !label.contains("LFO") && !label.contains("Noise") && label != "FB") {
-        knobSize = juce::jmin(knobSize, drawingBounds.getHeight() - 20.0f); // Leave space for bottom label
-    }
-    // Limit maximum knob size - smaller for top-level controls
-    if (label.contains("LFO") || label.contains("Noise") || label == "FB") {
-        knobSize = juce::jmin(knobSize, 45.0f); // Smaller for top controls
-    } else {
-        knobSize = juce::jmin(knobSize, 55.0f); // Regular size for operator knobs
-    }
-    
-    auto knobBounds = juce::Rectangle<float>(knobSize, knobSize).withCentre(center);
-    if (!label.isEmpty() && !label.contains("LFO") && !label.contains("Noise") && label != "FB") {
-        knobBounds = knobBounds.withY(drawingBounds.getY() + 2.0f); // Move up to leave space for label
-    }
-    
-    float radius = knobSize * 0.35f;
-    center = knobBounds.getCentre();
-    
-    // Draw background circle
-    g.setColour(juce::Colour(0xff2d3748));
-    g.fillEllipse(knobBounds.reduced(2.0f));
-    
-    // Draw border
-    g.setColour(juce::Colour(0xff4a5568));
-    g.drawEllipse(knobBounds.reduced(2.0f), 1.5f);
-    
-    // Calculate current angle based on value
-    double normalizedVal = normalizedValue();
-    double currentAngle = startAngle + normalizedVal * rotationRange;
-    
-    // Draw value arc
-    if (normalizedVal > 0.0) {
-        g.setColour(accentColour); // Use configurable accent colour
+    if (displayNorm > 0.0) {
         juce::Path arc;
-        arc.addCentredArc(center.x, center.y, radius, radius, 0.0f,
-                         static_cast<float>(startAngle),
-                         static_cast<float>(currentAngle), true);
+        arc.addCentredArc(centre.x, centre.y, ringRadius, ringRadius, 0.0f,
+                          static_cast<float>(startAngle), static_cast<float>(endAngle), true);
+        g.setColour(isEnabled() ? accentColour : UiTheme::dim);
         g.strokePath(arc, juce::PathStrokeType(3.0f));
     }
     
-    // Draw background arc (remaining portion)
-    g.setColour(juce::Colour(0xff374151));
-    juce::Path backgroundArc;
-    backgroundArc.addCentredArc(center.x, center.y, radius, radius, 0.0f,
-                               static_cast<float>(currentAngle),
-                               static_cast<float>(startAngle + rotationRange), true);
-    g.strokePath(backgroundArc, juce::PathStrokeType(2.0f));
+    const auto disc = dial.reduced(d * 0.14f);
+    g.setColour(UiTheme::panel);
+    g.fillEllipse(disc);
+    g.setColour(UiTheme::border);
+    g.drawEllipse(disc, 1.0f);
     
-    // Pointer removed for cleaner look
-    
-    // Draw center dot
-    g.setColour(juce::Colour(0xff1a202c));
-    g.fillEllipse(center.x - 3.0f, center.y - 3.0f, 6.0f, 6.0f);
-    
-    // Draw label (check if label contains "LFO" or "Noise" or is "FB" for special formatting)
-    if (!label.isEmpty()) {
-        if (label.contains("LFO") || label.contains("Noise") || label == "FB") {
-            // For LFO/Noise/FB labels, draw on the left side
-            auto labelArea = bounds.removeFromLeft(35.0f);
-            g.setColour(juce::Colours::white);
-            g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
-            
-            if (label == "FB") {
-                // FB label - single line, centered vertically with knob
-                auto centerY = knobBounds.getCentreY();
-                auto textHeight = g.getCurrentFont().getHeight();
-                auto textArea = labelArea.withHeight(textHeight).withCentre({labelArea.getCentreX(), centerY});
-                g.drawText(label, textArea, juce::Justification::centredRight);
-            } else {
-                // Split label at space for LFO/Noise
-                auto parts = juce::StringArray::fromTokens(label, " ", "");
-                if (parts.size() >= 2) {
-                    // Center vertically around the knob center
-                    auto textHeight = g.getCurrentFont().getHeight() * 2.2f; // Height for 2 lines
-                    auto centerY = knobBounds.getCentreY();
-                    auto textArea = labelArea.withHeight(textHeight).withCentre({labelArea.getCentreX(), centerY});
-                    auto topArea = textArea.removeFromTop(textArea.getHeight() / 2);
-                    g.drawText(parts[0], topArea, juce::Justification::centredRight);
-                    g.drawText(parts[1], textArea, juce::Justification::centredRight);
-                } else {
-                    g.drawText(label, labelArea, juce::Justification::centredRight);
-                }
-            }
-        } else {
-            // Regular label at bottom
-            auto labelArea = bounds.removeFromBottom(16.0f);
-            g.setColour(juce::Colours::white);
-            g.setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
-            g.drawText(label, labelArea, juce::Justification::centred);
-        }
+    if (highlighted) {
+        g.setColour(UiTheme::amber);
+        g.drawEllipse(dial.expanded(1.5f), 2.0f);
     }
     
-    // Draw value text
-    juce::String valueText = juce::String(static_cast<int>(value));
-    auto textBounds = knobBounds.reduced(knobSize * 0.3f);
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions().withHeight(10.0f).withStyle("bold")));
-    g.drawText(valueText, textBounds, juce::Justification::centred);
-}
-
-void RotaryKnob::resized()
-{
-    // Nothing specific needed for resize
+    const float valueFontSize = style == Style::Large ? 16.0f : (style == Style::Primary ? 12.0f : (style == Style::Small ? 11.0f : 9.0f));
+    g.setColour(UiTheme::text);
+    g.setFont(UiTheme::mono(valueFontSize, true));
+    const juce::String shown = valueFormatter ? valueFormatter(value) : juce::String(juce::roundToInt(value));
+    g.drawFittedText(shown, disc.toNearestInt(), juce::Justification::centred, 1, 0.6f);
+    
+    if (label.isEmpty() || labelPosition == LabelPosition::None) return;
+    
+    g.setFont(UiTheme::mono(style == Style::Large ? 11.0f : 10.0f));
+    g.setColour(highlighted ? UiTheme::amber : UiTheme::muted);
+    if (labelPosition == LabelPosition::Below) {
+        auto labelArea = juce::Rectangle<float>(0.0f, dial.getBottom() + kRingPadding, static_cast<float>(getWidth()), static_cast<float>(kLabelHeight));
+        g.drawText(label, labelArea, juce::Justification::centred);
+        if (subLabel.isNotEmpty()) {
+            g.setColour(UiTheme::dim);
+            g.setFont(UiTheme::mono(9.0f));
+            g.drawText(subLabel, labelArea.translated(0.0f, static_cast<float>(kLabelHeight) - 1.0f).withHeight(static_cast<float>(kSubLabelHeight)),
+                       juce::Justification::centred);
+        }
+    } else {
+        auto labelArea = getLocalBounds().toFloat().withTrimmedLeft(dial.getRight() + 6.0f);
+        g.drawText(label, labelArea, juce::Justification::centredLeft);
+    }
 }
 
 void RotaryKnob::mouseDown(const juce::MouseEvent& event)
 {
-    if (event.mods.isLeftButtonDown()) {
-        isDragging = true;
-        lastMousePos = event.getPosition();
-        setMouseCursor(juce::MouseCursor::DraggingHandCursor);
-        
-        if (onGestureStart) {
-            onGestureStart();
-        }
-    }
+    if (!event.mods.isLeftButtonDown()) return;
+    isDragging = true;
+    lastMousePos = event.getPosition();
+    setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+    if (onGestureStart) onGestureStart();
 }
 
 void RotaryKnob::mouseDrag(const juce::MouseEvent& event)
 {
-    if (isDragging) {
-        auto currentPos = event.getPosition();
-        int deltaY = lastMousePos.y - currentPos.y; // Inverted for natural feel
-        
-        double sensitivity = 0.01;
-        if (event.mods.isShiftDown()) {
-            sensitivity *= 0.1; // Fine control with Shift
-        }
-        
-        double normalizedChange = deltaY * sensitivity;
-        double newNormalizedValue = juce::jlimit(0.0, 1.0, normalizedValue() + normalizedChange);
-        
-        setNormalizedValue(newNormalizedValue, juce::sendNotificationAsync);
-        lastMousePos = currentPos;
-    }
+    if (!isDragging) return;
+    const auto currentPos = event.getPosition();
+    const int deltaY = lastMousePos.y - currentPos.y;
+    double sensitivity = 0.01;
+    if (event.mods.isShiftDown()) sensitivity *= 0.1;
+    setDisplayNormalized(juce::jlimit(0.0, 1.0, displayNormalized() + deltaY * sensitivity), juce::sendNotificationAsync);
+    lastMousePos = currentPos;
 }
 
-void RotaryKnob::mouseUp(const juce::MouseEvent& event)
+void RotaryKnob::mouseUp(const juce::MouseEvent&)
 {
-    juce::ignoreUnused(event);
+    if (!isDragging) return;
     isDragging = false;
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
-    
-    if (onGestureEnd) {
-        onGestureEnd();
-    }
+    if (onGestureEnd) onGestureEnd();
 }
 
 void RotaryKnob::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    juce::ignoreUnused(event);
-    
     double sensitivity = 0.1;
-    if (event.mods.isShiftDown()) {
-        sensitivity *= 0.1; // Fine control with Shift
-    }
-    
-    double normalizedChange = wheel.deltaY * sensitivity;
-    double newNormalizedValue = juce::jlimit(0.0, 1.0, normalizedValue() + normalizedChange);
-    
-    setNormalizedValue(newNormalizedValue, juce::sendNotificationAsync);
+    if (event.mods.isShiftDown()) sensitivity *= 0.1;
+    setDisplayNormalized(juce::jlimit(0.0, 1.0, displayNormalized() + wheel.deltaY * sensitivity), juce::sendNotificationAsync);
+}
+
+void RotaryKnob::mouseEnter(const juce::MouseEvent&)
+{
+    if (onHoverChanged) onHoverChanged(true);
+}
+
+void RotaryKnob::mouseExit(const juce::MouseEvent&)
+{
+    if (onHoverChanged) onHoverChanged(false);
 }
 
 void RotaryKnob::setValue(double newValue, juce::NotificationType notification)
 {
-    double constrainedValue = constrainValue(newValue);
-    if (value != constrainedValue) {
-        value = constrainedValue;
-        repaint();
-        
-        if (notification != juce::dontSendNotification && onValueChange) {
-            onValueChange(value);
-        }
-    }
-}
-
-double RotaryKnob::getValue() const
-{
-    return value;
-}
-
-void RotaryKnob::setRange(double newMinValue, double newMaxValue, double newStepSize)
-{
-    minValue = newMinValue;
-    maxValue = newMaxValue;
-    stepSize = newStepSize;
-    setValue(value, juce::dontSendNotification); // Re-constrain current value
-}
-
-void RotaryKnob::setLabel(const juce::String& labelText)
-{
-    label = labelText;
+    const double constrained = constrainValue(newValue);
+    if (value == constrained) return;
+    value = constrained;
     repaint();
+    if (notification != juce::dontSendNotification && onValueChange) onValueChange(value);
 }
 
-void RotaryKnob::setAccentColour(const juce::Colour& colour)
+void RotaryKnob::setRange(double newMin, double newMax, double newStep)
 {
-    accentColour = colour;
+    minValue = newMin;
+    maxValue = newMax;
+    stepSize = newStep;
+    setValue(value, juce::dontSendNotification);
+}
+
+void RotaryKnob::setLabel(const juce::String& labelText) { label = labelText; repaint(); }
+void RotaryKnob::setSubLabel(const juce::String& text) { subLabel = text; repaint(); }
+void RotaryKnob::setStyle(Style newStyle) { style = newStyle; repaint(); }
+void RotaryKnob::setLabelPosition(LabelPosition position) { labelPosition = position; repaint(); }
+void RotaryKnob::setAccentColour(const juce::Colour& colour) { accentColour = colour; repaint(); }
+void RotaryKnob::setValueFormatter(std::function<juce::String(double)> formatter) { valueFormatter = std::move(formatter); repaint(); }
+void RotaryKnob::setInverted(bool shouldInvert) { inverted = shouldInvert; repaint(); }
+
+void RotaryKnob::setHighlighted(bool shouldHighlight)
+{
+    if (highlighted == shouldHighlight) return;
+    highlighted = shouldHighlight;
     repaint();
 }
 
@@ -230,18 +194,19 @@ double RotaryKnob::normalizedValue() const
     return (value - minValue) / (maxValue - minValue);
 }
 
-void RotaryKnob::setNormalizedValue(double normalizedVal, juce::NotificationType notification)
+double RotaryKnob::displayNormalized() const
 {
-    double newValue = minValue + normalizedVal * (maxValue - minValue);
-    setValue(newValue, notification);
+    return inverted ? 1.0 - normalizedValue() : normalizedValue();
+}
+
+void RotaryKnob::setDisplayNormalized(double displayValue, juce::NotificationType notification)
+{
+    const double raw = inverted ? 1.0 - displayValue : displayValue;
+    setValue(minValue + raw * (maxValue - minValue), notification);
 }
 
 double RotaryKnob::constrainValue(double val) const
 {
-    // Snap to step size
-    if (stepSize > 0.0) {
-        val = std::round((val - minValue) / stepSize) * stepSize + minValue;
-    }
-    
+    if (stepSize > 0.0) val = std::round((val - minValue) / stepSize) * stepSize + minValue;
     return juce::jlimit(minValue, maxValue, val);
 }

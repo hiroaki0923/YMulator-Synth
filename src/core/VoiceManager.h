@@ -30,6 +30,7 @@ public:
     uint8_t getNoteForChannel(int channel) const override;
     uint8_t getVelocityForChannel(int channel) const override;
     int getChannelForNote(uint8_t note) const override;
+    void setNoteForChannel(int channel, uint8_t note) override;
     
     // Voice stealing policy
     void setStealingPolicy(StealingPolicy policy) override { stealingPolicy = policy; }

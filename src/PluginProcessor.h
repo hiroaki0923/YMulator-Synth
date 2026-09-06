@@ -9,6 +9,9 @@
 #include "core/MidiProcessorInterface.h"
 #include "core/ParameterManager.h"
 #include "core/StateManager.h"
+#include "core/MacroMapper.h"
+#include "core/PatchWorkspace.h"
+#include "core/MotionEngine.h"
 #include "core/PanProcessor.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
@@ -85,6 +88,10 @@ private:
     
     // Parameter system
     juce::AudioProcessorValueTreeState parameters;
+    // Declared after the parameter tree: it unregisters its listeners on destruction
+    std::unique_ptr<ymulatorsynth::MacroMapper> macroMapper;
+    std::unique_ptr<ymulatorsynth::PatchWorkspace> patchWorkspace;
+    std::unique_ptr<ymulatorsynth::MotionEngine> motionEngine;
     bool needsPresetReapply = false;
     
     // Per-instance initialisation state (must not be shared between instances)
@@ -164,6 +171,11 @@ public:
     // Testing interface
     ymulatorsynth::MidiProcessorInterface* getMidiProcessor() { return midiProcessor.get(); }
     const YmfmWrapperInterface& getYmfmWrapper() const { return *ymfmWrapper; }
+    ymulatorsynth::MacroMapper& getMacroMapper() { return *macroMapper; }
+    ymulatorsynth::PatchWorkspace& getPatchWorkspace() { return *patchWorkspace; }
+    const ymulatorsynth::MotionEngine& getMotionEngine() const { return *motionEngine; }
+    /** Current sound as a preset structure (for previews and saving). */
+    void extractCurrentPreset(ymulatorsynth::Preset& preset) const { if (parameterManager) parameterManager->extractCurrentParameterValues(preset); }
     
 private:
     

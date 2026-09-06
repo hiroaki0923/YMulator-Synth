@@ -16,6 +16,7 @@ public:
     
     // Set parameters with YM2151 ranges
     void setYM2151Parameters(int totalLevel, int attackRate, int decay1Rate, int decay1Level, int decay2Rate, int releaseRate);
+    void setLineColour(juce::Colour colour);
 
 private:
     // Normalized envelope parameters (0.0-1.0)
@@ -33,6 +34,7 @@ private:
     static constexpr float RELEASE_WIDTH = 0.15f;  // Short release phase
     
     juce::Path envelopePath;
+    juce::Colour lineColour { 0xff52e3a1 };
     void updateEnvelopePath();
     
     // Convert YM2151 rates to normalized display values

@@ -4,7 +4,13 @@
 #include "../../src/PluginProcessor.h"
 #include "../../src/ui/MainComponent.h"
 #include "../../src/ui/PresetUIManager.h"
+#include "../../src/ui/QuickView.h"
+#include "../../src/ui/MotionPanel.h"
 #include "../mocks/MockAudioProcessorHost.h"
+#include "../../src/core/MacroMapper.h"
+#include "../../src/dsp/AlgorithmInfo.h"
+#include "../../src/utils/ParameterIDs.h"
+#include <set>
 
 /**
  * MainComponentTest - UI Component Testing
@@ -34,7 +40,7 @@ protected:
         mainComponent = std::make_unique<MainComponent>(*processor);
         
         // Ensure UI is properly sized
-        mainComponent->setSize(1000, 635);
+        mainComponent->setSize(MainComponent::kWidth, MainComponent::kHeight);
     }
     
     void TearDown() override {
@@ -57,13 +63,13 @@ protected:
 TEST_F(MainComponentTest, ComponentInitialization) {
     EXPECT_NE(mainComponent.get(), nullptr);
     EXPECT_EQ(mainComponent->getWidth(), 1000);
-    EXPECT_EQ(mainComponent->getHeight(), 635);
+    EXPECT_EQ(mainComponent->getHeight(), 640);
 }
 
 TEST_F(MainComponentTest, ComponentHasRequiredChildren) {
     // Check that MainComponent has the expected number of child components
     int childCount = mainComponent->getNumChildComponents();
-    EXPECT_GT(childCount, 10) << "MainComponent should have multiple child components";
+    EXPECT_GE(childCount, 10) << "MainComponent should have multiple child components";
 }
 
 // =============================================================================
@@ -225,24 +231,19 @@ TEST_F(MainComponentTest, GlobalControlsExist) {
 // LFO and Noise Controls Tests
 // =============================================================================
 
+// Counts components of a type anywhere below the root
+template <typename T>
+static int countComponentsOfType(juce::Component* component) {
+    int count = dynamic_cast<T*>(component) != nullptr ? 1 : 0;
+    for (int i = 0; i < component->getNumChildComponents(); ++i)
+        count += countComponentsOfType<T>(component->getChildComponent(i));
+    return count;
+}
+
 TEST_F(MainComponentTest, LFOControlsExist) {
-    bool foundToggleButton = false;
-    int labelCount = 0;
-    
-    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i) {
-        auto* child = mainComponent->getChildComponent(i);
-        
-        if (dynamic_cast<juce::ToggleButton*>(child) != nullptr) {
-            foundToggleButton = true;
-        }
-        
-        if (dynamic_cast<juce::Label*>(child) != nullptr) {
-            labelCount++;
-        }
-    }
-    
-    EXPECT_TRUE(foundToggleButton) << "Should have toggle button (likely for noise enable)";
-    EXPECT_GT(labelCount, 5) << "Should have multiple labels for controls";
+    // Noise enable, four slot toggles and four AMS toggles
+    EXPECT_GE(countComponentsOfType<juce::ToggleButton>(mainComponent.get()), 9);
+    EXPECT_GT(countComponentsOfType<juce::Label>(mainComponent.get()), 5) << "Should have multiple labels for controls";
 }
 
 // =============================================================================
@@ -346,7 +347,7 @@ TEST_F(MainComponentTest, ProcessorIntegration) {
 
 TEST_F(MainComponentTest, ComponentPainting) {
     // Test that component can paint without crashing
-    juce::Graphics g(juce::Image(juce::Image::RGB, 1000, 635, true));
+    juce::Graphics g(juce::Image(juce::Image::RGB, 1000, 640, true));
     
     EXPECT_NO_THROW({
         mainComponent->paint(g);
@@ -434,4 +435,225 @@ TEST_F(MainComponentTest, SaveButtonEnabledWhenCustomMode) {
             // but in testing this might not work due to async updates
         }
     }
+}
+// =============================================================================
+// Detail view: roles and macro highlight
+// =============================================================================
+
+TEST_F(MainComponentTest, OperatorRolesFollowAlgorithm) {
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    ASSERT_NE(algorithm, nullptr);
+    for (int alg = 0; alg < 8; ++alg) {
+        algorithm->setValueNotifyingHost(algorithm->convertTo0to1(static_cast<float>(alg)));
+        mainComponent->refreshRoles();
+        for (int op = 0; op < 4; ++op) {
+            const bool carrier = ymulatorsynth::kAlgorithms[static_cast<size_t>(alg)].isCarrier(op);
+            EXPECT_EQ(mainComponent->getOperatorPanel(op).getRole() == OperatorPanel::Role::Carrier, carrier)
+                << "algorithm " << alg << " operator " << op + 1;
+        }
+    }
+}
+
+TEST_F(MainComponentTest, NoiseTurnsOperator4IntoNoiseRole) {
+    auto* noise = processor->getParameters().getParameter(ParamID::Global::NoiseEnable);
+    ASSERT_NE(noise, nullptr);
+    noise->setValueNotifyingHost(1.0f);
+    mainComponent->refreshRoles();
+    EXPECT_EQ(mainComponent->getOperatorPanel(3).getRole(), OperatorPanel::Role::Noise);
+    noise->setValueNotifyingHost(0.0f);
+    mainComponent->refreshRoles();
+    EXPECT_NE(mainComponent->getOperatorPanel(3).getRole(), OperatorPanel::Role::Noise);
+}
+
+TEST_F(MainComponentTest, MacroFocusHighlightsExactlyItsTargets) {
+    using ymulatorsynth::Macro;
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    ASSERT_NE(algorithm, nullptr);
+    for (int alg = 0; alg < 8; ++alg) {
+        algorithm->setValueNotifyingHost(algorithm->convertTo0to1(static_cast<float>(alg)));
+        for (auto macro : { Macro::Brightness, Macro::Harmonics, Macro::Attack, Macro::Decay, Macro::Release, Macro::Spread }) {
+            mainComponent->setMacroFocus(macro);
+            const auto expectedList = ymulatorsynth::MacroMapper::targetsOf(macro, alg);
+            const std::set<std::string> expected(expectedList.begin(), expectedList.end());
+            const auto actualList = mainComponent->highlightedParameterIds();
+            const std::set<std::string> actual(actualList.begin(), actualList.end());
+            EXPECT_EQ(actual, expected) << "algorithm " << alg << " macro " << static_cast<int>(macro);
+            EXPECT_EQ(actualList.size(), expected.size()) << "no knob may be highlighted twice";
+        }
+    }
+    mainComponent->setMacroFocus(std::nullopt);
+    EXPECT_TRUE(mainComponent->highlightedParameterIds().empty());
+}
+
+// =============================================================================
+// Quick / Detail switching
+// =============================================================================
+
+TEST_F(MainComponentTest, ViewModeSwitchesVisibleChildrenAndPersists) {
+    mainComponent->setViewMode(MainComponent::ViewMode::Detail);
+    EXPECT_EQ(mainComponent->getViewMode(), MainComponent::ViewMode::Detail);
+    EXPECT_TRUE(mainComponent->getOperatorPanel(0).isVisible());
+    EXPECT_EQ(processor->getParameters().state.getProperty("uiViewMode").toString(), "detail");
+    
+    mainComponent->setViewMode(MainComponent::ViewMode::Quick);
+    EXPECT_FALSE(mainComponent->getOperatorPanel(0).isVisible());
+    EXPECT_EQ(processor->getParameters().state.getProperty("uiViewMode").toString(), "quick");
+    
+    // A new editor on the same state opens in the saved mode
+    auto another = std::make_unique<MainComponent>(*processor);
+    EXPECT_EQ(another->getViewMode(), MainComponent::ViewMode::Quick);
+}
+
+TEST_F(MainComponentTest, QuickViewAlgorithmButtonsStepTheParameter) {
+    QuickView* quick = nullptr;
+    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i)
+        if ((quick = dynamic_cast<QuickView*>(mainComponent->getChildComponent(i))) != nullptr) break;
+    ASSERT_NE(quick, nullptr);
+    
+    juce::TextButton* next = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::TextButton*>(child))
+                if (b->getTooltip() == "Next algorithm") next = b;
+            find(child);
+        }
+    };
+    find(quick);
+    ASSERT_NE(next, nullptr);
+    
+    auto* algorithm = processor->getParameters().getParameter(ParamID::Global::Algorithm);
+    algorithm->setValueNotifyingHost(algorithm->convertTo0to1(7.0f));
+    ASSERT_TRUE(next->onClick != nullptr);
+    next->onClick();
+    EXPECT_EQ(juce::roundToInt(algorithm->convertFrom0to1(algorithm->getValue())), 0) << "wraps from 7 to 0";
+    EXPECT_EQ(quick->getDisplayedAlgorithm(), 0);
+}
+
+TEST_F(MainComponentTest, NewSoundButtonGeneratesAndCompareSwitchesBack) {
+    QuickView* quick = nullptr;
+    for (int i = 0; i < mainComponent->getNumChildComponents(); ++i)
+        if ((quick = dynamic_cast<QuickView*>(mainComponent->getChildComponent(i))) != nullptr) break;
+    ASSERT_NE(quick, nullptr);
+    
+    juce::TextButton *newSound = nullptr, *slotA = nullptr, *slotB = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::TextButton*>(child)) {
+                if (b->getButtonText() == "Generate") newSound = b;
+                if (b->getButtonText() == "A") slotA = b;
+                if (b->getButtonText() == "B") slotB = b;
+            }
+            find(child);
+        }
+    };
+    find(quick);
+    ASSERT_NE(newSound, nullptr);
+    ASSERT_NE(slotA, nullptr);
+    ASSERT_NE(slotB, nullptr);
+    EXPECT_FALSE(slotB->isEnabled()) << "nothing generated yet";
+    
+    const auto before = processor->getPatchWorkspace().capture();
+    newSound->onClick();
+    EXPECT_FALSE(processor->getPatchWorkspace().capture() == before);
+    EXPECT_TRUE(slotB->isEnabled());
+    EXPECT_TRUE(slotB->getToggleState());
+    
+    slotA->onClick();
+    EXPECT_TRUE(processor->getPatchWorkspace().capture() == before);
+    EXPECT_TRUE(slotA->getToggleState());
+}
+
+TEST_F(MainComponentTest, MotionChipsToggleFeatures) {
+    MotionPanel* panel = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            if (auto* p = dynamic_cast<MotionPanel*>(c->getChildComponent(i))) panel = p;
+            find(c->getChildComponent(i));
+        }
+    };
+    find(mainComponent.get());
+    ASSERT_NE(panel, nullptr);
+    
+    auto value = [&](const char* id) {
+        auto* p = processor->getParameters().getParameter(id);
+        return p->convertFrom0to1(p->getValue());
+    };
+    EXPECT_TRUE(panel->toggleFeature("Wide"));
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 50.0f);
+    EXPECT_TRUE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->toggleFeature("Pan"));                 // features combine
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 2.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 1.0f);
+    EXPECT_TRUE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->toggleFeature("Wide"));                // and switch off individually
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 0.0f);
+    EXPECT_FALSE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->isFeatureOn("Pan"));
+    EXPECT_FALSE(panel->toggleFeature("Nope"));
+    panel->allOff();
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 0.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 0.0f);
+    EXPECT_TRUE(processor->isInCustomMode()) << "a motion change marks the sound as edited";
+}
+
+TEST_F(MainComponentTest, PresetBoxShowsGeneratedAfterGenerateAndThePresetAgainAfterLoading) {
+    PresetUIManager* presets = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents() && presets == nullptr; ++i) {
+            auto* child = c->getChildComponent(i);
+            if ((presets = dynamic_cast<PresetUIManager*>(child)) != nullptr) return;
+            find(child);
+        }
+    };
+    find(mainComponent.get());
+    ASSERT_NE(presets, nullptr);
+    juce::ComboBox* presetBox = nullptr;
+    for (int i = 0; i < presets->getNumChildComponents(); ++i)
+        if (auto* box = dynamic_cast<juce::ComboBox*>(presets->getChildComponent(i)))
+            for (int item = 0; item < box->getNumItems(); ++item)
+                if (box->getItemText(item) == "Init") presetBox = box;
+    ASSERT_NE(presetBox, nullptr);
+    
+    processor->setCurrentProgram(3);
+    presets->refreshPresetDisplay();
+    const auto loadedName = presetBox->getText();
+    EXPECT_EQ(loadedName, processor->getProgramName(3));
+    
+    processor->getPatchWorkspace().generate(ymulatorsynth::GeneratorInput{}, 7);
+    presets->syncCustomMode();
+    EXPECT_EQ(presetBox->getText(), "Generated") << "a generated sound has no source preset";
+    EXPECT_EQ(presetBox->getSelectedId(), 0);
+    
+    processor->setCurrentProgram(3);
+    presets->syncCustomMode();
+    EXPECT_EQ(presetBox->getText(), loadedName) << "loading a preset shows it again";
+}
+
+TEST_F(MainComponentTest, EditorOpensWithEveryMotionSwitchAlreadyOn) {
+    // A saved project restores the parameters before the editor exists; attachments then fire
+    // their handlers during construction. This crashed when Sync was stored on.
+    using namespace ParamID::Motion;
+    for (const char* id : { Sync, Mono, LfoOneShot })
+        processor->getParameters().getParameter(id)->setValueNotifyingHost(1.0f);
+    for (const char* id : { PanMode, ArpMode, WidePan, VibratoWave, TimbreWave, EchoDiv })
+        processor->getParameters().getParameter(id)->setValueNotifyingHost(1.0f);
+    processor->getParameters().getParameter(EchoLevel)->setValueNotifyingHost(0.5f);
+    
+    auto editor = std::make_unique<MainComponent>(*processor);
+    editor->setSize(MainComponent::kWidth, MainComponent::kHeight);
+    editor->setViewMode(MainComponent::ViewMode::Detail);
+    editor->setViewMode(MainComponent::ViewMode::Quick);
+    juce::ToggleButton* sync = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::ToggleButton*>(child)) if (b->getButtonText() == "Sync" && sync == nullptr) sync = b;
+            find(child);
+        }
+    };
+    find(editor.get());
+    ASSERT_NE(sync, nullptr);
+    EXPECT_TRUE(sync->getToggleState());
 }

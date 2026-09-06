@@ -42,6 +42,42 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
+## 🎉 Version 0.1.0 (2026-09-06)
+
+Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容は下の「Quick パネル実装」の各項目と [CHANGELOG_ja.md](../CHANGELOG_ja.md)。
+
+## 🎛️ Quick パネル実装 (2026-09-06)
+
+仕様は [Quick パネル設計](ymulatorsynth-quick-panel-design.md)、決定は [ADR-010](ymulatorsynth-adr.md)。ブランチ `feature/quick-panel-step0`。
+
+- ✅ **ステップ 0: レジスタ差分送信** - `ParameterManager::updateYmfmParameters` がパラメータハンドルと前回書込値をキャッシュし、変化したものだけを 8 チャンネルへ書く。アイドル時の書込は 0（`tests/unit/RegisterUpdateTest.cpp`）。`YmfmWrapperInterface::getRegisterWriteCount()` を追加
+- ✅ **ステップ 0: AlgorithmInfo** - `src/dsp/AlgorithmInfo.h` に 8 アルゴリズムのキャリア／モジュレータ・結線・説明を constexpr 表で持ち、ymfm のビット表現と一致することをテスト。`AlgorithmDisplay` はこの表から描画
+- ✅ **ステップ 1: マクロ層** - `ParamID::Macro`（Brightness / Harmonics / Attack / Decay / Release / Spread、meta パラメータ）と `src/core/MacroMapper`。プリセット読込・保存・状態復元でアンカーを取り、Detail での直接編集はアンカーを再基準化。アンカーは state の `macroAnchor` ノードに永続化（`tests/unit/MacroMapperTest.cpp`）
+- ✅ **ステップ 2: Detail ビュー** - ヘッダ（モード切替・バンク/プリセット・EDITED・Save・Pan）、TONE 行（マクロ 7 ノブ＋アルゴリズム図と選択）、オペレータ 4 行（役割タグ MOD / CARRIER / NOISE、主ノブ Level・Ratio・Detune を人間向け表示＋生値の副表示、EG 表示と 5 ノブ、KS / DT2 / AMS）、LFO / ノイズ行。マクロに触れると対象ノブに琥珀の輪（`MacroMapper::targetsOf` と一致することをテスト）。新規 `UiTheme.h`, `YmLookAndFeel`, `KnobBinding.h`, `ToneStrip`, `LfoNoiseStrip`。エディタは 1000×640。アルゴリズム図は `tools/gen_algorithm_svg.py` が生成する SVG（`resources/algorithms/`、BinaryData 埋め込み）を `juce::Drawable` で描画
+- ✅ **SLOT（オペレータ ON/OFF）の復旧** - 2025-06 に実装された SLOT 制御は、その後のパラメータ整理で `op*_slot_en` が APVTS から消え、UI のチェックボックスと保存経路だけが残っていた。パラメータを復活させ、キーオン時のスロットマスク（ハードウェア順 M1, M2, C1, C2 = bit 3〜6）へ配線。.opm の SLOT 値とオペレータ（音色順 M1, C1, M2, C2）の対応も修正（`tests/unit/SlotEnableTest.cpp`）
+- ✅ **Motion 設計** - [ymulatorsynth-motion-design.md](ymulatorsynth-motion-design.md)。Wide は `YmfmWrapper` 内のシャドウチップで 8 音を維持
+- ✅ **ステップ 3: Quick ビュー** - `src/ui/QuickView`。TONE の大ノブ 7 個（人間向け表示＋一言）、アルゴリズムカード（図・構造・説明・前後ボタン）、GENERATE / COMPARE / MOTION / OUTPUT の枠、DETAIL への導線と現在値の要約行。Quick / Detail の選択は state の `uiViewMode` に残り、初期表示は Quick
+- ✅ **LFO 経路の修正** - PMD をレジスタ 0x1A に書いていた（YM2151 では AMD と PMD は 0x19 を共有し bit 7 で選択。ymfm は 0x1A への書込を無視）ため、ビブラートが一切効いていなかった。さらにプリセットの LFO 値（LFRQ/AMD/PMD/WF/NFRQ）とチャンネルの AMS/PMS 感度がパラメータにもチップにも渡っていなかった。`lfo_ams` / `lfo_pms` パラメータを追加し、プリセット読込・保存・差分送信に配線。保存経路 2 か所の手書き抽出（正規化値×最大値の切り捨てあり）を `extractCurrentParameterValues` に統一。ゴールデンテストに LFO / AMS・PMS / ノイズのレジスタを追加、`tests/unit/LfoWiringTest.cpp` で音の変化を実測
+- ✅ **ステップ 4: ジェネレータ / Undo / A-B** - `src/core/PatchGenerator`（カテゴリ表＋方向 6 本から決定的に生成、最初のキャリアは必ず可聴）、`SnapshotStore`（Undo 16 段、A/B スロット）、`PatchWorkspace`（適用・復元・アンカー再取得、TONE 操作前と生成前に Undo 点）。UI は `GeneratorPanel`（カテゴリチップ、スライダー 6 本。設定は state の `generator` ノードに永続化）と COMPARE カードの A/B
+- ✅ **ステップ 5: 出力波形** - 当初は出力のリングバッファを表示していたが、「この設定ならどういう波形か」が分かるほうが良いというユーザー判断で、`src/core/PatchPreview`（専用チップで現在のパッチの C4 を 0.5 秒描画）に変更。`src/ui/OutputScope` は最も大きい区間の 3 周期を立ち上がりゼロクロスから表示し、ピーク正規化＋実レベルのバー。音パラメータが変わったときだけ再レンダリング（4 Hz で署名を比較）。2026-09-06: 0.5 秒保持＋0.5 秒リリースを描画し、再生位置が実時間で進むループ（30 Hz）に変更。波形はレンダリング全体のピークでスケールし、下にレベル包絡線とキーオフ位置・カーソルを表示。ADR やモジュレータ EG の効きが見える
+- ✅ **Motion 1: Vibrato** - `src/core/MotionEngine`。processBlock が 64 サンプルごとに `tick()` を挟んで音を生成する制御レート構造。ボイスごとに遅延・立ち上がり・深さ（最大 ±50 セント）・レートを持ち、`YmfmWrapper::setChannelPitchOffset` 経由で KC/KF を書く（ベンドとは別のオフセット）。パラメータ `motion_vib_*`。リセット時にレジスタキャッシュとチャンネル状態を消すよう修正（`tests/unit/MotionEngineTest.cpp`）
+- ✅ **Motion 2: Wide** - `YmfmWrapper` が 2 つ目の `ymfm::ym2151`（シャドウチップ）を持ち、全レジスタ書込を複製。KC/KF は主 −d / シャドウ +d（最大 ±25 セント）、パンは L/R 配置なら主 L・シャドウ R（メイン側のキャッシュはパラメータどおりの値を保ち、差し替えはチップ書込時のみ）、Center 配置は両方 −3 dB で混合。同時発音 8 を維持。パラメータ `motion_wide` / `motion_wide_pan`（`tests/unit/WideTest.cpp`）
+- ✅ **Motion 3: Timbre LFO / Tremolo** - `YmfmWrapper::setChannelLevelMotion`。TL は「パラメータ値＋ベロシティ（キャリア）＋モーション」で書き、モジュレータには三角波 ±40 ステップ、キャリアには片側正弦で最大 24 ステップの減衰。パラメータ `motion_timbre_*` / `motion_trem_*`
+- ✅ **Motion 4: Pan Motion と BPM 同期** - `MotionEngine::setTransport` がプレイヘッドの BPM / 拍位置を受け、再生中は拍位置から位相を再計算、停止中は最後のテンポで自走。`motion_sync` ON でビブラート・音色 LFO・トレモロは音価（1/1〜1/8T）で回る。Pan Motion は Alternate（発音ごとに L / R 交互）と Step（拍ごとに L→C→R→C）。Wide が L/R 配置のときは無効、Off に戻すとグローバルパンを書き戻す（`tests/unit/PanMotionTest.cpp`）
+- ✅ **Motion 5: Pitch Env** - 発音時に ±100 セントから直線で本来の音程へ（0〜500 ms）。ビブラートと加算。パラメータ `motion_pitch_env` / `motion_pitch_time`
+- ✅ **Quick の MOTION カード改訂** - チップを機能ごとの ON/OFF トグル（複数同時 ON）に変更。ノブ 2 段（Wide / Vib / Timbre / Echo / Rate、Sweep / Swell / Porta / Pitch / Bright）とパン／アルペジオのモード、Sync。COMPARE の A/B は GENERATE カードの見出しへ移動し、MOTION が右列を使う
+- ✅ **キーオンのスロット順の再修正（2026-09-06）** - 0.0.8 で「キーオンは M1, M2, C1, C2 のハードウェア順」としたのは誤り。ymfm の OPM は operator_map が (0, 16, 8, 24) で、キーオン bit n がその n 番目（M1, C1, M2, C2 = 音色順）に対応する。`OPERATOR_HW_SLOT` を恒等に戻し、.opm SLOT の対応も同じ順に。M1 と C1 だけ ON の音色（デモの Punch Kick）が無音になる形で発覚。音で確かめる `SlotEnableTest.OnlyTheEnabledOperatorsSound` を追加
+- ✅ **Motion の同期音価と操作性（2026-09-06）** - Echo / Timbre / Tremolo の音価はパラメータだけあって UI が無かった。Detail の MOTION 行で Sync ON のとき Rate / Time ノブの位置に音価ボックス（Vibrato / Timbre / Tremolo / Echo）を出す。時間系ノブは 1 秒未満を ms、以上を「1.8s」で表示（Level EG Decay 180 が読める）。エディタに TooltipWindow が無くツールチップが一度も出ていなかったので追加。ノブのツールチップに「上下ドラッグ、Shift で微調整、ホイール」を記載し README にも明記。`ui_snapshot --param id=value` を追加
+- ✅ **Quick の配置見直し（2026-09-06）** - 「新しい音はここから」が分かるよう、ジェネレータのカードを左上に置き TONE をその下へ。カード名は RECIPE（材料＝カテゴリと方向）、実行ボタンは「Generate」としてカードの右下に Undo / A / B と並べる。見出しの一言で現在の音を置き換えること（Undo で戻ること）を明記。プリセットのロードとは別の入口であることを配置で示す
+- ✅ **Motion 11: Level EG と LFO 波形** - キャリア TL のソフトエンベロープ（アタック時間で 40 ステップ下から立ち上がり、ディケイ時間でサステイン減衰へ）。ビブラート／音色 LFO の波形（正弦・三角・ノコギリ・矩形・ランダム=サイクルごとのサンプル&ホールド）とワンショット。MOTION カードに Swell チップ
+- ✅ **Motion 10: 2 段ピッチエンベロープ** - 発音時 ±24 半音 → 第 1 時間で第 2 点（±24 半音）→ 第 2 時間で本来の音程。ドラムの「叩いて沈む」やレーザー系 SE に。MOTION カードに Kick チップ（+1200 → −500 セント）
+- ✅ **Motion 9: レガート／ポルタメント、ベロシティ→明るさ、チップ・アルペジオ** - `HeldNotes`（MidiProcessor が保持、MotionEngine が参照）。Mono ON では押さえた音が 1 チャンネルを共有し、2 音目はキーオンせず音程だけ変える（離すと前の音に戻る）。ポルタメントは直前の音からの直線グライド（ポリでも有効）。`YmfmWrapper::getNoteOnCount` で「新しい発音」と「音程変更」を区別。ベロシティ→明るさはモジュレータ TL に最大 40 ステップ。アルペジオは押さえた音を 1 チャンネルで音価ごとに Up / Down / UpDown。音価一覧に 1/32・1/64・1/16T を追加。Detail の MOTION 行を 2 段に（`tests/unit/MonoArpTest.cpp`）
+- ✅ **Motion 8: Sweep** - フィルタエンベロープの FM 版。発音時にモジュレータ TL を ±40 ステップずらし、指定時間（50 ms〜4 s）で二乗カーブでパッチの明るさに収束。`motion_sweep_amount` / `motion_sweep_time`。MOTION カードに Sweep チップ（Sweep＋Wide Center＋Echo の組）、Detail に Sweep グループ
+- ✅ **Motion 7: Echo** - 当時の「もう 1 チャンネルで遅らせて小さく鳴らす」疑似リバーブ。シャドウチップへのキーオン・KC/KF・TL の書き込みだけを遅延キューに通し、キャリア TL に減衰を足す。Wide のデチューンと併用可、L/R か Center。`motion_echo_level` / `motion_echo_time` / `motion_echo_div`（同期時）。MOTION カードに Echo チップとノブ、Detail の行に Echo グループ（`tests/unit/EchoTest.cpp`）
+- ✅ **Detail の MOTION 行** - `src/ui/MotionStrip`。全モーションパラメータをグループ（Vibrato / Wide / Timbre / Tremolo / Pan / Pitch）で並べ、Sync ON のときは Hz ノブを無効表示。アルゴリズムの構造記法は図があれば不要なので TONE 行と Quick のカードから削除
+- ✅ **MIDI CC for Quick / Motion** - CC 102〜107 でマクロ、110〜118 で Motion の量（値はパラメータ範囲上の位置、64 がマクロ中央）。CC 121 でマクロも中央へ。VOPMex どおり 75 → PMS、76 → AMS とし、0.0.6 の LFO 用 76〜79 は廃止（81 は維持）。`midi_expressive` パラメータ ON でモジュレーションホイール → ビブラート深さ、チャンネルアフタータッチ → Brightness（Detail 最下段のトグル）。マクロ CC は生パラメータの CC が動かしたアンカーの周りを動くので併用可（`tests/unit/MidiCcMappingTest.cpp`）
+- ✅ **Motion 6: MOTION カード** - `src/ui/MotionPanel`。定型チップ（Off / Wide / Vib / Growl / Pan / Trem）、Wide / Vib / Timbre のノブ、パンモード、Sync トグルと同期時の音価。定型はパラメータの組として `MotionPanel::presets()` に定義 → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
+
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 
 **主要な新機能:**
@@ -352,7 +388,9 @@
 
 ## 更新履歴
 
-- **2026-09-06**: Version 0.0.8（LFO 経路、SLOT 復旧、プリセット保存の修正）
+- **2026-09-06**: Version 0.1.0（Quick 画面、Motion、Quick / Motion の CC、キーオン順の再修正、Init の MUL）
+- **2026-09-06**: Version 0.0.8（LFO 経路、SLOT 復旧、ベロシティ、プリセット保存の修正）
+- **2026-09-06**: Quick パネル ステップ 0〜4（差分送信、AlgorithmInfo、マクロ層、Detail / Quick ビュー、ジェネレータ）
 - **2026-09-05**: メンテナンス再開、v0.0.7 リリース
 - **2025-06-23**: Phase 3+完了・Version 0.0.6準備（グローバルパン・DAW互換性向上実装完了）
 - **2025-06-23**: オーディオバッファ処理最適化とAudio Unit互換性向上実装

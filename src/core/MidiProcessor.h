@@ -8,6 +8,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <unordered_map>
+#include "HeldNotes.h"
 #include <atomic>
 
 namespace ymulatorsynth {
@@ -63,7 +64,13 @@ public:
      */
     void applyGlobalPan(int channel);
     
+    /** Notes held while mono or arpeggio mode is on; read by the motion engine. */
+    const ymulatorsynth::HeldNotes& getHeldNotes() const { return held; }
+    
 private:
+    ymulatorsynth::HeldNotes held;
+    bool monoModeOn() const;
+    bool arpeggioOn() const;
     // Dependencies (interfaces for testability)
     VoiceManagerInterface& voiceManager;
     YmfmWrapperInterface& ymfmWrapper;
@@ -74,7 +81,10 @@ private:
     struct CcTarget {
         juce::RangedAudioParameter* param = nullptr;
         bool reversed = false;   // TL / AR / D1R / D2R / D1L / RR run opposite to the register in natural mode
+        bool normalized = false; // Quick / motion amounts: the CC is a position in the range, not a register value
     };
+    bool expressiveMode() const;
+    void resetMacros();
     std::unordered_map<int, CcTarget> ccToParameterMap;
     
     // VOPMex CC value interpretation: natural (scaled, some reversed) by default,

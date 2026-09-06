@@ -28,6 +28,13 @@ public:
     // MIDI interface
     virtual void noteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
     virtual void noteOff(uint8_t channel, uint8_t note) = 0;
+    /** Changes the pitch of a sounding channel without a key-on (legato, arpeggio). */
+    virtual void retuneChannel(uint8_t channel, uint8_t note) { (void) channel; (void) note; }
+    /** Number of key-ons a channel has had; lets others tell a new note from a retune. */
+    virtual uint32_t getNoteOnCount(uint8_t channel) const { (void) channel; return 0; }
+    /** How much velocity also darkens the modulators: 0 none, 1 up to 40 TL steps at velocity 1. */
+    virtual void setVelocityBrightness(float amount) { (void) amount; }
+    virtual float getVelocityBrightness() const { return 0.0f; }
     /** Operators keyed on with the next note, bit n = operator n in voice order (M1, C1, M2, C2). */
     virtual void setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask) { (void) channel; (void) voiceOrderMask; }
     
@@ -63,6 +70,21 @@ public:
     
     // Advanced features
     virtual void setPitchBend(uint8_t channel, float semitones) = 0;
+    /** Extra pitch offset from the motion engine (vibrato, pitch envelope), on top of the pitch bend. */
+    virtual void setChannelPitchOffset(uint8_t channel, float semitones) { (void) channel; (void) semitones; }
+    
+    /** Level motion in TL steps, added to carriers or modulators of a channel on top of parameter TL and velocity. */
+    virtual void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) { (void) channel; (void) carrierSteps; (void) modulatorSteps; }
+    
+    /** Wide: a second chip plays every note detuned the other way, panned apart or both centred. */
+    enum class WidePan { LeftRight, Centre };
+    virtual void setWide(bool enabled, float detuneCents, WidePan pan) { (void) enabled; (void) detuneCents; (void) pan; }
+    virtual bool isWideEnabled() const { return false; }
+    /** Echo: the second chip repeats every note after a delay, carriers attenuated by the given TL steps. */
+    virtual void setEcho(bool enabled, double delaySeconds, int attenuationSteps) { (void) enabled; (void) delaySeconds; (void) attenuationSteps; }
+    virtual bool isEchoEnabled() const { return false; }
+    /** Register cache of the second chip (diagnostics and tests). */
+    virtual uint8_t readShadowRegister(int address) const { (void) address; return 0; }
     virtual void setChannelPan(uint8_t channel, float panValue) = 0;
     virtual void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) = 0;
     virtual void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) = 0;
@@ -88,6 +110,8 @@ public:
     
     // Register access
     virtual void writeRegister(int address, uint8_t data) = 0;
+    /** Number of register writes issued so far (diagnostics and tests). */
+    virtual uint64_t getRegisterWriteCount() const { return 0; }
     virtual uint8_t readCurrentRegister(int address) const = 0;
     
     // Batch operations for efficiency

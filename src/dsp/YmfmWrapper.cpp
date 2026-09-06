@@ -48,6 +48,19 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
 
 void YmfmWrapper::reset()
 {
+    // The chip forgets everything on reset; so must the register cache and the per-channel state
+    std::memset(currentRegisters, 0, sizeof(currentRegisters));
+    std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
+    for (auto& state : channelStates) state = ChannelState {};
+    velocityAttenuation.fill(0);
+    velocityModulatorAttenuation.fill(0);
+    carrierMotion.fill(0);
+    modulatorMotion.fill(0);
+    echoHead = echoTail = 0;
+    nativeSampleCount = 0;
+    for (auto& side : echoSide) side = YM2151Regs::PAN_RIGHT_ONLY;
+    nextEchoRight = true;
+    if (shadowChip) shadowChip->reset();
     if (chipType == ChipType::OPM && opmChip) {
         opmChip->reset();
         initializeOPM();
@@ -79,6 +92,16 @@ void YmfmWrapper::renderNativeSample()
         // ymfm output: data[0] = left, data[1] = right (NOT interleaved)
         left = static_cast<float>(opmOutput.data[0]) * scaleFactor;
         right = static_cast<float>(opmOutput.data[1]) * scaleFactor;
+        ++nativeSampleCount;
+        if (shadowActive() && shadowChip) {
+            flushEcho(false);
+            shadowChip->generate(&shadowOutput, 1);
+            // Panned apart each side carries one chip; centred, both share each side at -3 dB.
+            // An echo is already quieter, so it is mixed as is.
+            const float mix = (widePan == WidePan::Centre && !echoEnabled) ? 0.70710678f : 1.0f;
+            left = left * mix + static_cast<float>(shadowOutput.data[0]) * scaleFactor * mix;
+            right = right * mix + static_cast<float>(shadowOutput.data[1]) * scaleFactor * mix;
+        }
     } else if (chipType == ChipType::OPNA && opnaChip) {
         opnaChip->generate(&opnaOutput, 1);
         left = static_cast<float>(opnaOutput.data[0]) * scaleFactor;
@@ -98,9 +121,12 @@ void YmfmWrapper::initializeOPM()
     // Creating OPM chip instance
     
     opmChip = std::make_unique<ymfm::ym2151>(*this);
+    shadowChip = std::make_unique<ymfm::ym2151>(*this);
     
     // Resetting OPM chip
     opmChip->reset();
+    shadowChip->reset();
+    std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
     
     // OPM chip reset complete, setting up voice
     
@@ -132,14 +158,14 @@ void YmfmWrapper::writeRegister(int address, uint8_t data)
     
     // Update register cache
     currentRegisters[addr] = data;
+    ++registerWriteCount;
     
     if (chipType == ChipType::OPM && opmChip) {
-        // DEBUG: Enable register write logging for investigation
-        // Register write debug output disabled for performance
-        
-        // Use write_address and write_data like sample code
         opmChip->write_address(addr);
-        opmChip->write_data(data);
+        opmChip->write_data(panForChip(addr, data, false));
+        // Pitch registers are written per chip by writePitch (the two chips are detuned apart)
+        const bool pitchRegister = addr >= YM2151Regs::REG_KEY_CODE_BASE && addr < YM2151Regs::REG_KEY_FRACTION_BASE + YM2151Regs::MAX_OPM_CHANNELS;
+        if (!pitchRegister) writeShadow(addr, panForChip(addr, data, true));
     } else if (chipType == ChipType::OPNA && opnaChip) {
         // OPNA register write debug output disabled
         
@@ -156,6 +182,117 @@ uint8_t YmfmWrapper::readCurrentRegister(int address) const
 void YmfmWrapper::updateRegisterCache(uint8_t address, uint8_t value)
 {
     currentRegisters[address] = value;
+}
+
+void YmfmWrapper::writeShadowNow(uint8_t address, uint8_t data)
+{
+    shadowRegisters[address] = data;
+    if (shadowChip) {
+        shadowChip->write_address(address);
+        shadowChip->write_data(data);
+    }
+}
+
+void YmfmWrapper::writeShadow(uint8_t address, uint8_t data)
+{
+    if (!echoEnabled || !isEchoDelayedRegister(address)) { writeShadowNow(address, data); return; }
+    const size_t next = (echoTail + 1) % echoQueue.size();
+    if (next == echoHead) return;   // queue full: drop rather than block the audio thread
+    echoQueue[echoTail] = { nativeSampleCount + echoDelaySamples, address, echoAttenuated(address, data) };
+    echoTail = next;
+}
+
+bool YmfmWrapper::isEchoDelayedRegister(uint8_t address) const
+{
+    // Everything that makes a note: key on/off, pitch, level (velocity and motion ride on TL) and the pan it was played with
+    return address == YM2151Regs::REG_KEY_ON_OFF
+        || (address >= YM2151Regs::REG_KEY_CODE_BASE && address < YM2151Regs::REG_KEY_FRACTION_BASE + YM2151Regs::MAX_OPM_CHANNELS)
+        || (address >= YM2151Regs::REG_TOTAL_LEVEL_BASE && address < YM2151Regs::REG_TOTAL_LEVEL_BASE + 32)
+        || (address >= YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE && address < YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + YM2151Regs::MAX_OPM_CHANNELS);
+}
+
+uint8_t YmfmWrapper::echoAttenuated(uint8_t address, uint8_t data) const
+{
+    if (address < YM2151Regs::REG_TOTAL_LEVEL_BASE || address >= YM2151Regs::REG_TOTAL_LEVEL_BASE + 32) return data;
+    const uint8_t channel = static_cast<uint8_t>(address & 7);
+    // Register slots are laid out in address order (+0, +8, +16, +24); find the operator that lives there
+    const uint8_t slotOffset = static_cast<uint8_t>((address - YM2151Regs::REG_TOTAL_LEVEL_BASE) & 0x18);
+    uint8_t op = 0;
+    for (uint8_t candidate = 0; candidate < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++candidate)
+        if (YM2151Regs::OPERATOR_SLOT_OFFSET[candidate] == slotOffset) op = candidate;
+    if (!isCarrier(channel, op)) return data;
+    return static_cast<uint8_t>(juce::jmin(127, data + echoAttenuation));
+}
+
+void YmfmWrapper::flushEcho(bool everything)
+{
+    while (echoHead != echoTail && (everything || echoQueue[echoHead].due <= nativeSampleCount)) {
+        writeShadowNow(echoQueue[echoHead].address, echoQueue[echoHead].data);
+        echoHead = (echoHead + 1) % echoQueue.size();
+    }
+}
+
+void YmfmWrapper::setEcho(bool enabled, double delaySeconds, int attenuationSteps)
+{
+    const auto delay = static_cast<uint64_t>(juce::jmax(0.0, delaySeconds) * static_cast<double>(internalSampleRate));
+    if (enabled == echoEnabled && delay == echoDelaySamples && attenuationSteps == echoAttenuation) return;
+    const bool wasEnabled = echoEnabled;
+    echoEnabled = enabled;
+    echoDelaySamples = delay;
+    echoAttenuation = juce::jlimit(0, 127, attenuationSteps);
+    if (chipType != ChipType::OPM) return;
+    if (!enabled && wasEnabled) flushEcho(true);
+    // Level change: bring the shadow's carrier levels to the new attenuation right away
+    if (enabled)
+        for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch)
+            for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) {
+                const uint8_t addr = static_cast<uint8_t>(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch);
+                writeShadowNow(addr, echoAttenuated(addr, currentRegisters[addr]));
+            }
+    else
+        for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch)
+            for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) {
+                const uint8_t addr = static_cast<uint8_t>(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch);
+                writeShadowNow(addr, currentRegisters[addr]);
+            }
+    refreshPansForWide();
+}
+
+uint8_t YmfmWrapper::panForChip(uint8_t address, uint8_t data, bool shadow) const
+{
+    // Panned apart: with Echo the note keeps its own pan and each echo takes a side in turn;
+    // with Wide alone the main chip takes the left and the shadow the right
+    const bool panRegister = address >= YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE
+                          && address < YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + YM2151Regs::MAX_OPM_CHANNELS;
+    if (!panRegister || !shadowActive() || widePan != WidePan::LeftRight) return data;
+    if (echoEnabled) {
+        if (!shadow) return data;
+        return static_cast<uint8_t>((data & ~YM2151Regs::MASK_PAN_LR) | echoSide[address - YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE]);
+    }
+    return static_cast<uint8_t>((data & ~YM2151Regs::MASK_PAN_LR) | (shadow ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_LEFT_ONLY));
+}
+
+void YmfmWrapper::refreshPansForWide()
+{
+    for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch) {
+        const uint8_t addr = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch;
+        const uint8_t data = currentRegisters[addr];
+        if (opmChip) { opmChip->write_address(addr); opmChip->write_data(panForChip(addr, data, false)); }
+        writeShadow(addr, panForChip(addr, data, true));
+    }
+}
+
+void YmfmWrapper::setWide(bool enabled, float detuneCents, WidePan pan)
+{
+    const float detune = detuneCents / 100.0f;
+    if (enabled == wideEnabled && detune == wideDetuneSemitones && pan == widePan) return;
+    wideEnabled = enabled;
+    wideDetuneSemitones = detune;
+    widePan = pan;
+    if (chipType != ChipType::OPM) return;
+    refreshPansForWide();
+    for (uint8_t ch = 0; ch < YM2151Regs::MAX_OPM_CHANNELS; ++ch)
+        if (channelStates[ch].active) writePitch(ch);
 }
 
 void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples)
@@ -207,21 +344,16 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     // Store the base note for this channel
     channelStates[channel].baseNote = note;
     channelStates[channel].active = true;
+    ++channelStates[channel].noteOnCount;
     
     if (chipType == ChipType::OPM) {
-        // Calculate frequency from MIDI note with current pitch bend
-        uint16_t fnum = noteToFnumWithPitchBend(note, channelStates[channel].pitchBend);
-        
-        // Extract KC and KF from FNUM
-        // YM2151 FNUM format: KC (key code) and KF (key fraction)
-        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;  // Upper 7 bits
-        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;  // Lower 6 bits, shifted for register format
-        
-        // MIDI note conversion debug output disabled
-        
-        // Write KC and KF
-        writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
-        writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
+        if (echoEnabled && widePan == WidePan::LeftRight) {
+            echoSide[channel] = nextEchoRight ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_LEFT_ONLY;
+            nextEchoRight = !nextEchoRight;
+            const uint8_t panAddr = static_cast<uint8_t>(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+            writeShadow(panAddr, panForChip(panAddr, currentRegisters[panAddr], true));
+        }
+        writePitch(channel);
         
         // Apply velocity sensitivity to channel before key on
         applyVelocityToChannel(channel, velocity);
@@ -487,8 +619,8 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
 void YmfmWrapper::setAlgorithm(uint8_t channel, uint8_t algorithm)
 {
     setChannelParameter(channel, ChannelParameter::Algorithm, algorithm);
-    // The carrier set changed; a held note keeps its velocity on the new carriers
-    if (channel < YM2151Regs::MAX_OPM_CHANNELS && velocityAttenuation[channel] != 0)
+    // The carrier set changed; a held note keeps its velocity and level motion on the right operators
+    if (channel < YM2151Regs::MAX_OPM_CHANNELS && (velocityAttenuation[channel] != 0 || carrierMotion[channel] != 0 || modulatorMotion[channel] != 0))
         for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
 }
 
@@ -498,10 +630,25 @@ bool YmfmWrapper::isCarrier(uint8_t channel, uint8_t operator_num) const
     return ((YM2151Regs::ALGORITHM_CARRIER_MASK[algorithm] >> operator_num) & 1) != 0;
 }
 
+void YmfmWrapper::setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    if (carrierMotion[channel] == carrierSteps && modulatorMotion[channel] == modulatorSteps) return;
+    const bool carriersChanged = carrierMotion[channel] != carrierSteps;
+    const bool modulatorsChanged = modulatorMotion[channel] != modulatorSteps;
+    carrierMotion[channel] = carrierSteps;
+    modulatorMotion[channel] = modulatorSteps;
+    for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op)
+        if (isCarrier(channel, op) ? carriersChanged : modulatorsChanged) writeTotalLevel(channel, op);
+}
+
 void YmfmWrapper::writeTotalLevel(uint8_t channel, uint8_t operator_num)
 {
-    const int attenuation = isCarrier(channel, operator_num) ? velocityAttenuation[channel] : 0;
-    const int tl = juce::jmin(127, baseTotalLevel[channel][operator_num] + attenuation);
+    const bool carrier = isCarrier(channel, operator_num);
+    const int attenuation = carrier ? velocityAttenuation[channel] + carrierMotion[channel]
+                                    : velocityModulatorAttenuation[channel] + modulatorMotion[channel];
+    const int tl = juce::jlimit(0, 127, baseTotalLevel[channel][operator_num] + attenuation);
     writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel,
                   static_cast<uint8_t>(tl));
 }
@@ -569,24 +716,56 @@ void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
     // Update the pitch bend state for this channel
     channelStates[channel].pitchBend = semitones;
     
-    // If this channel is currently playing a note, update its frequency
-    if (channelStates[channel].active && chipType == ChipType::OPM) {
-        uint8_t baseNote = channelStates[channel].baseNote;
-        uint16_t fnum = noteToFnumWithPitchBend(baseNote, semitones);
-        
-        // Extract KC and KF from FNUM
-        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
-        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;
-        
-        // Update the frequency registers
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::retuneChannel(uint8_t channel, uint8_t note)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_NOTE(note);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    channelStates[channel].baseNote = note;
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::setVelocityBrightness(float amount)
+{
+    velocityBrightness = juce::jlimit(0.0f, 1.0f, amount);
+}
+
+void YmfmWrapper::setChannelPitchOffset(uint8_t channel, float semitones)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    if (channelStates[channel].motionOffset == semitones) return;
+    channelStates[channel].motionOffset = semitones;
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::writePitch(uint8_t channel)
+{
+    if (chipType != ChipType::OPM) return;
+    const auto& state = channelStates[channel];
+    const float pitch = state.pitchBend + state.motionOffset;
+    const float spread = wideEnabled ? wideDetuneSemitones : 0.0f;
+    
+    auto split = [](uint16_t fnum, uint8_t& kc, uint8_t& kf) {
+        kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
+        kf = static_cast<uint8_t>((fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION);
+    };
+    uint8_t kc, kf;
+    split(noteToFnumWithPitchBend(state.baseNote, pitch - spread), kc, kf);
+    if (currentRegisters[YM2151Regs::REG_KEY_CODE_BASE + channel] != kc)
         writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
+    if (currentRegisters[YM2151Regs::REG_KEY_FRACTION_BASE + channel] != kf)
         writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
-        
-        CS_DBG(" Pitch bend updated - channel=" + juce::String((int)channel) + 
-            ", semitones=" + juce::String(semitones, 3) + 
-            ", KC=0x" + juce::String::toHexString(kc) + 
-            ", KF=0x" + juce::String::toHexString(kf));
-    }
+    
+    uint8_t shadowKc, shadowKf;
+    split(noteToFnumWithPitchBend(state.baseNote, pitch + spread), shadowKc, shadowKf);
+    if (shadowRegisters[YM2151Regs::REG_KEY_CODE_BASE + channel] != shadowKc)
+        writeShadow(static_cast<uint8_t>(YM2151Regs::REG_KEY_CODE_BASE + channel), shadowKc);
+    if (shadowRegisters[YM2151Regs::REG_KEY_FRACTION_BASE + channel] != shadowKf)
+        writeShadow(static_cast<uint8_t>(YM2151Regs::REG_KEY_FRACTION_BASE + channel), shadowKf);
 }
 
 void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)
@@ -855,6 +1034,8 @@ void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
     // so the timbre (modulator levels) does not change with velocity
     const float quiet = 1.0f - static_cast<float>(velocity) / static_cast<float>(YM2151Regs::MAX_VELOCITY);
     velocityAttenuation[channel] = static_cast<uint8_t>(juce::roundToInt(quiet * static_cast<float>(YM2151Regs::VELOCITY_TL_RANGE)));
+    // Optionally the modulators too, so soft notes are also darker (the FM way to play expressively)
+    velocityModulatorAttenuation[channel] = static_cast<uint8_t>(juce::roundToInt(quiet * velocityBrightness * static_cast<float>(YM2151Regs::VELOCITY_TL_RANGE) * 1.25f));
     for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
 }
 

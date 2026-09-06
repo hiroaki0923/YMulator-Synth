@@ -18,7 +18,8 @@ class YMulatorSynthAudioProcessor;
  * Part of Phase 2 refactoring to split MainComponent responsibilities.
  */
 class PresetUIManager : public juce::Component,
-                        public juce::ValueTree::Listener
+                        public juce::ValueTree::Listener,
+                        private juce::Timer
 {
 public:
     explicit PresetUIManager(YMulatorSynthAudioProcessor& processor);
@@ -35,6 +36,9 @@ public:
     void updateBankComboBox();
     void updatePresetComboBox();
     void refreshPresetDisplay();
+    
+    /** Custom mode is flipped from the processor without a state property; poll it and redraw on change. */
+    void syncCustomMode();
 
 private:
     YMulatorSynthAudioProcessor& audioProcessor;
@@ -45,9 +49,13 @@ private:
     std::unique_ptr<juce::ComboBox> presetComboBox;
     std::unique_ptr<juce::Label> presetLabel;
     std::unique_ptr<juce::TextButton> savePresetButton;
+    std::unique_ptr<juce::Label> editedTag;
     
     // UI state management
     bool isUpdatingFromState = false;
+    bool shownCustomMode = false;
+    juce::String shownCustomName;
+    void timerCallback() override { syncCustomMode(); }
     
     // Setup methods
     void setupComponents();

@@ -26,8 +26,6 @@ endif()
 
 if(GTest_FOUND)
     # Check if JUCE binary data has been generated
-    set(JUCE_BINARY_DATA_FILE "${CMAKE_BINARY_DIR}/src/juce_binarydata_YMulator-Synth_Resources/JuceLibraryCode/BinaryData1.cpp")
-    
     # Define common source files used by all test executables
     set(COMMON_SOURCES
         mocks/MockAudioProcessorHost.cpp
@@ -40,6 +38,12 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/MacroMapper.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchGenerator.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/SnapshotStore.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchWorkspace.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/MotionEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchPreview.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
@@ -50,7 +54,14 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/AlgorithmDisplay.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/RotaryKnob.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/PresetUIManager.cpp
-        ${CMAKE_SOURCE_DIR}/src/ui/GlobalControlsPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/ToneStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/QuickView.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/GeneratorPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/OutputScope.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/MotionPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/MotionStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/LfoNoiseStrip.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/YmLookAndFeel.cpp
         
         # ymfm source files
         ${CMAKE_SOURCE_DIR}/third_party/ymfm/src/ymfm_opm.cpp
@@ -68,6 +79,7 @@ if(GTest_FOUND)
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
         unit/MidiCcMappingTest.cpp
+        unit/AlgorithmInfoTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -85,6 +97,9 @@ if(GTest_FOUND)
         test_main.cpp
         unit/ParameterManagerTest.cpp
         unit/ParameterStateIntegrationTest.cpp
+        unit/MacroMapperTest.cpp
+        unit/PatchGeneratorTest.cpp
+        unit/PatchWorkspaceTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -122,10 +137,17 @@ if(GTest_FOUND)
         unit/PitchAccuracyTest.cpp
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
+        unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
+        unit/PatchPreviewTest.cpp
+        unit/MotionEngineTest.cpp
+        unit/WideTest.cpp
+        unit/PanMotionTest.cpp
+        unit/EchoTest.cpp
+        unit/MonoArpTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -157,6 +179,7 @@ if(GTest_FOUND)
         unit/ParameterDebugTest.cpp
         unit/MultiInstanceTest.cpp
         unit/MidiCcMappingTest.cpp
+        unit/AlgorithmInfoTest.cpp
         unit/PluginProcessorComprehensiveTest.cpp
         unit/VoiceManagerTest.cpp
         unit/YmfmWrapperTest.cpp
@@ -173,10 +196,20 @@ if(GTest_FOUND)
         unit/PitchAccuracyTest.cpp
         unit/OperatorSlotOrderTest.cpp
         unit/RegisterGoldenTest.cpp
+        unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
+        unit/PatchPreviewTest.cpp
+        unit/MotionEngineTest.cpp
+        unit/WideTest.cpp
+        unit/PanMotionTest.cpp
+        unit/EchoTest.cpp
+        unit/MonoArpTest.cpp
+        unit/MacroMapperTest.cpp
+        unit/PatchGeneratorTest.cpp
+        unit/PatchWorkspaceTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
@@ -203,24 +236,30 @@ if(GTest_FOUND)
             juce::juce_gui_basics
             juce::juce_gui_extra
     )
-    set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot)
+    add_executable(YMulatorSynthAU_SongRender
+        ${CMAKE_SOURCE_DIR}/tools/song_render.cpp
+        ${COMMON_SOURCES}
+    )
+    target_compile_definitions(YMulatorSynthAU_SongRender PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
+    target_link_libraries(YMulatorSynthAU_SongRender
+        PRIVATE
+            juce::juce_audio_processors
+            juce::juce_audio_utils
+            juce::juce_audio_basics
+            juce::juce_core
+            juce::juce_graphics
+            juce::juce_gui_basics
+            juce::juce_gui_extra
+            juce::juce_audio_formats
+    )
+    set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot YMulatorSynthAU_SongRender)
     
     # Configure each test executable
+    # Embedded resources (presets, algorithm diagrams) come from the same
+    # binary-data target the plugin links, so every generated file is included
     foreach(TEST_EXECUTABLE ${HOST_TARGETS})
-        # Add JUCE binary data if it exists, otherwise use mock
-        if(EXISTS "${JUCE_BINARY_DATA_FILE}")
-            target_sources(${TEST_EXECUTABLE} PRIVATE "${JUCE_BINARY_DATA_FILE}")
-        else()
-            target_sources(${TEST_EXECUTABLE} PRIVATE "mocks/MockBinaryData.cpp")
-            target_compile_definitions(${TEST_EXECUTABLE} PRIVATE USING_MOCK_BINARY_DATA=1)
-        endif()
+        target_link_libraries(${TEST_EXECUTABLE} PRIVATE YMulator-Synth_Resources)
     endforeach()
-    
-    if(EXISTS "${JUCE_BINARY_DATA_FILE}")
-        message(STATUS "Added JUCE binary data file to all test executables: ${JUCE_BINARY_DATA_FILE}")
-    else()
-        message(STATUS "JUCE binary data not available - using MockBinaryData for all test executables")
-    endif()
     
     # Configure include directories for all test executables
     foreach(TEST_EXECUTABLE ${HOST_TARGETS})

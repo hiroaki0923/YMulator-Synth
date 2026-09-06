@@ -44,6 +44,12 @@ target_sources(YMulator-Synth
         core/PanProcessor.cpp
         core/ParameterManager.cpp
         core/StateManager.cpp
+        core/MacroMapper.cpp
+        core/PatchGenerator.cpp
+        core/SnapshotStore.cpp
+        core/PatchWorkspace.cpp
+        core/MotionEngine.cpp
+        core/PatchPreview.cpp
         core/AudioProcessor.cpp
         dsp/YmfmWrapper.cpp
         dsp/RegisterManager.cpp
@@ -56,7 +62,14 @@ target_sources(YMulator-Synth
         ui/EnvelopeDisplay.cpp
         ui/AlgorithmDisplay.cpp
         ui/PresetUIManager.cpp
-        ui/GlobalControlsPanel.cpp
+        ui/ToneStrip.cpp
+        ui/QuickView.cpp
+        ui/GeneratorPanel.cpp
+        ui/OutputScope.cpp
+        ui/MotionPanel.cpp
+        ui/MotionStrip.cpp
+        ui/LfoNoiseStrip.cpp
+        ui/YmLookAndFeel.cpp
         utils/PresetManager.cpp
         utils/VOPMParser.cpp
         # ymfm library sources
@@ -102,6 +115,22 @@ target_compile_definitions(YMulator-Synth
 juce_add_binary_data(YMulator-Synth_Resources
     SOURCES
         ${CMAKE_SOURCE_DIR}/resources/presets/ymulator-synth-preset-collection.opm
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm0.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm1.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm2.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm3.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm4.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm5.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm6.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm7.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm0_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm1_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm2_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm3_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm4_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm5_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm6_fb.svg
+        ${CMAKE_SOURCE_DIR}/resources/algorithms/algorithm7_fb.svg
 )
 
 # Link resources to the plugin

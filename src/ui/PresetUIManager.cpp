@@ -3,6 +3,7 @@
 #include "../utils/Debug.h"
 #include "../utils/ParameterIDs.h"
 #include <set>
+#include "UiTheme.h"
 
 PresetUIManager::PresetUIManager(YMulatorSynthAudioProcessor& processor)
     : audioProcessor(processor)
@@ -16,12 +17,14 @@ PresetUIManager::PresetUIManager(YMulatorSynthAudioProcessor& processor)
     // No need for async since this is construction time
     updateBankComboBox();
     updatePresetComboBox();
+    startTimerHz(5);
     
     CS_FILE_DBG("PresetUIManager created");
 }
 
 PresetUIManager::~PresetUIManager()
 {
+    stopTimer();
     // Remove listener to avoid dangling pointer - check if state is still valid
     try {
         audioProcessor.getParameters().state.removeListener(this);
@@ -40,37 +43,18 @@ void PresetUIManager::paint(juce::Graphics& g)
 void PresetUIManager::resized()
 {
     auto bounds = getLocalBounds();
+    auto centred = [](juce::Rectangle<int> area, int height) { return area.withHeight(height).withCentre(area.getCentre()); };
     
-    // Save button on the right first
-    auto saveButtonArea = bounds.removeFromRight(50);
-    if (savePresetButton) {
-        auto centeredButtonArea = saveButtonArea.withHeight(25).withCentre(saveButtonArea.getCentre());
-        savePresetButton->setBounds(centeredButtonArea);
-    }
+    if (savePresetButton) savePresetButton->setBounds(centred(bounds.removeFromRight(64), 30));
+    bounds.removeFromRight(8);
+    if (editedTag) editedTag->setBounds(centred(bounds.removeFromRight(56), 18));
+    bounds.removeFromRight(8);
     
-    // Bank label and ComboBox
-    auto bankLabelArea = bounds.removeFromLeft(40);
-    if (bankLabel) {
-        bankLabel->setBounds(bankLabelArea);
-    }
-    
-    auto bankComboArea = bounds.removeFromLeft(120).reduced(5, 0);
-    if (bankComboBox) {
-        auto centeredBankArea = bankComboArea.withHeight(30).withCentre(bankComboArea.getCentre());
-        bankComboBox->setBounds(centeredBankArea);
-    }
-    
-    // Preset label and ComboBox
-    auto presetLabelArea = bounds.removeFromLeft(45);
-    if (presetLabel) {
-        presetLabel->setBounds(presetLabelArea);
-    }
-    
-    // Remaining space for preset ComboBox
-    if (presetComboBox) {
-        auto centeredPresetArea = bounds.withHeight(30).withCentre(bounds.getCentre()).reduced(5, 0);
-        presetComboBox->setBounds(centeredPresetArea);
-    }
+    if (bankLabel) bankLabel->setBounds(bounds.removeFromLeft(34));
+    if (bankComboBox) bankComboBox->setBounds(centred(bounds.removeFromLeft(118), 30));
+    bounds.removeFromLeft(8);
+    if (presetLabel) presetLabel->setBounds(bounds.removeFromLeft(44));
+    if (presetComboBox) presetComboBox->setBounds(centred(bounds, 30));
 }
 
 void PresetUIManager::valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged,
@@ -222,7 +206,7 @@ void PresetUIManager::updatePresetComboBox()
     
     // Rebuild the list only when it changed; the selection below must always be
     // refreshed so a preset change within the same bank is reflected.
-    if (needsUpdate || audioProcessor.isInCustomMode())
+    if (needsUpdate)
     {
         presetComboBox->clear();
         
@@ -232,8 +216,8 @@ void PresetUIManager::updatePresetComboBox()
         }
     }
     
-    // Set current selection (if not in custom mode)
-    if (!audioProcessor.isInCustomMode())
+    // Select the preset the sound came from. An edited preset keeps its name next to the
+    // EDITED tag; a generated sound has no source preset and shows its own name instead.
     {
         // Get saved preset index from ValueTreeState (for DAW persistence)
         int savedPresetIndex = 7; // Default to Init preset
@@ -273,21 +257,25 @@ void PresetUIManager::updatePresetComboBox()
         }
         isUpdatingFromState = false;
     }
+    shownCustomMode = audioProcessor.isInCustomMode();
+    shownCustomName = audioProcessor.getCustomPresetName();
+    if (shownCustomMode && shownCustomName.isNotEmpty())
+        presetComboBox->setText(shownCustomName, juce::dontSendNotification);
     
-    // Enable/disable Save button based on custom mode
+    // The Save button and the EDITED tag follow custom mode
+    const bool hasChanges = audioProcessor.isInCustomMode();
     if (savePresetButton) {
-        bool hasChanges = audioProcessor.isInCustomMode();
         savePresetButton->setEnabled(hasChanges);
-        
-        // Update visual appearance based on state
-        if (hasChanges) {
-            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
-            savePresetButton->setTooltip("Save modified settings as new preset");
-        } else {
-            savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d3748));
-            savePresetButton->setTooltip("Save as new preset (modify parameters to enable)");
-        }
+        savePresetButton->setTooltip(hasChanges ? "Save the edited sound as a new preset"
+                                                : "Save as new preset (edit a parameter to enable)");
     }
+    if (editedTag) editedTag->setVisible(hasChanges);
+}
+
+void PresetUIManager::syncCustomMode()
+{
+    if (audioProcessor.isInCustomMode() != shownCustomMode || audioProcessor.getCustomPresetName() != shownCustomName)
+        updatePresetComboBox();
 }
 
 void PresetUIManager::refreshPresetDisplay()
@@ -298,36 +286,40 @@ void PresetUIManager::refreshPresetDisplay()
 
 void PresetUIManager::setupComponents()
 {
-    // Bank selector
+    auto styleLabel = [](juce::Label& label) {
+        label.setColour(juce::Label::textColourId, UiTheme::muted);
+        label.setJustificationType(juce::Justification::centredRight);
+        label.setFont(UiTheme::mono(10.0f));
+    };
+    
     bankComboBox = std::make_unique<juce::ComboBox>();
     bankComboBox->addItem("Factory", 1);
     bankComboBox->onChange = [this]() { onBankChanged(); };
     addAndMakeVisible(*bankComboBox);
     
     bankLabel = std::make_unique<juce::Label>("", "Bank");
-    bankLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    bankLabel->setJustificationType(juce::Justification::centredRight);
-    bankLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
+    styleLabel(*bankLabel);
     addAndMakeVisible(*bankLabel);
     
-    // Preset selector
     presetComboBox = std::make_unique<juce::ComboBox>();
     presetComboBox->onChange = [this]() { onPresetChanged(); };
     addAndMakeVisible(*presetComboBox);
     
     presetLabel = std::make_unique<juce::Label>("", "Preset");
-    presetLabel->setColour(juce::Label::textColourId, juce::Colours::white);
-    presetLabel->setJustificationType(juce::Justification::centredRight);
-    presetLabel->setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
+    styleLabel(*presetLabel);
     addAndMakeVisible(*presetLabel);
     
+    editedTag = std::make_unique<juce::Label>("", "EDITED");
+    editedTag->setJustificationType(juce::Justification::centred);
+    editedTag->setFont(UiTheme::mono(9.0f, true));
+    editedTag->setColour(juce::Label::textColourId, UiTheme::dark);
+    editedTag->setColour(juce::Label::backgroundColourId, UiTheme::amber);
+    editedTag->setTooltip("Parameters differ from the loaded preset");
+    addChildComponent(*editedTag);
+    
     savePresetButton = std::make_unique<juce::TextButton>("Save");
-    savePresetButton->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff4a5568));
-    savePresetButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    savePresetButton->setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     savePresetButton->setTooltip("Save current settings as new preset");
     savePresetButton->onClick = [this]() { savePresetDialog(); };
-    // Initially disabled - will be enabled when in custom mode
     savePresetButton->setEnabled(false);
     addAndMakeVisible(*savePresetButton);
 }

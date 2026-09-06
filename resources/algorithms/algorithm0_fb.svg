@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100">
+<g fill="none" stroke="#5f7269" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M80,24.0 V25.0"/>
+<path d="M80,44.0 V45.0"/>
+<path d="M80,64.0 V65.0"/>
+<path d="M76,10.0 V2.0 H58.0 V17 H60.0" stroke="#ffb454"/>
+<path d="M80,84.0 V93"/>
+<path d="M80,93 H89"/>
+</g>
+<path d="M77,25.0 L83,25.0 L80,30.0 Z" fill="#5f7269"/>
+<path d="M77,45.0 L83,45.0 L80,50.0 Z" fill="#5f7269"/>
+<path d="M77,65.0 L83,65.0 L80,70.0 Z" fill="#5f7269"/>
+<path d="M60.0,14 L60.0,20 L65.0,17 Z" fill="#ffb454"/>
+<path d="M89,90 L89,96 L94,93 Z" fill="#5f7269"/>
+<text x="97" y="96" font-family="Menlo, monospace" font-size="7" fill="#9fb3a8">OUT</text>
+<rect x="66.0" y="10.0" width="28" height="14" rx="3" fill="#c76aa3"/>
+<text x="80" y="20.5" text-anchor="middle" font-family="Menlo, monospace" font-size="9" font-weight="bold" fill="#0b0f12">1</text>
+<rect x="66.0" y="30.0" width="28" height="14" rx="3" fill="#c76aa3"/>
+<text x="80" y="40.5" text-anchor="middle" font-family="Menlo, monospace" font-size="9" font-weight="bold" fill="#0b0f12">2</text>
+<rect x="66.0" y="50.0" width="28" height="14" rx="3" fill="#c76aa3"/>
+<text x="80" y="60.5" text-anchor="middle" font-family="Menlo, monospace" font-size="9" font-weight="bold" fill="#0b0f12">3</text>
+<rect x="66.0" y="70.0" width="28" height="14" rx="3" fill="#7fb0f0"/>
+<text x="80" y="80.5" text-anchor="middle" font-family="Menlo, monospace" font-size="9" font-weight="bold" fill="#0b0f12">4</text>
+</svg>

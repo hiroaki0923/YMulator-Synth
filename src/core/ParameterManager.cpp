@@ -153,6 +153,91 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2));
     
+    // ========================================================================
+    // Macro parameters: -50..+50 display, centre = preset unchanged
+    // ========================================================================
+    for (const char* id : { ParamID::Macro::Brightness, ParamID::Macro::Attack,
+                            ParamID::Macro::Decay, ParamID::Macro::Release, ParamID::Macro::Spread }) {
+        juce::String name = juce::String(id).replace("macro_", "").toUpperCase().substring(0, 1)
+                          + juce::String(id).replace("macro_", "").substring(1);
+        // Meta: moving a macro rewrites raw parameters (hosts and auval expect the flag)
+        layout.add(std::make_unique<juce::AudioParameterFloat>(
+            id, name, juce::NormalisableRange<float>(-50.0f, 50.0f, 1.0f), 0.0f,
+            juce::AudioParameterFloatAttributes().withMeta(true)));
+    }
+    // ========================================================================
+    // Motion: vibrato (per-voice, delayed), rates in Hz
+    // ========================================================================
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoDepth, "Vibrato Depth", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoRate, "Vibrato Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoDelay, "Vibrato Delay", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoRise, "Vibrato Rise", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 300.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::Wide, "Wide", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::WidePan, "Wide Pan", juce::StringArray{ "L / R", "Center" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TimbreDepth, "Timbre LFO Depth", juce::NormalisableRange<float>(0.0f, 40.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TimbreRate, "Timbre LFO Rate", juce::NormalisableRange<float>(0.1f, 12.0f, 0.1f, 0.5f), 1.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TremoloDepth, "Tremolo Depth", juce::NormalisableRange<float>(0.0f, 24.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TremoloRate, "Tremolo Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
+    const juce::StringArray divisions { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" };
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::PanMode, "Pan Motion", juce::StringArray{ "Off", "Alternate", "Step" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::PanRate, "Pan Step", divisions, 2));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Sync, "Motion Sync", false));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoDiv, "Vibrato Sync Rate", divisions, 3));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreDiv, "Timbre LFO Sync Rate", divisions, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TremoloDiv, "Tremolo Sync Rate", divisions, 3));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchEnv, "Pitch Env", juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f, 0.5f, true), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchTime, "Pitch Env Time", juce::NormalisableRange<float>(0.0f, 500.0f, 1.0f, 0.5f), 60.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchEnv2, "Pitch Env 2", juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f, 0.5f, true), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchTime2, "Pitch Env Time 2", juce::NormalisableRange<float>(0.0f, 1000.0f, 1.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::EchoLevel, "Echo Level", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::EchoTime, "Echo Time", juce::NormalisableRange<float>(10.0f, 500.0f, 1.0f, 0.6f), 120.0f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::EchoDiv, "Echo Sync Rate", divisions, 4));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::SweepAmount, "Sweep Amount", juce::NormalisableRange<float>(-40.0f, 40.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::SweepTime, "Sweep Time", juce::NormalisableRange<float>(50.0f, 4000.0f, 10.0f, 0.5f), 1500.0f));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Global::Expressive, "Expressive MIDI", false));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Mono, "Mono / Legato", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PortaTime, "Portamento Time", juce::NormalisableRange<float>(0.0f, 1000.0f, 5.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VelBright, "Velocity Brightness", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::ArpMode, "Arpeggio", juce::StringArray{ "Off", "Up", "Down", "Up Down" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::ArpDiv, "Arpeggio Step", divisions, 9));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelAttack, "Level EG Attack", juce::NormalisableRange<float>(0.0f, 3000.0f, 10.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelDecay, "Level EG Decay", juce::NormalisableRange<float>(0.0f, 3000.0f, 10.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelSustain, "Level EG Sustain", juce::NormalisableRange<float>(0.0f, 40.0f, 1.0f), 0.0f));
+    const juce::StringArray lfoWaves { "Sine", "Triangle", "Saw", "Square", "Random" };
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoWave, "Vibrato Wave", lfoWaves, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreWave, "Timbre LFO Wave", lfoWaves, 1));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::LfoOneShot, "LFO One Shot", false));
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Macro::Harmonics, "Harmonics",
+        juce::StringArray{"Preset", "Saw", "Square", "Pulse", "Bright", "Bell", "Metal", "Sub", "Octave"}, 0,
+        juce::AudioParameterChoiceAttributes().withMeta(true)));
+    
     CS_DBG("Created parameter layout successfully");
     return layout;
 }
@@ -165,6 +250,8 @@ void ParameterManager::initializeParameters(juce::AudioProcessorValueTreeState& 
     setupParameterListeners(true);
     
     CS_DBG("ParameterManager initialized with parameter ValueTree");
+    cacheParameterHandles();
+    invalidateRegisterCache();
 }
 
 void ParameterManager::setupParameterListeners(bool enable)
@@ -199,17 +286,88 @@ void ParameterManager::updateYmfmParameters()
         return;
     }
     
-    // CS_FILE_DBG("updateYmfmParameters - Updating all parameters");
-    
-    // Update global parameters first
     updateGlobalParameters();
     
-    // Update all channel parameters
-    for (int channel = 0; channel < 8; ++channel) {
-        updateChannelParameters(channel);
+    for (int op = 0; op < 4; ++op) {
+        for (int which = 0; which < NumOpParams; ++which) {
+            auto* param = opParamHandles[static_cast<size_t>(op)][static_cast<size_t>(which)];
+            if (param == nullptr) continue;
+            const int value = static_cast<int>(registerValue(param));
+            if (value == lastOpValues[static_cast<size_t>(op)][static_cast<size_t>(which)]) continue;
+            lastOpValues[static_cast<size_t>(op)][static_cast<size_t>(which)] = value;
+            writeOperatorParameterToAllChannels(op, static_cast<OpParam>(which), value);
+        }
     }
-    
-    // Note: applyGlobalPanToAllChannels() removed - handled by parameterValueChanged() listener
+}
+
+void ParameterManager::invalidateRegisterCache()
+{
+    for (auto& row : lastOpValues) row.fill(-1);
+    lastGlobalValues.fill(-1);
+}
+
+void ParameterManager::cacheParameterHandles()
+{
+    if (!parametersPtr) return;
+    for (int op = 1; op <= 4; ++op) {
+        auto& row = opParamHandles[static_cast<size_t>(op - 1)];
+        row[OP_TL]     = parametersPtr->getParameter(ParamID::Op::tl(op));
+        row[OP_AR]     = parametersPtr->getParameter(ParamID::Op::ar(op));
+        row[OP_D1R]    = parametersPtr->getParameter(ParamID::Op::d1r(op));
+        row[OP_D1L]    = parametersPtr->getParameter(ParamID::Op::d1l(op));
+        row[OP_D2R]    = parametersPtr->getParameter(ParamID::Op::d2r(op));
+        row[OP_RR]     = parametersPtr->getParameter(ParamID::Op::rr(op));
+        row[OP_KS]     = parametersPtr->getParameter(ParamID::Op::ks(op));
+        row[OP_MUL]    = parametersPtr->getParameter(ParamID::Op::mul(op));
+        row[OP_DT1]    = parametersPtr->getParameter(ParamID::Op::dt1(op));
+        row[OP_DT2]    = parametersPtr->getParameter(ParamID::Op::dt2(op));
+        row[OP_AMS_EN] = parametersPtr->getParameter(ParamID::Op::ams_en(op));
+        row[OP_SLOT]   = parametersPtr->getParameter(ParamID::Op::slot_en(op));
+    }
+    globalParamHandles[G_ALG]        = parametersPtr->getParameter(ParamID::Global::Algorithm);
+    globalParamHandles[G_FB]         = parametersPtr->getParameter(ParamID::Global::Feedback);
+    globalParamHandles[G_LFO_RATE]   = parametersPtr->getParameter(ParamID::Global::LfoRate);
+    globalParamHandles[G_LFO_AMD]    = parametersPtr->getParameter(ParamID::Global::LfoAmd);
+    globalParamHandles[G_LFO_PMD]    = parametersPtr->getParameter(ParamID::Global::LfoPmd);
+    globalParamHandles[G_LFO_WF]     = parametersPtr->getParameter(ParamID::Global::LfoWaveform);
+    globalParamHandles[G_LFO_AMS]    = parametersPtr->getParameter(ParamID::Global::LfoAms);
+    globalParamHandles[G_LFO_PMS]    = parametersPtr->getParameter(ParamID::Global::LfoPms);
+    globalParamHandles[G_NOISE_EN]   = parametersPtr->getParameter(ParamID::Global::NoiseEnable);
+    globalParamHandles[G_NOISE_FREQ] = parametersPtr->getParameter(ParamID::Global::NoiseFrequency);
+}
+
+uint8_t ParameterManager::currentSlotMask() const
+{
+    uint8_t mask = 0;
+    for (int op = 0; op < 4; ++op) {
+        auto* param = opParamHandles[static_cast<size_t>(op)][OP_SLOT];
+        if (param == nullptr || registerValue(param) > 0.0f) mask = static_cast<uint8_t>(mask | (1u << op));
+    }
+    return mask;
+}
+
+void ParameterManager::writeOperatorParameterToAllChannels(int op, OpParam which, int value)
+{
+    using P = YmfmWrapperInterface::OperatorParameter;
+    const auto v = static_cast<uint8_t>(value);
+    for (uint8_t ch = 0; ch < 8; ++ch) {
+        const auto opIndex = static_cast<uint8_t>(op);
+        switch (which) {
+            case OP_TL:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::TotalLevel, v); break;
+            case OP_AR:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::AttackRate, v); break;
+            case OP_D1R:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Decay1Rate, v); break;
+            case OP_D1L:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::SustainLevel, v); break;
+            case OP_D2R:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Decay2Rate, v); break;
+            case OP_RR:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::ReleaseRate, v); break;
+            case OP_KS:     ymfmWrapper.setOperatorParameter(ch, opIndex, P::KeyScale, v); break;
+            case OP_MUL:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Multiple, v); break;
+            case OP_DT1:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune1, v); break;
+            case OP_DT2:    ymfmWrapper.setOperatorParameter(ch, opIndex, P::Detune2, v); break;
+            case OP_AMS_EN: ymfmWrapper.setOperatorAmsEnable(ch, opIndex, value > 0); break;
+            case OP_SLOT:   ymfmWrapper.setChannelSlotMask(ch, currentSlotMask()); break;
+            default: break;
+        }
+    }
 }
 
 void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
@@ -401,6 +559,7 @@ void ParameterManager::applyPresetToYmfm(const Preset* preset)
     }
     
     CS_DBG("Preset applied to ymfm successfully");
+    invalidateRegisterCache();
 }
 
 void ParameterManager::extractCurrentParameterValues(Preset& preset) const
@@ -568,131 +727,43 @@ void ParameterManager::setCustomMode(bool custom, const juce::String& name)
 // Internal Helper Methods
 // ============================================================================
 
-void ParameterManager::updateChannelParameters(int channel)
-{
-    CS_ASSERT_CHANNEL(channel);
-    
-    if (!parametersPtr) {
-        return;
-    }
-    
-    // Update operator parameters for this channel
-    for (int op = 1; op <= 4; ++op) {
-        int opIndex = op - 1; // Convert to 0-based for ymfm
-        
-        // Get parameter values (0.0-1.0) and scale to hardware ranges
-        float tl = registerValue(parametersPtr->getParameter(ParamID::Op::tl(op)));
-        float ar = registerValue(parametersPtr->getParameter(ParamID::Op::ar(op)));
-        float d1r = registerValue(parametersPtr->getParameter(ParamID::Op::d1r(op)));
-        float d1l = registerValue(parametersPtr->getParameter(ParamID::Op::d1l(op)));
-        float d2r = registerValue(parametersPtr->getParameter(ParamID::Op::d2r(op)));
-        float rr = registerValue(parametersPtr->getParameter(ParamID::Op::rr(op)));
-        float ks = registerValue(parametersPtr->getParameter(ParamID::Op::ks(op)));
-        float mul = registerValue(parametersPtr->getParameter(ParamID::Op::mul(op)));
-        float dt1 = registerValue(parametersPtr->getParameter(ParamID::Op::dt1(op)));
-        float dt2 = registerValue(parametersPtr->getParameter(ParamID::Op::dt2(op)));
-        float ams = registerValue(parametersPtr->getParameter(ParamID::Op::ams_en(op)));
-        
-        // Scale and apply to ymfm
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::TotalLevel, 
-            static_cast<uint8_t>(tl));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::AttackRate, 
-            static_cast<uint8_t>(ar));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Decay1Rate, 
-            static_cast<uint8_t>(d1r));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::SustainLevel, 
-            static_cast<uint8_t>(d1l));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Decay2Rate, 
-            static_cast<uint8_t>(d2r));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::ReleaseRate, 
-            static_cast<uint8_t>(rr));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::KeyScale, 
-            static_cast<uint8_t>(ks));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Multiple, 
-            static_cast<uint8_t>(mul));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Detune1, 
-            static_cast<uint8_t>(dt1));
-        ymfmWrapper.setOperatorParameter(channel, opIndex, 
-            YmfmWrapperInterface::OperatorParameter::Detune2, 
-            static_cast<uint8_t>(dt2));
-        
-        // AMS enable is handled separately as a boolean
-        ymfmWrapper.setOperatorAmsEnable(channel, opIndex, ams > 0.5f);
-    }
-    
-    // Skip individual channel pan when global pan is active
-    // Individual channel pan is only used when global pan is set to a "disabled" state
-    // For now, since all global pan modes (LEFT/CENTER/RIGHT/RANDOM) should override individual channel pan,
-    // we skip applying individual channel pan entirely
-    // Individual channel pan is disabled while global pan system is active
-}
-
 void ParameterManager::updateGlobalParameters()
 {
     if (!parametersPtr) {
         return;
     }
     
-    // Algorithm and Feedback
-    float algorithm = registerValue(parametersPtr->getParameter(ParamID::Global::Algorithm));
-    float feedback = registerValue(parametersPtr->getParameter(ParamID::Global::Feedback));
-    
-    uint8_t algorithmValue = static_cast<uint8_t>(algorithm);
-    uint8_t feedbackValue = static_cast<uint8_t>(feedback);
-    
-    CS_ASSERT_ALGORITHM(algorithmValue);
-    CS_ASSERT_FEEDBACK(feedbackValue);
-    
-    // Apply algorithm and feedback to all channels
-    for (int ch = 0; ch < 8; ++ch) {
-        ymfmWrapper.setAlgorithm(ch, algorithmValue);
-        ymfmWrapper.setFeedback(ch, feedbackValue);
+    std::array<int, NumGlobalParams> current {};
+    for (int i = 0; i < NumGlobalParams; ++i) {
+        auto* param = globalParamHandles[static_cast<size_t>(i)];
+        current[static_cast<size_t>(i)] = param ? static_cast<int>(registerValue(param)) : 0;
     }
+    auto changed = [&](GlobalParam g) { return current[g] != lastGlobalValues[g]; };
     
-    // LFO Parameters
-    float lfoRate = registerValue(parametersPtr->getParameter(ParamID::Global::LfoRate));
-    float lfoPmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoPmd));
-    float lfoAmd = registerValue(parametersPtr->getParameter(ParamID::Global::LfoAmd));
-    auto* lfoWaveformParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::LfoWaveform));
-    
-    uint8_t lfoWaveform = lfoWaveformParam ? static_cast<uint8_t>(lfoWaveformParam->getIndex()) : 0;
-    ymfmWrapper.setLfoParameters(
-        static_cast<uint8_t>(lfoRate),
-        static_cast<uint8_t>(lfoAmd),
-        static_cast<uint8_t>(lfoPmd),
-        lfoWaveform
-    );
-    
-    // Noise Parameters
-    auto* noiseEnableParam = static_cast<juce::AudioParameterBool*>(
-        parametersPtr->getParameter(ParamID::Global::NoiseEnable));
-    float noiseFreq = registerValue(parametersPtr->getParameter(ParamID::Global::NoiseFrequency));
-    
-    bool noiseEnable = noiseEnableParam ? noiseEnableParam->get() : false;
-    ymfmWrapper.setNoiseParameters(noiseEnable, static_cast<uint8_t>(noiseFreq));
-    
-    // Channel LFO sensitivity and the operators keyed on, shared by all channels
-    const auto ams = static_cast<uint8_t>(registerValue(parametersPtr->getParameter(ParamID::Global::LfoAms)));
-    const auto pms = static_cast<uint8_t>(registerValue(parametersPtr->getParameter(ParamID::Global::LfoPms)));
-    uint8_t slotMask = 0;
-    for (int op = 1; op <= 4; ++op) {
-        auto* slot = parametersPtr->getParameter(ParamID::Op::slot_en(op));
-        if (slot == nullptr || slot->getValue() > 0.5f) slotMask = static_cast<uint8_t>(slotMask | (1u << (op - 1)));
+    if (changed(G_ALG) || changed(G_FB)) {
+        const auto algorithmValue = static_cast<uint8_t>(current[G_ALG]);
+        const auto feedbackValue = static_cast<uint8_t>(current[G_FB]);
+        CS_ASSERT_ALGORITHM(algorithmValue);
+        CS_ASSERT_FEEDBACK(feedbackValue);
+        for (uint8_t ch = 0; ch < 8; ++ch) {
+            if (changed(G_ALG)) ymfmWrapper.setAlgorithm(ch, algorithmValue);
+            if (changed(G_FB)) ymfmWrapper.setFeedback(ch, feedbackValue);
+        }
     }
-    for (uint8_t ch = 0; ch < 8; ++ch) {
-        ymfmWrapper.setChannelAmsPms(ch, ams, pms);
-        ymfmWrapper.setChannelSlotMask(ch, slotMask);
+    if (changed(G_LFO_RATE) || changed(G_LFO_AMD) || changed(G_LFO_PMD) || changed(G_LFO_WF)) {
+        ymfmWrapper.setLfoParameters(static_cast<uint8_t>(current[G_LFO_RATE]),
+                                     static_cast<uint8_t>(current[G_LFO_AMD]),
+                                     static_cast<uint8_t>(current[G_LFO_PMD]),
+                                     static_cast<uint8_t>(current[G_LFO_WF]));
     }
+    if (changed(G_LFO_AMS) || changed(G_LFO_PMS)) {
+        for (uint8_t ch = 0; ch < 8; ++ch)
+            ymfmWrapper.setChannelAmsPms(ch, static_cast<uint8_t>(current[G_LFO_AMS]), static_cast<uint8_t>(current[G_LFO_PMS]));
+    }
+    if (changed(G_NOISE_EN) || changed(G_NOISE_FREQ)) {
+        ymfmWrapper.setNoiseParameters(current[G_NOISE_EN] > 0, static_cast<uint8_t>(current[G_NOISE_FREQ]));
+    }
+    lastGlobalValues = current;
 }
 
 void ParameterManager::validateParameterRange(float value, float min, float max, const juce::String& paramName) const
