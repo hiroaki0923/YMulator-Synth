@@ -205,6 +205,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::EchoTime, "Echo Time", juce::NormalisableRange<float>(10.0f, 500.0f, 1.0f, 0.6f), 120.0f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::EchoDiv, "Echo Sync Rate", divisions, 4));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::SweepAmount, "Sweep Amount", juce::NormalisableRange<float>(-40.0f, 40.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::SweepTime, "Sweep Time", juce::NormalisableRange<float>(50.0f, 4000.0f, 10.0f, 0.5f), 1500.0f));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

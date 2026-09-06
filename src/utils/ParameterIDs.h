@@ -70,6 +70,8 @@ namespace Motion {
     constexpr const char* EchoLevel = "motion_echo_level";      // 0 off .. 100 as loud as the note
     constexpr const char* EchoTime = "motion_echo_time";        // ms
     constexpr const char* EchoDiv = "motion_echo_div";          // note value when synced
+    constexpr const char* SweepAmount = "motion_sweep_amount";  // modulator TL at the key-on, -40 (bright) .. +40 (dark)
+    constexpr const char* SweepTime = "motion_sweep_time";      // ms to reach the patch brightness
 } // namespace Motion
 
 // =============================================================================

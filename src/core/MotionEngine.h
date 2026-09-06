@@ -83,6 +83,8 @@ private:
     const juce::RangedAudioParameter* echoLevel = nullptr;
     const juce::RangedAudioParameter* echoTime = nullptr;
     const juce::RangedAudioParameter* echoDiv = nullptr;
+    const juce::RangedAudioParameter* sweepAmount = nullptr;
+    const juce::RangedAudioParameter* sweepTime = nullptr;
     bool lastEchoEnabled = false;
     double lastEchoSeconds = -1.0;
     int lastEchoSteps = -1;

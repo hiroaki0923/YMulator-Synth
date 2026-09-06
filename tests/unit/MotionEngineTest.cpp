@@ -190,3 +190,23 @@ TEST_F(MotionEngineTest, PitchEnvelopeAndVibratoAddUp)
     EXPECT_GT(hi, 1.2f) << "envelope plus vibrato peak";
     EXPECT_GT(lo, 0.2f) << "envelope keeps the trough above the note";
 }
+
+TEST_F(MotionEngineTest, SweepOpensTheModulatorsOverTime)
+{
+    set(ParamID::Global::Algorithm, 4.0f);
+    for (int op = 1; op <= 4; ++op) set(ParamID::Op::tl(op).c_str(), 30.0f);
+    set(ParamID::Motion::SweepAmount, 40.0f);         // starts 40 steps darker
+    set(ParamID::Motion::SweepTime, 500.0f);
+    runBlocks(1);
+    const int ch = noteOn();
+    auto tl = [&](int op) { return static_cast<int>(processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch)); };
+    EXPECT_GE(tl(0), 66) << "just after the key-on the modulators are near the full offset";
+    EXPECT_EQ(tl(1), 30) << "carriers untouched";
+    runBlocks(23);                                    // about 0.25 s: half way, eased
+    const int midway = tl(0);
+    EXPECT_GT(midway, 30);
+    EXPECT_LT(midway, 66);
+    runBlocks(30);                                    // past 0.5 s
+    EXPECT_EQ(tl(0), 30) << "settled on the patch";
+    EXPECT_EQ(tl(2), 30);
+}

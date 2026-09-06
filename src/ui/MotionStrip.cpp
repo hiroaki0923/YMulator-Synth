@@ -4,7 +4,7 @@
 #include "../utils/ParameterIDs.h"
 
 namespace {
-constexpr int kGroupGap = 10;
+constexpr int kGroupGap = 8;
 constexpr int kKnobGap = 3;
 constexpr int kKnobWidth = 36;
 juce::String oneDecimal(double v) { return juce::String(v, 1); }
@@ -60,6 +60,12 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     auto& echo = addGroup("Echo");
     addKnob(echo, EchoLevel, "Level", UiTheme::carrier);
     addKnob(echo, EchoTime, "Time", UiTheme::carrier, true, milliseconds);
+    
+    auto& sweep = addGroup("Sweep");
+    addKnob(sweep, SweepAmount, "Amt", UiTheme::amber, false, [](double v) {
+        const int i = juce::roundToInt(v);
+        return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
+    addKnob(sweep, SweepTime, "Time", UiTheme::amber, false, [](double v) { return juce::String(v / 1000.0, 1); });
     
     auto& pitch = addGroup("Pitch");
     addKnob(pitch, PitchEnv, "Env", UiTheme::carrier, false, [](double v) {
@@ -127,7 +133,8 @@ void MotionStrip::resized()
     auto bounds = getLocalBounds().reduced(20, 0);
     const int centreY = bounds.getCentreY() + 4;
     sectionLabel->setBounds(bounds.removeFromLeft(52).withHeight(20).withCentre({ bounds.getX() - 26, centreY }));
-    bounds.removeFromLeft(4);
+    syncButton->setBounds(bounds.removeFromLeft(58).withHeight(20).withY(centreY - 10));
+    bounds.removeFromLeft(6);
     const auto knobSize = RotaryKnob::preferredSize(RotaryKnob::Style::Tiny, RotaryKnob::LabelPosition::Below, false, kKnobWidth);
     
     int x = bounds.getX();
@@ -138,11 +145,10 @@ void MotionStrip::resized()
             x += knobSize.getWidth() + kKnobGap;
         }
         for (auto* box : group.boxes) {
-            box->setBounds(x, centreY - 10, 70, 22);
-            x += 70 + kKnobGap;
+            box->setBounds(x, centreY - 10, 60, 22);
+            x += 60 + kKnobGap;
         }
         group.bounds = juce::Rectangle<int>(start, bounds.getY() + 4, x - start - kKnobGap, bounds.getHeight());
         x += kGroupGap;
     }
-    syncButton->setBounds(x, centreY - 10, 60, 20);
 }

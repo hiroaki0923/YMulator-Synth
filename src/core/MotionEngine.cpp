@@ -32,6 +32,8 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     echoLevel = parameters.getParameter(ParamID::Motion::EchoLevel);
     echoTime = parameters.getParameter(ParamID::Motion::EchoTime);
     echoDiv = parameters.getParameter(ParamID::Motion::EchoDiv);
+    sweepAmount = parameters.getParameter(ParamID::Motion::SweepAmount);
+    sweepTime = parameters.getParameter(ParamID::Motion::SweepTime);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -142,6 +144,8 @@ void MotionEngine::tick(int numSamples)
     const double tremoloHz = read(tremoloRate, 5.0f);
     const float pitchStart = read(pitchEnv, 0.0f) / 100.0f;        // semitones at the key-on
     const double pitchSettle = read(pitchTime, 60.0f) / 1000.0;
+    const float sweepSteps = read(sweepAmount, 0.0f);                // modulator TL offset at the key-on
+    const double sweepSeconds = read(sweepTime, 1500.0f) / 1000.0;
     
     for (int ch = 0; ch < 8; ++ch) {
         auto& c = channels[static_cast<size_t>(ch)];
@@ -170,7 +174,7 @@ void MotionEngine::tick(int numSamples)
         }
         
         float offset = 0.0f;
-        if (active && (depthSemitones > 0.0f || pitchStart != 0.0f)) c.time += dt;
+        if (active && (depthSemitones > 0.0f || pitchStart != 0.0f || sweepSteps != 0.0f)) c.time += dt;
         if (active && pitchStart != 0.0f) {
             // Slides from the start offset onto the note, linearly over the settle time
             const double remaining = pitchSettle <= 0.0 ? 0.0 : std::max(0.0, 1.0 - c.time / pitchSettle);
@@ -187,9 +191,14 @@ void MotionEngine::tick(int numSamples)
             ymfm.setChannelPitchOffset(static_cast<uint8_t>(ch), offset);
         }
         
-        // Timbre LFO: triangle on the modulators (both directions); tremolo: carriers only attenuate
+        // Timbre LFO: triangle on the modulators (both directions); tremolo: carriers only attenuate.
+        // Sweep: the modulators start offset and settle on the patch, the FM stand-in for a filter envelope.
         int carrierSteps = 0, modulatorSteps = 0;
         if (active) {
+            if (sweepSteps != 0.0f) {
+                const double remaining = sweepSeconds <= 0.0 ? 0.0 : std::max(0.0, 1.0 - c.time / sweepSeconds);
+                modulatorSteps += juce::roundToInt(static_cast<double>(sweepSteps) * remaining * remaining);   // eases in, like a filter
+            }
             if (timbreSteps > 0.0f) {
                 c.timbrePhase = synced ? syncedPhase(timbreDiv) : std::fmod(c.timbrePhase + timbreHz * dt, 1.0);
                 const double triangle = 1.0 - 4.0 * std::abs(c.timbrePhase - 0.5);   // -1 .. +1, starts at -1

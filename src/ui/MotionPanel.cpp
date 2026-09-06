@@ -21,13 +21,16 @@ using ParamID::Motion::PitchEnv;
 using ParamID::Motion::EchoLevel;
 using ParamID::Motion::EchoTime;
 using ParamID::Motion::EchoDiv;
+using ParamID::Motion::SweepAmount;
+using ParamID::Motion::SweepTime;
 }
 
 const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
 {
     // Every preset states every motion parameter it touches; "Off" clears them all
     static const std::vector<MotionPreset> list = {
-        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 } } },
+        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 }, { SweepAmount, 0 } } },
+        { "Sweep", { { Wide, 30 }, { WidePan, 1 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { SweepAmount, 32 }, { SweepTime, 1800 }, { EchoLevel, 40 }, { EchoTime, 240 } } },
         { "Echo",  { { Wide, 0 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { EchoLevel, 55 }, { EchoTime, 180 }, { EchoDiv, 3 } } },
         { "Wide",  { { Wide, 60 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 } } },
         { "Vib",   { { Wide, 0 }, { VibratoDepth, 40 }, { VibratoRate, 5.5f }, { VibratoDelay, 250 }, { VibratoRise, 400 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 } } },
