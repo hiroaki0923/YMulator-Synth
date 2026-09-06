@@ -80,6 +80,12 @@ private:
     const juce::RangedAudioParameter* tremoloDiv = nullptr;
     const juce::RangedAudioParameter* pitchEnv = nullptr;
     const juce::RangedAudioParameter* pitchTime = nullptr;
+    const juce::RangedAudioParameter* echoLevel = nullptr;
+    const juce::RangedAudioParameter* echoTime = nullptr;
+    const juce::RangedAudioParameter* echoDiv = nullptr;
+    bool lastEchoEnabled = false;
+    double lastEchoSeconds = -1.0;
+    int lastEchoSteps = -1;
     
     // Beat clock: follows the host while it plays, free-runs otherwise
     double bpm = 120.0;

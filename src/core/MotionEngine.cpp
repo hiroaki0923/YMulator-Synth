@@ -29,6 +29,9 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     tremoloDiv = parameters.getParameter(ParamID::Motion::TremoloDiv);
     pitchEnv = parameters.getParameter(ParamID::Motion::PitchEnv);
     pitchTime = parameters.getParameter(ParamID::Motion::PitchTime);
+    echoLevel = parameters.getParameter(ParamID::Motion::EchoLevel);
+    echoTime = parameters.getParameter(ParamID::Motion::EchoTime);
+    echoDiv = parameters.getParameter(ParamID::Motion::EchoDiv);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -42,6 +45,9 @@ void MotionEngine::prepare(double newSampleRate)
     lastWideEnabled = false;
     lastWideCents = -1.0f;
     lastWidePan = -1;
+    lastEchoEnabled = false;
+    lastEchoSeconds = -1.0;
+    lastEchoSteps = -1;
 }
 
 double MotionEngine::beatsForDivision(int index)
@@ -98,6 +104,19 @@ void MotionEngine::tick(int numSamples)
         const double beats = beatsForDivision(juce::roundToInt(read(div, 0.0f)));
         return std::fmod(beat / beats, 1.0);
     };
+    
+    // Echo: level 100 repeats at the note's own loudness, lower levels attenuate the carriers
+    const float echo = read(echoLevel, 0.0f);
+    const bool echoOn = echo > 0.0f;
+    const double echoSeconds = synced ? beatsForDivision(juce::roundToInt(read(echoDiv, 4.0f))) * 60.0 / bpm
+                                      : read(echoTime, 120.0f) / 1000.0;
+    const int echoSteps = juce::roundToInt((100.0f - echo) * 0.32f);
+    if (echoOn != lastEchoEnabled || echoSeconds != lastEchoSeconds || echoSteps != lastEchoSteps) {
+        lastEchoEnabled = echoOn;
+        lastEchoSeconds = echoSeconds;
+        lastEchoSteps = echoSteps;
+        ymfm.setEcho(echoOn, echoSeconds, echoSteps);
+    }
     
     const int mode = juce::roundToInt(read(panMode, 0.0f));
     const bool wideBlocksPan = lastWideEnabled && lastWidePan == 0;

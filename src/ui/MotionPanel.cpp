@@ -18,13 +18,17 @@ using ParamID::Motion::PanMode;
 using ParamID::Motion::PanRate;
 using ParamID::Motion::Sync;
 using ParamID::Motion::PitchEnv;
+using ParamID::Motion::EchoLevel;
+using ParamID::Motion::EchoTime;
+using ParamID::Motion::EchoDiv;
 }
 
 const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
 {
     // Every preset states every motion parameter it touches; "Off" clears them all
     static const std::vector<MotionPreset> list = {
-        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 } } },
+        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 } } },
+        { "Echo",  { { Wide, 0 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { EchoLevel, 55 }, { EchoTime, 180 }, { EchoDiv, 3 } } },
         { "Wide",  { { Wide, 60 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 } } },
         { "Vib",   { { Wide, 0 }, { VibratoDepth, 40 }, { VibratoRate, 5.5f }, { VibratoDelay, 250 }, { VibratoRise, 400 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 } } },
         { "Growl", { { Wide, 40 }, { WidePan, 0 }, { VibratoDepth, 30 }, { VibratoRate, 6 }, { VibratoDelay, 150 }, { VibratoRise, 300 }, { TimbreDepth, 20 }, { TimbreRate, 0.7f }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, -60 } } },
@@ -49,6 +53,7 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     makeKnob(wide, Wide, "Wide", UiTheme::carrier);
     makeKnob(vibrato, VibratoDepth, "Vib", UiTheme::green);
     makeKnob(timbre, TimbreDepth, "Timbre", UiTheme::amber);
+    makeKnob(echo, EchoLevel, "Echo", UiTheme::carrier);
     makeKnob(rate, VibratoRate, "Rate", UiTheme::green);
     rate.knob->setValueFormatter([](double v) { return juce::String(v, 1); });
     
@@ -107,8 +112,8 @@ void MotionPanel::updateSyncVisibility()
 void MotionPanel::resized()
 {
     auto bounds = getLocalBounds();
-    // Two rows of three chips so the names stay readable
-    const int perRow = 3;
+    // Chips in rows of four so the names stay readable
+    const int perRow = 4;
     const int chipWidth = (bounds.getWidth() - (perRow - 1) * 4) / perRow;
     for (size_t i = 0; i < chips.size(); ++i) {
         if (i % static_cast<size_t>(perRow) == 0) {
@@ -122,11 +127,11 @@ void MotionPanel::resized()
     }
     bounds.removeFromTop(8);
     
-    const auto knobSize = RotaryKnob::preferredSize(RotaryKnob::Style::Small, RotaryKnob::LabelPosition::Below, false, 48);
+    const auto knobSize = RotaryKnob::preferredSize(RotaryKnob::Style::Small, RotaryKnob::LabelPosition::Below, false, 42);
     auto knobRow = bounds.removeFromTop(knobSize.getHeight());
-    const int slot = knobRow.getWidth() / 4;
+    const int slot = knobRow.getWidth() / 5;
     int x = knobRow.getX();
-    for (Knob* k : { &wide, &vibrato, &timbre, &rate }) {
+    for (Knob* k : { &wide, &vibrato, &timbre, &echo, &rate }) {
         k->knob->setBounds(x + (slot - knobSize.getWidth()) / 2, knobRow.getY(), knobSize.getWidth(), knobSize.getHeight());
         x += slot;
     }

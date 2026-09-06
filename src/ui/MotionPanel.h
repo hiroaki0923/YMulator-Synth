@@ -36,7 +36,7 @@ private:
     
     YMulatorSynthAudioProcessor& audioProcessor;
     std::vector<std::unique_ptr<juce::TextButton>> chips;
-    Knob wide, vibrato, timbre, rate;
+    Knob wide, vibrato, timbre, echo, rate;
     std::unique_ptr<juce::ComboBox> panModeBox, rateDivisionBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> panModeAttachment, rateDivisionAttachment;
     std::unique_ptr<juce::ToggleButton> syncButton;

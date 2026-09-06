@@ -21,6 +21,7 @@ Quick パネル設計（[ymulatorsynth-quick-panel-design.md](ymulatorsynth-quic
 | トレモロ | TL 全体を揺らす | **Tremolo**: キャリア TL へ正弦オフセット | |
 | 左右の動き | 発音ごとに L / R を切替、または拍ごとに L→C→R | **Pan Motion**: Alternate（発音ごと）、Step（拍同期で L→C→R→L…）、Wide（Wide と併用時は固定） | パンは 3 値のみ。連続移動は作らない |
 | ピッチのアタック | 発音時に数十セント下（上）から滑り込む | **Pitch Env**: 初期オフセットと収束時間。KF へ書く | ポルタメントとは別 |
+| 疑似リバーブ／エコー | 同じ音色をもう 1 チャンネルで遅らせて小さく鳴らす | **Echo**: シャドウチップへのキーオン・KC/KF・TL 書き込みを遅延キューに通し、キャリア TL を減衰。Wide と併用可 | 繰り返しは 1 回。2 回以上はチップを増やす必要がある |
 
 ハードウェア LFO（LFRQ / PMD / AMD / 波形）は既存のまま Detail の LFO 行で扱う。Motion のソフト LFO は「ボイスごと」「遅延あり」「BPM 同期」が必要な用途を受け持つ。
 
@@ -119,7 +120,7 @@ Detail には MOTION 行を追加しない。Detail の LFO 行はハードウ�
 
 ## 6. 実装順序
 
-実装状況: 1〜6 済（2026-09-06）。MOTION カードの定型は `MotionPanel::presets()`。同期時のレートは Hz パラメータとは別の音価パラメータ（`motion_*_div`）で持つ。
+実装状況: 1〜6 と Echo 済（2026-09-06）。MOTION カードの定型は `MotionPanel::presets()`。同期時のレートは Hz パラメータとは別の音価パラメータ（`motion_*_div`）で持つ。
 
 1. `MotionEngine` の骨組みと Vibrato（遅延・立ち上がり・深さ・レート、自由レート）
 2. Wide（`YmfmWrapper` のシャドウチップ、書き込み複製、KF オフセット、L/R、ミックス）

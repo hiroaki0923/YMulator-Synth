@@ -61,6 +61,7 @@
 - ✅ **Motion 3: Timbre LFO / Tremolo** - `YmfmWrapper::setChannelLevelMotion`。TL は「パラメータ値＋ベロシティ（キャリア）＋モーション」で書き、モジュレータには三角波 ±40 ステップ、キャリアには片側正弦で最大 24 ステップの減衰。パラメータ `motion_timbre_*` / `motion_trem_*`
 - ✅ **Motion 4: Pan Motion と BPM 同期** - `MotionEngine::setTransport` がプレイヘッドの BPM / 拍位置を受け、再生中は拍位置から位相を再計算、停止中は最後のテンポで自走。`motion_sync` ON でビブラート・音色 LFO・トレモロは音価（1/1〜1/8T）で回る。Pan Motion は Alternate（発音ごとに L / R 交互）と Step（拍ごとに L→C→R→C）。Wide が L/R 配置のときは無効、Off に戻すとグローバルパンを書き戻す（`tests/unit/PanMotionTest.cpp`）
 - ✅ **Motion 5: Pitch Env** - 発音時に ±100 セントから直線で本来の音程へ（0〜500 ms）。ビブラートと加算。パラメータ `motion_pitch_env` / `motion_pitch_time`
+- ✅ **Motion 7: Echo** - 当時の「もう 1 チャンネルで遅らせて小さく鳴らす」疑似リバーブ。シャドウチップへのキーオン・KC/KF・TL の書き込みだけを遅延キューに通し、キャリア TL に減衰を足す。Wide のデチューンと併用可、L/R か Center。`motion_echo_level` / `motion_echo_time` / `motion_echo_div`（同期時）。MOTION カードに Echo チップとノブ、Detail の行に Echo グループ（`tests/unit/EchoTest.cpp`）
 - ✅ **Detail の MOTION 行** - `src/ui/MotionStrip`。全モーションパラメータをグループ（Vibrato / Wide / Timbre / Tremolo / Pan / Pitch）で並べ、Sync ON のときは Hz ノブを無効表示。アルゴリズムの構造記法は図があれば不要なので TONE 行と Quick のカードから削除
 - ✅ **Motion 6: MOTION カード** - `src/ui/MotionPanel`。定型チップ（Off / Wide / Vib / Growl / Pan / Trem）、Wide / Vib / Timbre のノブ、パンモード、Sync トグルと同期時の音価。定型はパラメータの組として `MotionPanel::presets()` に定義 → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 

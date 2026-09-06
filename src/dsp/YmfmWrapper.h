@@ -40,6 +40,8 @@ public:
     void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) override;
     void setWide(bool enabled, float detuneCents, WidePan pan) override;
     bool isWideEnabled() const override { return wideEnabled; }
+    void setEcho(bool enabled, double delaySeconds, int attenuationSteps) override;
+    bool isEchoEnabled() const override { return echoEnabled; }
     uint8_t readShadowRegister(int address) const override { return shadowRegisters[static_cast<uint8_t>(address)]; }
     void setChannelPan(uint8_t channel, float panValue) override;
     void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) override;
@@ -106,6 +108,18 @@ private:
     bool wideEnabled = false;
     float wideDetuneSemitones = 0.0f;
     WidePan widePan = WidePan::LeftRight;
+    // Echo: key-on, pitch and level writes reach the shadow chip late, carriers quieter
+    struct PendingWrite { uint64_t due; uint8_t address, data; };
+    std::array<PendingWrite, 8192> echoQueue {};
+    size_t echoHead = 0, echoTail = 0;
+    bool echoEnabled = false;
+    uint64_t echoDelaySamples = 0;
+    int echoAttenuation = 0;
+    uint64_t nativeSampleCount = 0;
+    bool shadowActive() const { return wideEnabled || echoEnabled; }
+    bool isEchoDelayedRegister(uint8_t address) const;
+    uint8_t echoAttenuated(uint8_t address, uint8_t data) const;
+    void flushEcho(bool everything);
     std::unique_ptr<ymfm::ym2608> opnaChip;
     
     // Output data holders
@@ -149,6 +163,7 @@ private:
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
     void writePitch(uint8_t channel);   // KC/KF from base note + bend + motion offset
     void writeShadow(uint8_t address, uint8_t data);
+    void writeShadowNow(uint8_t address, uint8_t data);
     uint8_t panForChip(uint8_t address, uint8_t data, bool shadow) const;
     void refreshPansForWide();
     void setupBasicPianoVoice(uint8_t channel);

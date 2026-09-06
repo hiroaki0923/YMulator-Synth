@@ -4,9 +4,9 @@
 #include "../utils/ParameterIDs.h"
 
 namespace {
-constexpr int kGroupGap = 14;
-constexpr int kKnobGap = 4;
-constexpr int kKnobWidth = 38;
+constexpr int kGroupGap = 10;
+constexpr int kKnobGap = 3;
+constexpr int kKnobWidth = 36;
 juce::String oneDecimal(double v) { return juce::String(v, 1); }
 juce::String milliseconds(double v) { return juce::String(juce::roundToInt(v)); }
 }
@@ -56,6 +56,10 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     panRateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), PanRate, *panRateBox);
     pan.boxes.push_back(panModeBox.get());
     pan.boxes.push_back(panRateBox.get());
+    
+    auto& echo = addGroup("Echo");
+    addKnob(echo, EchoLevel, "Level", UiTheme::carrier);
+    addKnob(echo, EchoTime, "Time", UiTheme::carrier, true, milliseconds);
     
     auto& pitch = addGroup("Pitch");
     addKnob(pitch, PitchEnv, "Env", UiTheme::carrier, false, [](double v) {
@@ -134,11 +138,11 @@ void MotionStrip::resized()
             x += knobSize.getWidth() + kKnobGap;
         }
         for (auto* box : group.boxes) {
-            box->setBounds(x, centreY - 10, 74, 22);
-            x += 74 + kKnobGap;
+            box->setBounds(x, centreY - 10, 70, 22);
+            x += 70 + kKnobGap;
         }
         group.bounds = juce::Rectangle<int>(start, bounds.getY() + 4, x - start - kKnobGap, bounds.getHeight());
         x += kGroupGap;
     }
-    syncButton->setBounds(x, centreY - 10, 64, 20);
+    syncButton->setBounds(x, centreY - 10, 60, 20);
 }

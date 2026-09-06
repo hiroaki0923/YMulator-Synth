@@ -73,6 +73,9 @@ public:
     enum class WidePan { LeftRight, Centre };
     virtual void setWide(bool enabled, float detuneCents, WidePan pan) { (void) enabled; (void) detuneCents; (void) pan; }
     virtual bool isWideEnabled() const { return false; }
+    /** Echo: the second chip repeats every note after a delay, carriers attenuated by the given TL steps. */
+    virtual void setEcho(bool enabled, double delaySeconds, int attenuationSteps) { (void) enabled; (void) delaySeconds; (void) attenuationSteps; }
+    virtual bool isEchoEnabled() const { return false; }
     /** Register cache of the second chip (diagnostics and tests). */
     virtual uint8_t readShadowRegister(int address) const { (void) address; return 0; }
     virtual void setChannelPan(uint8_t channel, float panValue) = 0;

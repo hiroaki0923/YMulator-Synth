@@ -67,6 +67,9 @@ namespace Motion {
     constexpr const char* TremoloDiv = "motion_trem_div";
     constexpr const char* PitchEnv = "motion_pitch_env";        // cents at the key-on, -100..+100
     constexpr const char* PitchTime = "motion_pitch_time";      // ms to settle on the note
+    constexpr const char* EchoLevel = "motion_echo_level";      // 0 off .. 100 as loud as the note
+    constexpr const char* EchoTime = "motion_echo_time";        // ms
+    constexpr const char* EchoDiv = "motion_echo_div";          // note value when synced
 } // namespace Motion
 
 // =============================================================================
