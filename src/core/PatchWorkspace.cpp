@@ -7,7 +7,7 @@ namespace ymulatorsynth {
 
 namespace {
 // Playback settings that are not part of the sound
-const std::set<std::string> kExcluded = { ParamID::Global::GlobalPan, ParamID::Global::MasterPan, ParamID::Global::PitchBendRange };
+const std::set<std::string> kExcluded = { ParamID::Global::GlobalPan, ParamID::Global::MasterPan, ParamID::Global::PitchBendRange, ParamID::Global::Expressive };
 bool isSoundParameter(const juce::String& id)
 {
     return kExcluded.count(id.toStdString()) == 0 && !id.endsWith(ParamID::Channel::Pan);

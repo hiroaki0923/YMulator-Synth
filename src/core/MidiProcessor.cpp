@@ -35,6 +35,11 @@ void MidiProcessor::processMidiMessages(juce::MidiBuffer& midiMessages)
             CS_DBG(" MIDI CC - CC: " + juce::String(message.getControllerNumber()) + 
                 ", Value: " + juce::String(message.getControllerValue()));
             handleMidiCC(message.getControllerNumber(), message.getControllerValue());
+        } else if (message.isChannelPressure()) {
+            // Expressive mode: pressure opens the sound up through the Brightness macro
+            if (expressiveMode())
+                if (auto* p = parameters.getParameter(ParamID::Macro::Brightness))
+                    p->setValueNotifyingHost(0.5f + message.getChannelPressureValue() / 254.0f);
         } else if (message.isPitchWheel()) {
             CS_DBG(" Pitch Bend - Value: " + juce::String(message.getPitchWheelValue()));
             handlePitchBend(message.getPitchWheelValue());
@@ -156,9 +161,14 @@ void MidiProcessor::handleMidiCC(int ccNumber, int value)
     if (ccNumber == ParamID::MIDI_CC::ResetAllControllers) {
         registerValueMode = false;
         nrpnMsb = nrpnLsb = -1;
+        resetMacros();
         return;
     }
     if (ccNumber == ParamID::MIDI_CC::LfoRateLsb) { lfoRateLsbBit = value >> 6; return; }
+    if (ccNumber == ParamID::MIDI_CC::ModWheel && expressiveMode()) {
+        if (auto* p = parameters.getParameter(ParamID::Motion::VibratoDepth)) p->setValueNotifyingHost(value / 127.0f);
+        return;
+    }
     
     auto it = ccToParameterMap.find(ccNumber);
     if (it != ccToParameterMap.end() && it->second.param != nullptr)
@@ -167,11 +177,15 @@ void MidiProcessor::handleMidiCC(int ccNumber, int value)
 
 void MidiProcessor::applyCcToParameter(int ccNumber, int value, const CcTarget& target)
 {
+    if (target.normalized) {
+        target.param->setValueNotifyingHost(value / 127.0f);
+        return;
+    }
     const auto& range = target.param->getNormalisableRange();
     const int maxValue = static_cast<int>(range.end);
     float registerValue;
     
-    if (ccNumber == ParamID::MIDI_CC::LfoRate || ccNumber == ParamID::MIDI_CC::LegacyLfoRate) {
+    if (ccNumber == ParamID::MIDI_CC::LfoRate) {
         // 8-bit LFRQ: CC 1 carries the upper 7 bits, CC 33 the lowest bit
         registerValue = static_cast<float>((value << 1) | lfoRateLsbBit);
     } else if (registerValueMode) {
@@ -232,17 +246,37 @@ void MidiProcessor::setupCCMapping()
 {
     // VOPMex compatible MIDI CC mapping
     using namespace ParamID;
-    auto direct = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), false }; };
-    auto reversed = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), true }; };
+    auto direct = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), false, false }; };
+    auto reversed = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), true, false }; };
+    auto position = [&](int cc, const juce::String& id) { ccToParameterMap[cc] = { parameters.getParameter(id), false, true }; };
     
     direct(MIDI_CC::Algorithm, Global::Algorithm);
     direct(MIDI_CC::Feedback, Global::Feedback);
     
-    // Hardware LFO: VOPMex numbers plus the legacy YMulator numbers
-    for (int cc : {MIDI_CC::LfoRate, MIDI_CC::LegacyLfoRate}) direct(cc, Global::LfoRate);
-    for (int cc : {MIDI_CC::LfoAmd, MIDI_CC::LegacyLfoAmd}) direct(cc, Global::LfoAmd);
-    for (int cc : {MIDI_CC::LfoPmd, MIDI_CC::LegacyLfoPmd}) direct(cc, Global::LfoPmd);
-    for (int cc : {MIDI_CC::LfoWaveform, MIDI_CC::LegacyLfoWaveform}) direct(cc, Global::LfoWaveform);
+    // Hardware LFO and channel sensitivity, VOPMex numbers
+    direct(MIDI_CC::LfoRate, Global::LfoRate);
+    direct(MIDI_CC::LfoAmd, Global::LfoAmd);
+    direct(MIDI_CC::LfoPmd, Global::LfoPmd);
+    direct(MIDI_CC::LfoWaveform, Global::LfoWaveform);
+    direct(MIDI_CC::LfoPms, Global::LfoPms);
+    direct(MIDI_CC::LfoAms, Global::LfoAms);
+    
+    // Quick view: macros and motion amounts as positions
+    position(MIDI_CC::QuickBrightness, Macro::Brightness);
+    position(MIDI_CC::QuickHarmonics, Macro::Harmonics);
+    position(MIDI_CC::QuickAttack, Macro::Attack);
+    position(MIDI_CC::QuickDecay, Macro::Decay);
+    position(MIDI_CC::QuickRelease, Macro::Release);
+    position(MIDI_CC::QuickSpread, Macro::Spread);
+    position(MIDI_CC::MotionWide, Motion::Wide);
+    position(MIDI_CC::MotionVibrato, Motion::VibratoDepth);
+    position(MIDI_CC::MotionTimbre, Motion::TimbreDepth);
+    position(MIDI_CC::MotionEcho, Motion::EchoLevel);
+    position(MIDI_CC::MotionSweep, Motion::SweepAmount);
+    position(MIDI_CC::MotionSwell, Motion::LevelAttack);
+    position(MIDI_CC::MotionPorta, Motion::PortaTime);
+    position(MIDI_CC::MotionPitch, Motion::PitchEnv);
+    position(MIDI_CC::MotionVelBright, Motion::VelBright);
     
     // Noise
     direct(MIDI_CC::NoiseEnable, Global::NoiseEnable);
@@ -264,8 +298,19 @@ void MidiProcessor::setupCCMapping()
         direct  (MIDI_CC::getOpCC(op, Op::AmsEnable),    Op::ams_en(op));
     }
     
-    // Note: Channel pan parameters are handled separately in handleMidiCC() 
-    // for CCs 32-39 to allow direct channel mapping
+}
+
+bool MidiProcessor::expressiveMode() const
+{
+    auto* p = parameters.getParameter(ParamID::Global::Expressive);
+    return p != nullptr && p->getValue() > 0.5f;
+}
+
+void MidiProcessor::resetMacros()
+{
+    for (const char* id : { ParamID::Macro::Brightness, ParamID::Macro::Harmonics, ParamID::Macro::Attack,
+                            ParamID::Macro::Decay, ParamID::Macro::Release, ParamID::Macro::Spread })
+        if (auto* p = parameters.getParameter(id)) p->setValueNotifyingHost(p->getDefaultValue());
 }
 
 void MidiProcessor::setChannelRandomPan(int channel)

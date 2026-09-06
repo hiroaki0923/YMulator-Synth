@@ -2,6 +2,18 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
+## Unreleased
+**Quick view, Motion and MIDI expression**
+
+**✨ New:**
+- **Quick view**: seven TONE macros (Brightness, Harmonics, Attack, Decay, Release, Spread, Feedback) that move the operator parameters relative to the loaded preset, a patch generator with categories and Undo / A-B comparison, an algorithm picker and an output waveform of the current sound. The Detail view keeps every register parameter and shows which knobs a macro is moving
+- **Algorithm diagrams**: the eight algorithms are drawn as images with the feedback loop highlighted when feedback is on
+- **Motion**: control-rate effects on top of the chip, synced to the host tempo when wanted: software vibrato with delay and rise, timbre LFO, tremolo, pan motion, two-stage pitch envelope, brightness sweep, level envelope, portamento / legato, chip arpeggio, velocity-to-brightness, LFO waveforms with one-shot. **Wide** runs a second chip instance slightly detuned on the other side so all 8 voices remain, and **Echo** places a delayed, quieter copy on the opposite channel
+- **MIDI**: CC 102-107 drive the macros and CC 110-118 the Motion amounts; CC 121 also centres the macros. VOPMex numbers 75 / 76 set the channel PMS / AMS. An optional Expressive MIDI switch routes the mod wheel to vibrato depth and aftertouch to Brightness
+
+**⚠️ Change:**
+- The 0.0.6 LFO numbers 76-79 are no longer accepted (76 now means AMS, as in VOPMex); 81 for noise frequency still works
+
 ## Version 0.0.8 (2026-09-06)
 **Bug Fix Release: LFO, SLOT and Preset Saving**
 

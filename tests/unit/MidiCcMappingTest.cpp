@@ -120,7 +120,57 @@ TEST_F(MidiCcMappingTest, GlobalLfoAndNoiseCcs)
     sendCC(MIDI_CC::NoiseEnable, 64);   EXPECT_GT(registerValue(Global::NoiseEnable), 0.5f);
     sendCC(MIDI_CC::NoiseEnable, 0);    EXPECT_LT(registerValue(Global::NoiseEnable), 0.5f);
     sendCC(MIDI_CC::NoiseFrequency, 127); EXPECT_FLOAT_EQ(registerValue(Global::NoiseFrequency), 31.0f);
-    // Legacy YMulator numbers still work (same scaling)
-    sendCC(MIDI_CC::LegacyLfoWaveform, 32);   EXPECT_FLOAT_EQ(registerValue(Global::LfoWaveform), 1.0f);
+    // The 0.0.6 noise number still works (same scaling)
+    sendCC(MIDI_CC::LfoWaveform, 32);         EXPECT_FLOAT_EQ(registerValue(Global::LfoWaveform), 1.0f);
     sendCC(MIDI_CC::LegacyNoiseFrequency, 36); EXPECT_FLOAT_EQ(registerValue(Global::NoiseFrequency), 9.0f);
+}
+
+TEST_F(MidiCcMappingTest, QuickAndMotionCcsArePositions)
+{
+    using namespace ParamID;
+    sendCC(MIDI_CC::QuickBrightness, 127); EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), 50.0f);
+    sendCC(MIDI_CC::QuickBrightness, 64);  EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), 0.0f) << "64 is the centre";
+    sendCC(MIDI_CC::QuickBrightness, 0);   EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), -50.0f);
+    sendCC(MIDI_CC::QuickHarmonics, 127);  EXPECT_FLOAT_EQ(registerValue(Macro::Harmonics), 8.0f);
+    sendCC(MIDI_CC::MotionWide, 127);      EXPECT_FLOAT_EQ(registerValue(Motion::Wide), 100.0f);
+    sendCC(MIDI_CC::MotionVibrato, 64);    EXPECT_NEAR(registerValue(Motion::VibratoDepth), 50.0f, 1.0f);
+    sendCC(MIDI_CC::MotionEcho, 0);        EXPECT_FLOAT_EQ(registerValue(Motion::EchoLevel), 0.0f);
+    sendCC(MIDI_CC::MotionPitch, 127);     EXPECT_FLOAT_EQ(registerValue(Motion::PitchEnv), 2400.0f);
+    
+    // Channel sensitivity on the compatible numbers
+    sendCC(MIDI_CC::LfoPms, 127); EXPECT_FLOAT_EQ(registerValue(Global::LfoPms), 7.0f);
+    sendCC(MIDI_CC::LfoAms, 127); EXPECT_FLOAT_EQ(registerValue(Global::LfoAms), 3.0f);
+    sendCC(MIDI_CC::LfoAms, 0);   EXPECT_FLOAT_EQ(registerValue(Global::LfoAms), 0.0f);
+}
+
+TEST_F(MidiCcMappingTest, ResetAllControllersCentresTheMacros)
+{
+    using namespace ParamID;
+    sendCC(MIDI_CC::QuickBrightness, 127);
+    sendCC(MIDI_CC::QuickSpread, 0);
+    sendCC(MIDI_CC::ResetAllControllers, 0);
+    EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), 0.0f);
+    EXPECT_FLOAT_EQ(registerValue(Macro::Spread), 0.0f);
+}
+
+TEST_F(MidiCcMappingTest, ExpressiveModeRoutesWheelAndPressure)
+{
+    using namespace ParamID;
+    auto* expressive = processor.getParameters().getParameter(Global::Expressive);
+    ASSERT_NE(expressive, nullptr);
+    
+    sendCC(MIDI_CC::ModWheel, 100);
+    EXPECT_FLOAT_EQ(registerValue(Motion::VibratoDepth), 0.0f) << "compatible map: the wheel is the LFO rate";
+    EXPECT_FLOAT_EQ(registerValue(Global::LfoRate), 200.0f);
+    
+    expressive->setValueNotifyingHost(1.0f);
+    sendCC(MIDI_CC::ModWheel, 127);
+    EXPECT_FLOAT_EQ(registerValue(Motion::VibratoDepth), 100.0f);
+    EXPECT_FLOAT_EQ(registerValue(Global::LfoRate), 200.0f) << "the LFO rate is left alone";
+    
+    juce::MidiBuffer midi;
+    midi.addEvent(juce::MidiMessage::channelPressureChange(1, 127), 0);
+    juce::AudioBuffer<float> buffer(2, 512);
+    processor.processBlock(buffer, midi);
+    EXPECT_FLOAT_EQ(registerValue(Macro::Brightness), 50.0f) << "full pressure opens Brightness fully";
 }

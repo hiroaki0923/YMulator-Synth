@@ -81,7 +81,10 @@ private:
     struct CcTarget {
         juce::RangedAudioParameter* param = nullptr;
         bool reversed = false;   // TL / AR / D1R / D2R / D1L / RR run opposite to the register in natural mode
+        bool normalized = false; // Quick / motion amounts: the CC is a position in the range, not a register value
     };
+    bool expressiveMode() const;
+    void resetMacros();
     std::unordered_map<int, CcTarget> ccToParameterMap;
     
     // VOPMex CC value interpretation: natural (scaled, some reversed) by default,

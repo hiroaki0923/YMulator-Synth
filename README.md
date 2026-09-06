@@ -237,12 +237,19 @@ cmake --install .
 | 55-58 | D1L OP1-4 | 0-15 | Sustain Level per operator |
 | 59-62 | RR OP1-4 | 0-15 | Release Rate per operator |
 | 70-73 | AME OP1-4 | 0-1 | AMS enable per operator |
-| 1 | LFO Frequency | 0-127 | Upper 7 bits of the 8-bit LFRQ register (76 also accepted) |
-| 2 | LFO PMD | 0-127 | Pitch modulation depth (78 also accepted) |
-| 3 | LFO AMD | 0-127 | Amplitude modulation depth (77 also accepted) |
-| 12 | LFO Waveform | 0-3 | Saw / Square / Triangle / Noise (79 also accepted) |
+| 1 | LFO Frequency | 0-127 | Upper 7 bits of the 8-bit LFRQ register; CC 33 carries the lowest bit |
+| 2 | LFO PMD | 0-127 | Pitch modulation depth |
+| 3 | LFO AMD | 0-127 | Amplitude modulation depth |
+| 12 | LFO Waveform | 0-3 | Saw / Square / Triangle / Noise |
 | 80 | Noise Enable | 0 / 1-127 | Channel 8 noise on/off |
+| 75 | LFO PMS | 0-7 | Pitch modulation sensitivity, all channels |
+| 76 | LFO AMS | 0-3 | Amplitude modulation sensitivity, all channels |
 | 82 | Noise Frequency | 0-31 | NFRQ (81 also accepted) |
+| 102-107 | Quick macros | position | Brightness, Harmonics, Attack, Decay, Release, Spread (64 = centre) |
+| 110-118 | Motion amounts | position | Wide, Vibrato, Timbre, Echo, Sweep, Swell, Porta, Pitch, Velocity brightness |
+| 121 | Reset All Controllers | - | Back to natural mode and macros to centre |
+
+Macro CCs move the sound relative to the values the register CCs set: a register CC re-bases the macro, a macro CC works around that base, so both can be used together. Motion CCs never touch the register parameters. The optional **Expressive MIDI** switch (Detail view, bottom row) turns CC 1 into vibrato depth and aftertouch into Brightness.
 
 By default (VOPMex "natural" mode) the 0-127 CC value is scaled to the parameter's range, and TL, AR, D1R, D1L, D2R and RR run opposite to the register (CC 127 = loudest / fastest), like an analogue synth. Send NRPN 126/127 with data 127 (CC 99=126, CC 98=127, CC 6=127) to switch to register-value input, where the CC value is the register value; data 0 returns to natural mode.
 

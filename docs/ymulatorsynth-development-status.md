@@ -68,6 +68,7 @@
 - ✅ **Motion 8: Sweep** - フィルタエンベロープの FM 版。発音時にモジュレータ TL を ±40 ステップずらし、指定時間（50 ms〜4 s）で二乗カーブでパッチの明るさに収束。`motion_sweep_amount` / `motion_sweep_time`。MOTION カードに Sweep チップ（Sweep＋Wide Center＋Echo の組）、Detail に Sweep グループ
 - ✅ **Motion 7: Echo** - 当時の「もう 1 チャンネルで遅らせて小さく鳴らす」疑似リバーブ。シャドウチップへのキーオン・KC/KF・TL の書き込みだけを遅延キューに通し、キャリア TL に減衰を足す。Wide のデチューンと併用可、L/R か Center。`motion_echo_level` / `motion_echo_time` / `motion_echo_div`（同期時）。MOTION カードに Echo チップとノブ、Detail の行に Echo グループ（`tests/unit/EchoTest.cpp`）
 - ✅ **Detail の MOTION 行** - `src/ui/MotionStrip`。全モーションパラメータをグループ（Vibrato / Wide / Timbre / Tremolo / Pan / Pitch）で並べ、Sync ON のときは Hz ノブを無効表示。アルゴリズムの構造記法は図があれば不要なので TONE 行と Quick のカードから削除
+- ✅ **MIDI CC for Quick / Motion** - CC 102〜107 でマクロ、110〜118 で Motion の量（値はパラメータ範囲上の位置、64 がマクロ中央）。CC 121 でマクロも中央へ。VOPMex どおり 75 → PMS、76 → AMS とし、0.0.6 の LFO 用 76〜79 は廃止（81 は維持）。`midi_expressive` パラメータ ON でモジュレーションホイール → ビブラート深さ、チャンネルアフタータッチ → Brightness（Detail 最下段のトグル）。マクロ CC は生パラメータの CC が動かしたアンカーの周りを動くので併用可（`tests/unit/MidiCcMappingTest.cpp`）
 - ✅ **Motion 6: MOTION カード** - `src/ui/MotionPanel`。定型チップ（Off / Wide / Vib / Growl / Pan / Trem）、Wide / Vib / Timbre のノブ、パンモード、Sync トグルと同期時の音価。定型はパラメータの組として `MotionPanel::presets()` に定義 → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)

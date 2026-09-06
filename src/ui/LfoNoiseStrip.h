@@ -29,8 +29,8 @@ private:
     Knob lfoRate, lfoAmd, lfoPmd, noiseFrequency;
     std::unique_ptr<juce::ComboBox> lfoWaveformComboBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfoWaveformAttachment;
-    std::unique_ptr<juce::ToggleButton> noiseEnableButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> noiseEnableAttachment;
+    std::unique_ptr<juce::ToggleButton> noiseEnableButton, expressiveButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> noiseEnableAttachment, expressiveAttachment;
     int separatorX = 0;
     
     void makeKnob(Knob& target, const char* parameterId, const juce::String& label);

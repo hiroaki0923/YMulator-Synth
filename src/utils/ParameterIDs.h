@@ -40,6 +40,9 @@ namespace Global {
     // Noise parameters
     constexpr const char* NoiseEnable = "noise_enable";
     constexpr const char* NoiseFrequency = "noise_frequency";
+    
+    // MIDI behaviour: mod wheel -> vibrato depth and aftertouch -> Brightness instead of the compatible map
+    constexpr const char* Expressive = "midi_expressive";
 } // namespace Global
 
 // =============================================================================
@@ -246,10 +249,28 @@ namespace MIDI_CC {
     constexpr int LfoWaveform = 12;   // LFO waveform (0-3)
     
     // Legacy YMulator numbers for the same LFO parameters (kept for old projects)
-    constexpr int LegacyLfoRate = 76;
-    constexpr int LegacyLfoAmd = 77;
-    constexpr int LegacyLfoPmd = 78;
-    constexpr int LegacyLfoWaveform = 79;
+    // Channel LFO sensitivity, shared by all channels (VOPMex numbers)
+    constexpr int LfoPms = 75;
+    constexpr int LfoAms = 76;
+    
+    // Quick view: macros and motion amounts on the undefined 102-118 range.
+    // Values are positions in the parameter's range (64 = macro centre).
+    constexpr int QuickBrightness = 102;
+    constexpr int QuickHarmonics = 103;
+    constexpr int QuickAttack = 104;
+    constexpr int QuickDecay = 105;
+    constexpr int QuickRelease = 106;
+    constexpr int QuickSpread = 107;
+    constexpr int MotionWide = 110;
+    constexpr int MotionVibrato = 111;
+    constexpr int MotionTimbre = 112;
+    constexpr int MotionEcho = 113;
+    constexpr int MotionSweep = 114;
+    constexpr int MotionSwell = 115;
+    constexpr int MotionPorta = 116;
+    constexpr int MotionPitch = 117;
+    constexpr int MotionVelBright = 118;
+    constexpr int ModWheel = 1;               // vibrato depth in expressive mode
     
     // NRPN used by VOPMex to switch how CC values are interpreted
     constexpr int NrpnMsb = 99;

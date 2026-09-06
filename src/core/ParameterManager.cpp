@@ -213,6 +213,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::SweepAmount, "Sweep Amount", juce::NormalisableRange<float>(-40.0f, 40.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::SweepTime, "Sweep Time", juce::NormalisableRange<float>(50.0f, 4000.0f, 10.0f, 0.5f), 1500.0f));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Global::Expressive, "Expressive MIDI", false));
     layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Mono, "Mono / Legato", false));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::PortaTime, "Portamento Time", juce::NormalisableRange<float>(0.0f, 1000.0f, 5.0f, 0.5f), 0.0f));

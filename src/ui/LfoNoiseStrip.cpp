@@ -36,6 +36,12 @@ LfoNoiseStrip::LfoNoiseStrip(YMulatorSynthAudioProcessor& processor)
     
     makeKnob(noiseFrequency, ParamID::Global::NoiseFrequency, "Freq");
     
+    expressiveButton = std::make_unique<juce::ToggleButton>("Wheel: Vib / Touch: Bright");
+    expressiveButton->setTooltip("Mod wheel sets vibrato depth and aftertouch opens Brightness, instead of the compatible CC map");
+    addAndMakeVisible(*expressiveButton);
+    expressiveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getParameters(), ParamID::Global::Expressive, *expressiveButton);
+    
     statusLabel = std::make_unique<juce::Label>("", "");
     statusLabel->setFont(UiTheme::mono(10.0f));
     statusLabel->setColour(juce::Label::textColourId, UiTheme::muted);
@@ -91,6 +97,9 @@ void LfoNoiseStrip::resized()
     noiseEnableButton->setBounds(x, centreY - 9, 32, 18);
     x += 32 + 10;
     x = placeKnob(noiseFrequency, x);
+    x += 14;
+    expressiveButton->setBounds(x, centreY - 10, 200, 20);
+    x += 200;
     
     statusLabel->setBounds(x, centreY - 10, juce::jmax(0, bounds.getRight() - x), 20);
 }
