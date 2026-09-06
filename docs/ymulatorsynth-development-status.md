@@ -42,7 +42,9 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
-## 🔧 0.1.0 後のメンテナンス (2026-09-06)
+## 🔧 Version 0.1.1 (2026-09-07)
+
+Detail の MOTION 行のテーマカード化、Linux のフォント修正、テストの隔離と Linux CI を 0.1.1 としてリリース。
 
 - ✅ **Detail の MOTION 行をテーマカードに（2026-09-07）** - 13 グループを 2 行に折り返していた並びを、高さ 2 段のカード 4 枚（LFO / ENVELOPE / SPACE / PLAY）に。上段が周期的な動き（Sync で音価になるもの）、下段が発音ごとの形、という規則を全カードで揃えた。`MotionStrip` はテーマ＋行の表から配置し、高さは `preferredHeight()` で MainComponent に伝える。対象別・Quick チップ順・大きめノブの案もモックで比較し、幅 1000 に収まり境界線が少ないこの案を採用
 - ✅ **Linux のフォント問題（2026-09-07）** - JUCE の Linux 実装は未知のタイプフェイス名に代替を持たず null を返す。SVG の "Menlo, monospace" でエディターが落ちていた（CI の xvfb で発覚、gdb のバックトレースで特定）。`AlgorithmDisplay` が読み込み時に `<text>` の font-family を `Font::getDefaultMonospacedFontName()` に差し替え、フォントが無ければ文字を外す。CI には `JUCE_FONT_PATH=/usr/share/fonts` と fonts-dejavu-core
@@ -395,6 +397,7 @@ Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容�
 
 ## 更新履歴
 
+- **2026-09-07**: Version 0.1.1（Detail の MOTION カード、Linux のフォント修正、テストの隔離、Linux CI）
 - **2026-09-06**: Version 0.1.0（Quick 画面、Motion、Quick / Motion の CC、キーオン順の再修正、Init の MUL）
 - **2026-09-06**: Version 0.0.8（LFO 経路、SLOT 復旧、ベロシティ、プリセット保存の修正）
 - **2026-09-06**: Quick パネル ステップ 0〜4（差分送信、AlgorithmInfo、マクロ層、Detail / Quick ビュー、ジェネレータ）

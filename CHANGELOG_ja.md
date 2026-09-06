@@ -2,7 +2,8 @@
 
 YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
-## 未リリース
+## バージョン 0.1.1 (2026-09-07)
+**Detail の MOTION カードと Linux の修正**
 
 **✨ 新機能:**
 - **Detail の MOTION 行**: 関係のない 2 行ではなく、高さ 2 段のテーマカード 4 枚に整理。LFO（ビブラートの下に音色 LFO とトレモロ）、ENVELOPE（ピッチの下に Sweep と Level EG）、SPACE（Wide と Echo の下に Pan）、PLAY（Glide と Vel の下に Arpeggio）

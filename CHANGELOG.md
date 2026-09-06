@@ -2,7 +2,8 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
-## Unreleased
+## Version 0.1.1 (2026-09-07)
+**Detail MOTION cards and a Linux fix**
 
 **✨ New:**
 - **Detail MOTION row**: the motion parameters sit in four themed cards two controls high, LFO (vibrato over timbre and tremolo), ENVELOPE (pitch over sweep and level), SPACE (wide and echo over pan) and PLAY (glide and velocity over arpeggio), instead of two unrelated rows
