@@ -55,6 +55,10 @@ namespace Motion {
     constexpr const char* VibratoRise = "motion_vib_rise";     // ms to full depth
     constexpr const char* Wide = "motion_wide";                // 0-100 -> 0-25 cents between the two chips
     constexpr const char* WidePan = "motion_wide_pan";         // 0 = L / R, 1 = both centre
+    constexpr const char* TimbreDepth = "motion_timbre_depth"; // modulator TL swing, 0-40 steps
+    constexpr const char* TimbreRate = "motion_timbre_rate";   // Hz
+    constexpr const char* TremoloDepth = "motion_trem_depth";  // carrier TL attenuation, 0-24 steps
+    constexpr const char* TremoloRate = "motion_trem_rate";    // Hz
 } // namespace Motion
 
 // =============================================================================

@@ -37,6 +37,7 @@ public:
     // Advanced features - interface implementation
     void setPitchBend(uint8_t channel, float semitones) override;
     void setChannelPitchOffset(uint8_t channel, float semitones) override;
+    void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) override;
     void setWide(bool enabled, float detuneCents, WidePan pan) override;
     bool isWideEnabled() const override { return wideEnabled; }
     uint8_t readShadowRegister(int address) const override { return shadowRegisters[static_cast<uint8_t>(address)]; }
@@ -136,6 +137,8 @@ private:
     // Carriers are written as base + attenuation so velocity survives parameter rewrites.
     std::array<std::array<uint8_t, 4>, 8> baseTotalLevel {};
     std::array<uint8_t, 8> velocityAttenuation {};
+    std::array<int, 8> carrierMotion {};      // tremolo, TL steps
+    std::array<int, 8> modulatorMotion {};    // timbre LFO, TL steps (may be negative)
     bool isCarrier(uint8_t channel, uint8_t operator_num) const;
     void writeTotalLevel(uint8_t channel, uint8_t operator_num);
     

@@ -66,6 +66,9 @@ public:
     /** Extra pitch offset from the motion engine (vibrato, pitch envelope), on top of the pitch bend. */
     virtual void setChannelPitchOffset(uint8_t channel, float semitones) { (void) channel; (void) semitones; }
     
+    /** Level motion in TL steps, added to carriers or modulators of a channel on top of parameter TL and velocity. */
+    virtual void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) { (void) channel; (void) carrierSteps; (void) modulatorSteps; }
+    
     /** Wide: a second chip plays every note detuned the other way, panned apart or both centred. */
     enum class WidePan { LeftRight, Centre };
     virtual void setWide(bool enabled, float detuneCents, WidePan pan) { (void) enabled; (void) detuneCents; (void) pan; }

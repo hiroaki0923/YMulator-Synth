@@ -115,3 +115,48 @@ TEST_F(MotionEngineTest, EachNoteStartsItsOwnDelay)
     EXPECT_FLOAT_EQ(fresh.first, 0.0f);
     EXPECT_FLOAT_EQ(fresh.second, 0.0f);
 }
+
+TEST_F(MotionEngineTest, TimbreLfoMovesModulatorsOnly)
+{
+    set(ParamID::Global::Algorithm, 4.0f);            // carriers op2, op4
+    for (int op = 1; op <= 4; ++op) set(ParamID::Op::tl(op).c_str(), 50.0f);
+    set(ParamID::Motion::TimbreDepth, 40.0f);
+    set(ParamID::Motion::TimbreRate, 4.0f);
+    runBlocks(1);
+    const int ch = noteOn();
+    auto tl = [&](int op) { return static_cast<int>(processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch)); };
+    int lo = 200, hi = -1;
+    for (int i = 0; i < 30; ++i) {
+        runBlocks(1);
+        lo = std::min(lo, tl(0)); hi = std::max(hi, tl(0));
+        EXPECT_EQ(tl(1), 50) << "carrier untouched";
+        EXPECT_EQ(tl(3), 50) << "carrier untouched";
+        EXPECT_EQ(tl(0), tl(2)) << "both modulators move together";
+    }
+    // Registers are sampled once per 512-sample block, so the triangle's tips can be missed by a few steps
+    EXPECT_LE(lo, 14) << "swings about 40 steps brighter";
+    EXPECT_GE(hi, 86) << "and about 40 steps darker";
+}
+
+TEST_F(MotionEngineTest, TremoloAttenuatesCarriersOnTopOfVelocity)
+{
+    set(ParamID::Global::Algorithm, 4.0f);
+    for (int op = 1; op <= 4; ++op) set(ParamID::Op::tl(op).c_str(), 50.0f);
+    set(ParamID::Motion::TremoloDepth, 24.0f);
+    set(ParamID::Motion::TremoloRate, 4.0f);
+    runBlocks(1);
+    juce::MidiBuffer midi;
+    midi.addEvent(juce::MidiMessage::noteOn(1, 69, static_cast<juce::uint8>(64)), 0);   // velocity 64: +16
+    runBlocks(1, &midi);
+    const int ch = processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_KEY_ON_OFF) & 0x07;
+    auto tl = [&](int op) { return static_cast<int>(processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch)); };
+    int lo = 200, hi = -1;
+    for (int i = 0; i < 30; ++i) {
+        runBlocks(1);
+        lo = std::min(lo, tl(1)); hi = std::max(hi, tl(1));
+        EXPECT_EQ(tl(0), 50) << "modulator untouched";
+        EXPECT_EQ(tl(1), tl(3));
+    }
+    EXPECT_EQ(lo, 66) << "loudest point: parameter TL 50 + velocity 16";
+    EXPECT_EQ(hi, 90) << "quietest point adds the full 24 steps";
+}

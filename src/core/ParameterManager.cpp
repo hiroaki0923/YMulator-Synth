@@ -180,6 +180,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::Wide, "Wide", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Motion::WidePan, "Wide Pan", juce::StringArray{ "L / R", "Center" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TimbreDepth, "Timbre LFO Depth", juce::NormalisableRange<float>(0.0f, 40.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TimbreRate, "Timbre LFO Rate", juce::NormalisableRange<float>(0.1f, 12.0f, 0.1f, 0.5f), 1.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TremoloDepth, "Tremolo Depth", juce::NormalisableRange<float>(0.0f, 24.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::TremoloRate, "Tremolo Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

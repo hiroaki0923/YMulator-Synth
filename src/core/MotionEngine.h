@@ -29,6 +29,8 @@ public:
     
     /** Current pitch offset of a channel in semitones (tests and displays). */
     float currentOffset(int channel) const { return channels[static_cast<size_t>(channel)].offset; }
+    int currentCarrierSteps(int channel) const { return channels[static_cast<size_t>(channel)].carrierSteps; }
+    int currentModulatorSteps(int channel) const { return channels[static_cast<size_t>(channel)].modulatorSteps; }
     
 private:
     struct Channel {
@@ -36,7 +38,11 @@ private:
         int note = -1;
         double time = 0.0;      // seconds since the note started
         double phase = 0.0;     // vibrato cycles
+        double timbrePhase = 0.0;
+        double tremoloPhase = 0.0;
         float offset = 0.0f;    // semitones written to the chip
+        int carrierSteps = 0;   // tremolo written to the chip
+        int modulatorSteps = 0; // timbre LFO written to the chip
     };
     
     float read(const juce::RangedAudioParameter* param, float fallback) const;
@@ -51,6 +57,10 @@ private:
     const juce::RangedAudioParameter* vibratoRise = nullptr;
     const juce::RangedAudioParameter* wide = nullptr;
     const juce::RangedAudioParameter* widePan = nullptr;
+    const juce::RangedAudioParameter* timbreDepth = nullptr;
+    const juce::RangedAudioParameter* timbreRate = nullptr;
+    const juce::RangedAudioParameter* tremoloDepth = nullptr;
+    const juce::RangedAudioParameter* tremoloRate = nullptr;
     bool lastWideEnabled = false;
     float lastWideCents = -1.0f;
     int lastWidePan = -1;

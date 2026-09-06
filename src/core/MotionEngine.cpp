@@ -17,6 +17,10 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     vibratoRise = parameters.getParameter(ParamID::Motion::VibratoRise);
     wide = parameters.getParameter(ParamID::Motion::Wide);
     widePan = parameters.getParameter(ParamID::Motion::WidePan);
+    timbreDepth = parameters.getParameter(ParamID::Motion::TimbreDepth);
+    timbreRate = parameters.getParameter(ParamID::Motion::TimbreRate);
+    tremoloDepth = parameters.getParameter(ParamID::Motion::TremoloDepth);
+    tremoloRate = parameters.getParameter(ParamID::Motion::TremoloRate);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -52,6 +56,10 @@ void MotionEngine::tick(int numSamples)
     const double rateHz = read(vibratoRate, 5.0f);
     const double delay = read(vibratoDelay, 0.0f) / 1000.0;
     const double rise = read(vibratoRise, 0.0f) / 1000.0;
+    const float timbreSteps = read(timbreDepth, 0.0f);
+    const double timbreHz = read(timbreRate, 1.0f);
+    const float tremoloSteps = read(tremoloDepth, 0.0f);
+    const double tremoloHz = read(tremoloRate, 5.0f);
     
     for (int ch = 0; ch < 8; ++ch) {
         auto& c = channels[static_cast<size_t>(ch)];
@@ -60,6 +68,8 @@ void MotionEngine::tick(int numSamples)
         if (active && (!c.active || note != c.note)) {
             c.time = 0.0;
             c.phase = 0.0;
+            c.timbrePhase = 0.0;
+            c.tremoloPhase = 0.0;
         }
         c.active = active;
         c.note = note;
@@ -75,6 +85,26 @@ void MotionEngine::tick(int numSamples)
         if (offset != c.offset) {
             c.offset = offset;
             ymfm.setChannelPitchOffset(static_cast<uint8_t>(ch), offset);
+        }
+        
+        // Timbre LFO: triangle on the modulators (both directions); tremolo: carriers only attenuate
+        int carrierSteps = 0, modulatorSteps = 0;
+        if (active) {
+            if (timbreSteps > 0.0f) {
+                c.timbrePhase = std::fmod(c.timbrePhase + timbreHz * dt, 1.0);
+                const double triangle = 1.0 - 4.0 * std::abs(c.timbrePhase - 0.5);   // -1 .. +1, starts at -1
+                modulatorSteps = juce::roundToInt(static_cast<double>(timbreSteps) * triangle);
+            }
+            if (tremoloSteps > 0.0f) {
+                c.tremoloPhase = std::fmod(c.tremoloPhase + tremoloHz * dt, 1.0);
+                const double dip = 0.5 - 0.5 * std::cos(juce::MathConstants<double>::twoPi * c.tremoloPhase);   // 0 .. 1, starts loud
+                carrierSteps = juce::roundToInt(static_cast<double>(tremoloSteps) * dip);
+            }
+        }
+        if (carrierSteps != c.carrierSteps || modulatorSteps != c.modulatorSteps) {
+            c.carrierSteps = carrierSteps;
+            c.modulatorSteps = modulatorSteps;
+            ymfm.setChannelLevelMotion(static_cast<uint8_t>(ch), carrierSteps, modulatorSteps);
         }
     }
 }

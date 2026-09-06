@@ -119,7 +119,7 @@ Detail には MOTION 行を追加しない。Detail の LFO 行はハードウ�
 
 ## 6. 実装順序
 
-実装状況: 1、2 済（2026-09-06、`MotionEngine`、`motion_vib_*`、`motion_wide*`、シャドウチップ）。
+実装状況: 1〜3 済（2026-09-06、`MotionEngine`、`motion_vib_*`、`motion_wide*`、`motion_timbre_*`、`motion_trem_*`）。
 
 1. `MotionEngine` の骨組みと Vibrato（遅延・立ち上がり・深さ・レート、自由レート）
 2. Wide（`YmfmWrapper` のシャドウチップ、書き込み複製、KF オフセット、L/R、ミックス）

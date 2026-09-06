@@ -53,6 +53,8 @@ void YmfmWrapper::reset()
     std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
     for (auto& state : channelStates) state = ChannelState {};
     velocityAttenuation.fill(0);
+    carrierMotion.fill(0);
+    modulatorMotion.fill(0);
     if (shadowChip) shadowChip->reset();
     if (chipType == ChipType::OPM && opmChip) {
         opmChip->reset();
@@ -532,8 +534,8 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
 void YmfmWrapper::setAlgorithm(uint8_t channel, uint8_t algorithm)
 {
     setChannelParameter(channel, ChannelParameter::Algorithm, algorithm);
-    // The carrier set changed; a held note keeps its velocity on the new carriers
-    if (channel < YM2151Regs::MAX_OPM_CHANNELS && velocityAttenuation[channel] != 0)
+    // The carrier set changed; a held note keeps its velocity and level motion on the right operators
+    if (channel < YM2151Regs::MAX_OPM_CHANNELS && (velocityAttenuation[channel] != 0 || carrierMotion[channel] != 0 || modulatorMotion[channel] != 0))
         for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
 }
 
@@ -543,10 +545,24 @@ bool YmfmWrapper::isCarrier(uint8_t channel, uint8_t operator_num) const
     return ((YM2151Regs::ALGORITHM_CARRIER_MASK[algorithm] >> operator_num) & 1) != 0;
 }
 
+void YmfmWrapper::setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    if (carrierMotion[channel] == carrierSteps && modulatorMotion[channel] == modulatorSteps) return;
+    const bool carriersChanged = carrierMotion[channel] != carrierSteps;
+    const bool modulatorsChanged = modulatorMotion[channel] != modulatorSteps;
+    carrierMotion[channel] = carrierSteps;
+    modulatorMotion[channel] = modulatorSteps;
+    for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op)
+        if (isCarrier(channel, op) ? carriersChanged : modulatorsChanged) writeTotalLevel(channel, op);
+}
+
 void YmfmWrapper::writeTotalLevel(uint8_t channel, uint8_t operator_num)
 {
-    const int attenuation = isCarrier(channel, operator_num) ? velocityAttenuation[channel] : 0;
-    const int tl = juce::jmin(127, baseTotalLevel[channel][operator_num] + attenuation);
+    const bool carrier = isCarrier(channel, operator_num);
+    const int attenuation = carrier ? velocityAttenuation[channel] + carrierMotion[channel] : modulatorMotion[channel];
+    const int tl = juce::jlimit(0, 127, baseTotalLevel[channel][operator_num] + attenuation);
     writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel,
                   static_cast<uint8_t>(tl));
 }

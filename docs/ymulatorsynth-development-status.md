@@ -58,7 +58,8 @@
 - ✅ **ステップ 5: 出力波形** - 当初は出力のリングバッファを表示していたが、「この設定ならどういう波形か」が分かるほうが良いというユーザー判断で、`src/core/PatchPreview`（専用チップで現在のパッチの C4 を 0.5 秒描画）に変更。`src/ui/OutputScope` は最も大きい区間の 3 周期を立ち上がりゼロクロスから表示し、ピーク正規化＋実レベルのバー。音パラメータが変わったときだけ再描画（4 Hz で署名を比較）
 - ✅ **Motion 1: Vibrato** - `src/core/MotionEngine`。processBlock が 64 サンプルごとに `tick()` を挟んで音を生成する制御レート構造。ボイスごとに遅延・立ち上がり・深さ（最大 ±50 セント）・レートを持ち、`YmfmWrapper::setChannelPitchOffset` 経由で KC/KF を書く（ベンドとは別のオフセット）。パラメータ `motion_vib_*`。リセット時にレジスタキャッシュとチャンネル状態を消すよう修正（`tests/unit/MotionEngineTest.cpp`）
 - ✅ **Motion 2: Wide** - `YmfmWrapper` が 2 つ目の `ymfm::ym2151`（シャドウチップ）を持ち、全レジスタ書込を複製。KC/KF は主 −d / シャドウ +d（最大 ±25 セント）、パンは L/R 配置なら主 L・シャドウ R（メイン側のキャッシュはパラメータどおりの値を保ち、差し替えはチップ書込時のみ）、Center 配置は両方 −3 dB で混合。同時発音 8 を維持。パラメータ `motion_wide` / `motion_wide_pan`（`tests/unit/WideTest.cpp`）
-- ⏳ 次: Motion 3〜6（Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
+- ✅ **Motion 3: Timbre LFO / Tremolo** - `YmfmWrapper::setChannelLevelMotion`。TL は「パラメータ値＋ベロシティ（キャリア）＋モーション」で書き、モジュレータには三角波 ±40 ステップ、キャリアには片側正弦で最大 24 ステップの減衰。パラメータ `motion_timbre_*` / `motion_trem_*`
+- ⏳ 次: Motion 4〜6（Pan Motion＋BPM 同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 
