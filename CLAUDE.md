@@ -207,6 +207,7 @@ For complete architectural overview, see [Design Document](docs/ymulatorsynth-de
 
 **⚠️ ALWAYS UPDATE [Development Status](docs/ymulatorsynth-development-status.md) when completing features or milestones.**
 
+- Release changelog lives in `CHANGELOG.md` (English) and `CHANGELOG_ja.md` (Japanese), not in the READMEs
 - Track progress against the implementation plan in [Design Document](docs/ymulatorsynth-design-main.md#3-実装計画)
 - Update completion percentages for each phase and task
 - Record commit hashes and completion dates
