@@ -565,7 +565,7 @@ TEST_F(MainComponentTest, NewSoundButtonGeneratesAndCompareSwitchesBack) {
     EXPECT_TRUE(slotA->getToggleState());
 }
 
-TEST_F(MainComponentTest, MotionChipsApplyTheirPresets) {
+TEST_F(MainComponentTest, MotionChipsToggleFeatures) {
     MotionPanel* panel = nullptr;
     std::function<void(juce::Component*)> find = [&](juce::Component* c) {
         for (int i = 0; i < c->getNumChildComponents(); ++i) {
@@ -580,14 +580,19 @@ TEST_F(MainComponentTest, MotionChipsApplyTheirPresets) {
         auto* p = processor->getParameters().getParameter(id);
         return p->convertFrom0to1(p->getValue());
     };
-    panel->applyPreset(5);                                   // Wide
-    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 60.0f);
-    EXPECT_FLOAT_EQ(value(ParamID::Motion::VibratoDepth), 0.0f);
-    panel->applyPreset(8);                                   // Pan (Step, synced)
+    EXPECT_TRUE(panel->toggleFeature("Wide"));
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 50.0f);
+    EXPECT_TRUE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->toggleFeature("Pan"));                 // features combine
     EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 2.0f);
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 1.0f);
-    panel->applyPreset(0);                                   // Off
+    EXPECT_TRUE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->toggleFeature("Wide"));                // and switch off individually
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 0.0f);
+    EXPECT_FALSE(panel->isFeatureOn("Wide"));
+    EXPECT_TRUE(panel->isFeatureOn("Pan"));
+    EXPECT_FALSE(panel->toggleFeature("Nope"));
+    panel->allOff();
     EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 0.0f);
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 0.0f);
     EXPECT_TRUE(processor->isInCustomMode()) << "a motion change marks the sound as edited";

@@ -4,7 +4,7 @@
 //   YMulatorSynthAU_SongRender --midi song.mid --out song.wav
 //       --program 1=10 --program 2=39 ...      bundled program (preset index) per MIDI track (1-based, tempo track excluded)
 //       [--opm voices.opm --voice 1=0 ...]      or voices from an .opm file, by index within that file
-//       [--motion 3=2]                          MotionPanel preset index per track
+//       [--motion 3=2]                          switch on a MOTION card feature by index (Wide, Vib, Growl, Echo, Sweep, Swell, Glide, Arp, Kick, Trem, Pan)
 //       [--param 2=macro_brightness:15]         any parameter, plain value
 //       [--bpm 172]                             transport tempo reported to the plugins (default: from the file)
 //       [--gain 1=0.8] [--master 0.6] [--rate 48000] [--tail 1.5]
@@ -128,9 +128,12 @@ int main(int argc, char** argv)
             if (m.isTrackNameEvent()) track.name = m.getTextFromTextMetaEvent() + " -> " + track.name;
             lastEvent = juce::jmax(lastEvent, m.getTimeStamp());
         }
-        if (auto motion = options.motions.find(musicalIndex); motion != options.motions.end())
-            for (const auto& [id, value] : MotionPanel::presets()[static_cast<size_t>(juce::jlimit(0, static_cast<int>(MotionPanel::presets().size()) - 1, motion->second))].values)
+        if (auto motion = options.motions.find(musicalIndex); motion != options.motions.end()) {
+            const auto& list = MotionPanel::features();
+            const auto& feature = list[static_cast<size_t>(juce::jlimit(0, static_cast<int>(list.size()) - 1, motion->second))];
+            for (const auto& [id, value] : feature.onValues)
                 if (auto* p = track.processor->getParameters().getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(value));
+        }
         for (const auto& [trackIndex, idValue] : options.params)
             if (trackIndex == musicalIndex)
                 if (auto* p = track.processor->getParameters().getParameter(idValue.first)) p->setValueNotifyingHost(p->convertTo0to1(idValue.second));

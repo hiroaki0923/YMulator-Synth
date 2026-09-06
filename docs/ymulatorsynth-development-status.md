@@ -61,6 +61,7 @@
 - ✅ **Motion 3: Timbre LFO / Tremolo** - `YmfmWrapper::setChannelLevelMotion`。TL は「パラメータ値＋ベロシティ（キャリア）＋モーション」で書き、モジュレータには三角波 ±40 ステップ、キャリアには片側正弦で最大 24 ステップの減衰。パラメータ `motion_timbre_*` / `motion_trem_*`
 - ✅ **Motion 4: Pan Motion と BPM 同期** - `MotionEngine::setTransport` がプレイヘッドの BPM / 拍位置を受け、再生中は拍位置から位相を再計算、停止中は最後のテンポで自走。`motion_sync` ON でビブラート・音色 LFO・トレモロは音価（1/1〜1/8T）で回る。Pan Motion は Alternate（発音ごとに L / R 交互）と Step（拍ごとに L→C→R→C）。Wide が L/R 配置のときは無効、Off に戻すとグローバルパンを書き戻す（`tests/unit/PanMotionTest.cpp`）
 - ✅ **Motion 5: Pitch Env** - 発音時に ±100 セントから直線で本来の音程へ（0〜500 ms）。ビブラートと加算。パラメータ `motion_pitch_env` / `motion_pitch_time`
+- ✅ **Quick の MOTION カード改訂** - チップを機能ごとの ON/OFF トグル（複数同時 ON）に変更。ノブ 2 段（Wide / Vib / Timbre / Echo / Rate、Sweep / Swell / Porta / Pitch / Bright）とパン／アルペジオのモード、Sync。COMPARE の A/B は GENERATE カードの見出しへ移動し、MOTION が右列を使う
 - ✅ **Motion 11: Level EG と LFO 波形** - キャリア TL のソフトエンベロープ（アタック時間で 40 ステップ下から立ち上がり、ディケイ時間でサステイン減衰へ）。ビブラート／音色 LFO の波形（正弦・三角・ノコギリ・矩形・ランダム=サイクルごとのサンプル&ホールド）とワンショット。MOTION カードに Swell チップ
 - ✅ **Motion 10: 2 段ピッチエンベロープ** - 発音時 ±24 半音 → 第 1 時間で第 2 点（±24 半音）→ 第 2 時間で本来の音程。ドラムの「叩いて沈む」やレーザー系 SE に。MOTION カードに Kick チップ（+1200 → −500 セント）
 - ✅ **Motion 9: レガート／ポルタメント、ベロシティ→明るさ、チップ・アルペジオ** - `HeldNotes`（MidiProcessor が保持、MotionEngine が参照）。Mono ON では押さえた音が 1 チャンネルを共有し、2 音目はキーオンせず音程だけ変える（離すと前の音に戻る）。ポルタメントは直前の音からの直線グライド（ポリでも有効）。`YmfmWrapper::getNoteOnCount` で「新しい発音」と「音程変更」を区別。ベロシティ→明るさはモジュレータ TL に最大 40 ステップ。アルペジオは押さえた音を 1 チャンネルで音価ごとに Up / Down / UpDown。音価一覧に 1/32・1/64・1/16T を追加。Detail の MOTION 行を 2 段に（`tests/unit/MonoArpTest.cpp`）

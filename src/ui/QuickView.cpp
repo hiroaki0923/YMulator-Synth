@@ -129,21 +129,14 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     undoButton->onClick = [this]() { audioProcessor.getPatchWorkspace().undo(); refresh(); };
     generateCard->addAndMakeVisible(*undoButton);
     
-    compareCard = std::make_unique<Card>("COMPARE", "");
-    addAndMakeVisible(*compareCard);
     slotAButton = std::make_unique<juce::TextButton>("A");
     slotAButton->setTooltip("The sound from before the last generation");
     slotAButton->onClick = [this]() { audioProcessor.getPatchWorkspace().selectSlot(ymulatorsynth::PatchWorkspace::Slot::A); refresh(); };
-    compareCard->addAndMakeVisible(*slotAButton);
+    generateCard->addAndMakeVisible(*slotAButton);
     slotBButton = std::make_unique<juce::TextButton>("B");
-    slotBButton->setTooltip("The generated sound");
+    slotBButton->setTooltip("The generated sound; A keeps what was there before");
     slotBButton->onClick = [this]() { audioProcessor.getPatchWorkspace().selectSlot(ymulatorsynth::PatchWorkspace::Slot::B); refresh(); };
-    compareCard->addAndMakeVisible(*slotBButton);
-    compareNote = std::make_unique<juce::Label>("", "A keeps the sound from before generating.");
-    compareNote->setFont(UiTheme::sans(11.0f));
-    compareNote->setColour(juce::Label::textColourId, UiTheme::muted);
-    compareNote->setJustificationType(juce::Justification::topLeft);
-    compareCard->addAndMakeVisible(*compareNote);
+    generateCard->addAndMakeVisible(*slotBButton);
     motionCard = std::make_unique<Card>("MOTION", "");
     addAndMakeVisible(*motionCard);
     motionPanel = std::make_unique<MotionPanel>(processor);
@@ -220,6 +213,7 @@ void QuickView::refresh()
     updateSummary();
     updateWorkspaceButtons();
     updatePreview();
+    motionPanel->refresh();
 }
 
 void QuickView::updatePreview()
@@ -345,26 +339,21 @@ void QuickView::resized()
     {
         auto header = generateCard->headerBounds();
         header.removeFromLeft(generateCard->titleWidth());
-        undoButton->setBounds(header.removeFromRight(64).withHeight(26).withCentre({ header.getRight() + 32, header.getCentreY() }));
+        auto placeRight = [&](juce::Component& c, int width) {
+            c.setBounds(header.removeFromRight(width).withHeight(26).withCentre({ header.getRight() + width / 2, header.getCentreY() }));
+            header.removeFromRight(6);
+        };
+        placeRight(*slotBButton, 34);
+        placeRight(*slotAButton, 34);
         header.removeFromRight(8);
-        newSoundButton->setBounds(header.removeFromRight(96).withHeight(26).withCentre({ header.getRight() + 48, header.getCentreY() }));
+        placeRight(*undoButton, 64);
+        placeRight(*newSoundButton, 96);
         generateNote->setBounds(header);
         generatorPanel->setBounds(generateCard->bodyBounds().withTrimmedTop(6));
     }
     outputCard->setBounds(side.removeFromBottom(86));
     outputScope->setBounds(outputCard->bodyBounds());
     side.removeFromBottom(10);
-    motionCard->setBounds(side.removeFromBottom(182));
+    motionCard->setBounds(side);
     motionPanel->setBounds(motionCard->bodyBounds());
-    side.removeFromBottom(10);
-    compareCard->setBounds(side);
-    {
-        auto body = compareCard->bodyBounds();
-        auto buttons = body.removeFromTop(30);
-        slotAButton->setBounds(buttons.removeFromLeft(buttons.getWidth() / 2 - 3));
-        buttons.removeFromLeft(6);
-        slotBButton->setBounds(buttons);
-        body.removeFromTop(6);
-        compareNote->setBounds(body.withHeight(16));
-    }
 }

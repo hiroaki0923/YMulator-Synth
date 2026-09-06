@@ -59,14 +59,14 @@ private:
     std::vector<MacroKnob> knobs;
     std::unique_ptr<juce::Label> toneLabel, toneNote;
     
-    std::unique_ptr<Card> algorithmCard, generateCard, compareCard, motionCard, outputCard;
+    std::unique_ptr<Card> algorithmCard, generateCard, motionCard, outputCard;
     std::unique_ptr<GeneratorPanel> generatorPanel;
     std::unique_ptr<MotionPanel> motionPanel;
     std::unique_ptr<OutputScope> outputScope;
     std::unique_ptr<ymulatorsynth::PatchPreview> patchPreview;
     double previewSignature = -1.0;
     std::unique_ptr<juce::TextButton> newSoundButton, undoButton, slotAButton, slotBButton;
-    std::unique_ptr<juce::Label> generateNote, compareNote;
+    std::unique_ptr<juce::Label> generateNote;
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
     std::unique_ptr<juce::Label> algorithmDescription, algorithmCaption;
     std::unique_ptr<juce::TextButton> previousAlgorithmButton, nextAlgorithmButton;
