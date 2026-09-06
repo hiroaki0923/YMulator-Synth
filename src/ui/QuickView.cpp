@@ -75,7 +75,7 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     toneLabel->setFont(UiTheme::mono(11.0f, true));
     toneLabel->setColour(juce::Label::textColourId, UiTheme::green);
     addAndMakeVisible(*toneLabel);
-    toneNote = std::make_unique<juce::Label>("", "Seven knobs move 44 registers. The preset keeps its character.");
+    toneNote = std::make_unique<juce::Label>("", "Shapes whatever is loaded now, a preset or a generated sound, around its character. Loading or generating recentres the knobs.");
     toneNote->setFont(UiTheme::sans(11.0f));
     toneNote->setColour(juce::Label::textColourId, UiTheme::muted);
     addAndMakeVisible(*toneNote);
@@ -110,18 +110,18 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     nextAlgorithmButton->onClick = [this]() { stepAlgorithm(1); };
     algorithmCard->addAndMakeVisible(*nextAlgorithmButton);
     
-    generateCard = std::make_unique<Card>("GENERATE", "");
+    generateCard = std::make_unique<Card>("RECIPE", "");
     addAndMakeVisible(*generateCard);
-    generateNote = std::make_unique<juce::Label>("", "Pick a direction, then roll. Pure random is unusable nine times out of ten.");
+    generateNote = std::make_unique<juce::Label>("", "Pick a category and a direction, then Generate. It replaces the current sound; Undo brings it back.");
     generateNote->setFont(UiTheme::sans(11.0f));
     generateNote->setColour(juce::Label::textColourId, UiTheme::muted);
     generateCard->addAndMakeVisible(*generateNote);
     generatorPanel = std::make_unique<GeneratorPanel>(processor);
     generateCard->addAndMakeVisible(*generatorPanel);
-    newSoundButton = std::make_unique<juce::TextButton>("New sound");
+    newSoundButton = std::make_unique<juce::TextButton>("Generate");
     newSoundButton->getProperties().set("accent", true);
     newSoundButton->setColour(juce::TextButton::textColourOffId, UiTheme::dark);
-    newSoundButton->setTooltip("Generate a patch in the chosen direction; the current sound stays in A");
+    newSoundButton->setTooltip("Make a new sound from this recipe. It replaces the current sound, which stays in A");
     newSoundButton->onClick = [this]() { generateNewSound(); };
     generateCard->addAndMakeVisible(*newSoundButton);
     undoButton = std::make_unique<juce::TextButton>("Undo");
@@ -302,12 +302,14 @@ void QuickView::resized()
     
     auto content = bounds.reduced(20, 0).withTrimmedTop(16).withTrimmedBottom(kGap);
     
-    // Row 1: TONE knobs on the left, the algorithm card on the right
+    // Left column: the recipe (where a new sound starts) above the TONE knobs that shape it.
+    // Right column: algorithm, motion, output.
+    auto side = content.removeFromRight(kSideWidth);
+    content.removeFromRight(kGap + 4);
     const auto knobSize = RotaryKnob::preferredSize(RotaryKnob::Style::Large, RotaryKnob::LabelPosition::Below, true, 100);
-    const int row1Height = 18 + 8 + knobSize.getHeight();
-    auto row1 = content.removeFromTop(row1Height);
-    auto cardArea = row1.removeFromRight(kSideWidth);
-    row1.removeFromRight(kGap + 4);
+    const int toneHeight = 18 + 8 + knobSize.getHeight();
+    auto row1 = content.removeFromBottom(toneHeight);
+    auto cardArea = side.removeFromTop(toneHeight);
     
     auto titleRow = row1.removeFromTop(18);
     toneLabel->setBounds(titleRow.removeFromLeft(48));
@@ -333,26 +335,28 @@ void QuickView::resized()
         algorithmDescription->setBounds(body.withTrimmedBottom(4));
     }
     
-    content.removeFromTop(kGap);
+    content.removeFromBottom(kGap);
+    side.removeFromTop(kGap);
     
-    // Row 2: generator on the left, compare / motion / output stacked on the right
-    auto side = content.removeFromRight(kSideWidth);
-    content.removeFromRight(kGap + 4);
     generateCard->setBounds(content);
     {
         auto header = generateCard->headerBounds();
         header.removeFromLeft(generateCard->titleWidth());
+        generateNote->setBounds(header);
+        auto body = generateCard->bodyBounds();
+        // The action row sits at the bottom right: the recipe above, Generate as its conclusion
+        auto actions = body.removeFromBottom(30).withTrimmedBottom(2);
         auto placeRight = [&](juce::Component& c, int width) {
-            c.setBounds(header.removeFromRight(width).withHeight(26).withCentre({ header.getRight() + width / 2, header.getCentreY() }));
-            header.removeFromRight(6);
+            c.setBounds(actions.removeFromRight(width).withHeight(26).withCentre({ actions.getRight() + width / 2, actions.getCentreY() }));
+            actions.removeFromRight(6);
         };
+        placeRight(*newSoundButton, 110);
+        actions.removeFromRight(10);
         placeRight(*slotBButton, 34);
         placeRight(*slotAButton, 34);
-        header.removeFromRight(8);
+        actions.removeFromRight(8);
         placeRight(*undoButton, 64);
-        placeRight(*newSoundButton, 96);
-        generateNote->setBounds(header);
-        generatorPanel->setBounds(generateCard->bodyBounds().withTrimmedTop(6));
+        generatorPanel->setBounds(body.withTrimmedTop(6));
     }
     outputCard->setBounds(side.removeFromBottom(86));
     outputScope->setBounds(outputCard->bodyBounds());

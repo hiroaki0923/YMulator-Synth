@@ -541,7 +541,7 @@ TEST_F(MainComponentTest, NewSoundButtonGeneratesAndCompareSwitchesBack) {
         for (int i = 0; i < c->getNumChildComponents(); ++i) {
             auto* child = c->getChildComponent(i);
             if (auto* b = dynamic_cast<juce::TextButton*>(child)) {
-                if (b->getButtonText() == "New sound") newSound = b;
+                if (b->getButtonText() == "Generate") newSound = b;
                 if (b->getButtonText() == "A") slotA = b;
                 if (b->getButtonText() == "B") slotB = b;
             }
