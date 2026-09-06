@@ -106,7 +106,7 @@ jobs:
         sudo apt-get install -y cmake build-essential git libgtest-dev libasound2-dev libjack-jackd2-dev \
           libfreetype6-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
           libxinerama-dev libxrandr-dev libxrender-dev libglu1-mesa-dev mesa-common-dev pkg-config xvfb \
-          fonts-dejavu-core
+          fonts-dejavu-core gdb
 
     - name: Build (release with symbols)
       run: |
@@ -124,6 +124,14 @@ jobs:
         ls -la /etc/fonts/fonts.conf || echo "no fonts.conf"
         ls /usr/share/fonts/truetype 2>/dev/null || echo "no /usr/share/fonts/truetype"
         (fc-list | head -5) || echo "no fc-list"
+
+    - name: Backtrace of the editor test (diagnostic)
+      env:
+        JUCE_FONT_PATH: /usr/share/fonts
+      run: |
+        cd build
+        xvfb-run -a gdb -batch -ex "handle SIGTRAP nostop noprint nopass" -ex run -ex bt \
+          --args ./bin/YMulatorSynthAU_IntegrationTests --gtest_filter='*EditorCreation*' 2>&1 | grep -vE "^\[New Thread|^\[Thread" || true
 
     - name: Run all tests under a virtual display
       env:
