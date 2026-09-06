@@ -157,9 +157,13 @@ constexpr uint8_t OPERATOR_ADDRESS_STEP = 8;         // Address step between reg
 // The YM2151 register map is ordered M1, M2, C1, C2 (+0, +8, +16, +24), and the
 // algorithm chains pair M1->C1 and M2->C2, so C1 lives at +16 and M2 at +8.
 constexpr uint8_t OPERATOR_SLOT_OFFSET[MAX_OPERATORS_PER_VOICE] = {0, 16, 8, 24};
-// Hardware slot index (M1, M2, C1, C2 order) of each operator in voice order.
-// The key-on register enables slots in bits 3..6 in this hardware order.
-constexpr uint8_t OPERATOR_HW_SLOT[MAX_OPERATORS_PER_VOICE] = {0, 2, 1, 3};
+// Key-on slot bit (0..3, register bits 3..6) of each operator in voice order.
+// The key-on bits follow the algorithm chain order M1, C1, M2, C2, not the
+// register address order: ymfm's OPM operator map lists channel 0 as
+// operators (0, 16, 8, 24) and keys operator n from key-on bit n, so bit 4
+// keys the operator at +16 (C1) and bit 5 the one at +8 (M2). VOPM's SLOT
+// column and its M1 C1 M2 C2 operator order follow the same convention.
+constexpr uint8_t OPERATOR_HW_SLOT[MAX_OPERATORS_PER_VOICE] = {0, 1, 2, 3};
 constexpr uint8_t SHIFT_KEY_ON_SLOTS = 3;
 // Carriers of each algorithm as a voice-order mask (bit n = operator n reaches the output)
 constexpr uint8_t ALGORITHM_CARRIER_MASK[8] = {0x08, 0x08, 0x08, 0x08, 0x0A, 0x0E, 0x0E, 0x0F};

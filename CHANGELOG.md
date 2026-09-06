@@ -12,6 +12,7 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 - **MIDI**: CC 102-107 drive the macros and CC 110-118 the Motion amounts; CC 121 also centres the macros. VOPMex numbers 75 / 76 set the channel PMS / AMS. An optional Expressive MIDI switch routes the mod wheel to vibrato depth and aftertouch to Brightness
 
 **🐛 Fixes:**
+- **Operator on/off**: the key-on bits were assigned in register-address order (M1, M2, C1, C2). The chip keys them in chain order (M1, C1, M2, C2), so switching off C1 actually silenced M2 and a patch with only M1 and C1 on was silent. The .opm SLOT mask follows the same order
 - **Init preset**: all four operators had MUL 0 (x0.5), so the Init voice played an octave low. MUL is now 1 as in VOPM
 
 **⚠️ Change:**

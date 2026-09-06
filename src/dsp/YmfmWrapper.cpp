@@ -215,10 +215,11 @@ uint8_t YmfmWrapper::echoAttenuated(uint8_t address, uint8_t data) const
 {
     if (address < YM2151Regs::REG_TOTAL_LEVEL_BASE || address >= YM2151Regs::REG_TOTAL_LEVEL_BASE + 32) return data;
     const uint8_t channel = static_cast<uint8_t>(address & 7);
-    const uint8_t hwSlot = static_cast<uint8_t>((address - YM2151Regs::REG_TOTAL_LEVEL_BASE) >> 3);
+    // Register slots are laid out in address order (+0, +8, +16, +24); find the operator that lives there
+    const uint8_t slotOffset = static_cast<uint8_t>((address - YM2151Regs::REG_TOTAL_LEVEL_BASE) & 0x18);
     uint8_t op = 0;
     for (uint8_t candidate = 0; candidate < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++candidate)
-        if (YM2151Regs::OPERATOR_HW_SLOT[candidate] == hwSlot) op = candidate;
+        if (YM2151Regs::OPERATOR_SLOT_OFFSET[candidate] == slotOffset) op = candidate;
     if (!isCarrier(channel, op)) return data;
     return static_cast<uint8_t>(juce::jmin(127, data + echoAttenuation));
 }
