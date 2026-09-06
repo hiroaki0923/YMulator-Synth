@@ -11,7 +11,6 @@
 #include "core/StateManager.h"
 #include "core/MacroMapper.h"
 #include "core/PatchWorkspace.h"
-#include "dsp/ScopeBuffer.h"
 #include "core/MotionEngine.h"
 #include "core/PanProcessor.h"
 #include "utils/PresetManager.h"
@@ -93,8 +92,6 @@ private:
     std::unique_ptr<ymulatorsynth::MacroMapper> macroMapper;
     std::unique_ptr<ymulatorsynth::PatchWorkspace> patchWorkspace;
     std::unique_ptr<ymulatorsynth::MotionEngine> motionEngine;
-    ymulatorsynth::ScopeBuffer scopeBuffer;
-    std::atomic<float> scopeFrequencyHz { 0.0f };   // lowest sounding note, for the scope's time base
     bool needsPresetReapply = false;
     
     // Per-instance initialisation state (must not be shared between instances)
@@ -177,9 +174,8 @@ public:
     ymulatorsynth::MacroMapper& getMacroMapper() { return *macroMapper; }
     ymulatorsynth::PatchWorkspace& getPatchWorkspace() { return *patchWorkspace; }
     const ymulatorsynth::MotionEngine& getMotionEngine() const { return *motionEngine; }
-    const ymulatorsynth::ScopeBuffer& getScopeBuffer() const { return scopeBuffer; }
-    /** Frequency of the lowest sounding note, 0 when silent. */
-    float getScopeFrequencyHz() const { return scopeFrequencyHz.load(std::memory_order_relaxed); }
+    /** Current sound as a preset structure (for previews and saving). */
+    void extractCurrentPreset(ymulatorsynth::Preset& preset) const { if (parameterManager) parameterManager->extractCurrentParameterValues(preset); }
     
 private:
     

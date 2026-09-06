@@ -43,6 +43,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/SnapshotStore.cpp
         ${CMAKE_SOURCE_DIR}/src/core/PatchWorkspace.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MotionEngine.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/PatchPreview.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
@@ -139,7 +140,7 @@ if(GTest_FOUND)
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
-        unit/ScopeBufferTest.cpp
+        unit/PatchPreviewTest.cpp
         unit/MotionEngineTest.cpp
         unit/WideTest.cpp
         ${COMMON_SOURCES}
@@ -195,7 +196,7 @@ if(GTest_FOUND)
         unit/LfoWiringTest.cpp
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
-        unit/ScopeBufferTest.cpp
+        unit/PatchPreviewTest.cpp
         unit/MotionEngineTest.cpp
         unit/WideTest.cpp
         unit/MacroMapperTest.cpp

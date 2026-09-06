@@ -152,10 +152,8 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*motionCard);
     outputCard = std::make_unique<Card>("OUTPUT", "");
     addAndMakeVisible(*outputCard);
-    outputScope = std::make_unique<OutputScope>(processor.getScopeBuffer(), [this]() {
-        const double hz = audioProcessor.getScopeFrequencyHz();
-        return hz > 0.0 ? audioProcessor.getSampleRate() / hz : 0.0;
-    });
+    outputScope = std::make_unique<OutputScope>();
+    patchPreview = std::make_unique<ymulatorsynth::PatchPreview>();
     outputCard->addAndMakeVisible(*outputScope);
     
     detailLink = std::make_unique<juce::TextButton>(juce::String("DETAIL ") + juce::String(juce::CharPointer_UTF8("\xe2\x96\xb8")));
@@ -224,6 +222,25 @@ void QuickView::refresh()
     algorithmCaption->setText("ALG " + juce::String(displayedAlgorithm) + " / FB " + juce::String(feedback), juce::dontSendNotification);
     updateSummary();
     updateWorkspaceButtons();
+    updatePreview();
+}
+
+void QuickView::updatePreview()
+{
+    // Re-render only when a sound parameter moved; the signature is cheap to compute
+    double signature = 0.0;
+    int index = 1;
+    for (auto* param : audioProcessor.getParameters().processor.getParameters())
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+            if (!ranged->paramID.startsWith("macro_") && !ranged->paramID.startsWith("motion_"))
+                signature += static_cast<double>(ranged->getValue()) * static_cast<double>(index++);
+    if (signature == previewSignature) return;
+    previewSignature = signature;
+    
+    ymulatorsynth::Preset preset;
+    audioProcessor.extractCurrentPreset(preset);
+    const auto samples = patchPreview->render(preset, static_cast<int>(ymulatorsynth::PatchPreview::kSampleRate / 2));
+    outputScope->setWaveform(samples, ymulatorsynth::PatchPreview::periodInSamples());
 }
 
 void QuickView::generateNewSound()

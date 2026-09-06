@@ -3,50 +3,31 @@
 #include <cmath>
 
 namespace {
-constexpr int kSearch = 1024;          // samples scanned for a trigger point before the window
-constexpr int kMinPeriod = 24;         // narrowest window, about 2 kHz at 48 kHz
 constexpr float kSilence = 1.0e-4f;
 }
 
-OutputScope::OutputScope(const ymulatorsynth::ScopeBuffer& buffer, std::function<double()> period)
-    : scope(buffer), periodInSamples(std::move(period)), frame(static_cast<size_t>(kMaxWindow), 0.0f), latest(static_cast<size_t>(kCapture), 0.0f)
+OutputScope::OutputScope()
 {
     setInterceptsMouseClicks(false, false);
 }
 
-OutputScope::~OutputScope()
+void OutputScope::setWaveform(const std::vector<float>& samples, double periodInSamples)
 {
-    stopTimer();
-}
-
-void OutputScope::visibilityChanged()
-{
-    if (isVisible()) startTimerHz(30); else stopTimer();
-}
-
-void OutputScope::timerCallback()
-{
-    const size_t written = scope.totalWritten();
-    if (written == lastSeen) return;
-    lastSeen = written;
+    frame.clear();
+    peak = 0.0f;
+    if (samples.empty()) { repaint(); return; }
     
-    scope.readLatest(latest.data(), latest.size());
+    size_t loudest = 0;
+    for (size_t i = 0; i < samples.size(); ++i)
+        if (std::abs(samples[i]) > peak) { peak = std::abs(samples[i]); loudest = i; }
     
-    const int period = periodInSamples ? juce::roundToInt(periodInSamples()) : 0;
-    int window = period > 0 ? period * kPeriods : kMaxWindow;
-    if (window > kMaxWindow && period > 0) window = period * 2;
-    window = juce::jlimit(kMinPeriod, kMaxWindow, window);
-    
-    // Trigger: the last rising zero crossing that still leaves a full window after it
-    const size_t limit = latest.size() - static_cast<size_t>(window);
-    size_t start = limit;
-    for (size_t i = limit; i > 1; --i) {
-        if (latest[i - 1] < 0.0f && latest[i] >= 0.0f) { start = i; break; }
-    }
-    frame.assign(latest.begin() + static_cast<long>(start), latest.begin() + static_cast<long>(start) + window);
-    float p = 0.0f;
-    for (float v : frame) p = std::max(p, std::abs(v));
-    peak = p;
+    const size_t window = static_cast<size_t>(juce::jlimit(8, static_cast<int>(samples.size()), juce::roundToInt(periodInSamples * kPeriods)));
+    // Start at the last rising zero crossing before the loudest sample, keeping the window inside the render
+    size_t start = juce::jmin(loudest, samples.size() - window);
+    for (size_t i = start; i > 0; --i)
+        if (samples[i - 1] < 0.0f && samples[i] >= 0.0f) { start = i; break; }
+    start = juce::jmin(start, samples.size() - window);
+    frame.assign(samples.begin() + static_cast<long>(start), samples.begin() + static_cast<long>(start + window));
     repaint();
 }
 
@@ -60,20 +41,21 @@ void OutputScope::paint(juce::Graphics& g)
     g.setColour(UiTheme::border);
     g.drawHorizontalLine(static_cast<int>(plot.getCentreY()), plot.getX(), plot.getRight());
     
-    // The trace is normalised to its own peak so quiet sounds stay readable; the bar shows the true level
-    juce::Path path;
-    const float midY = plot.getCentreY();
-    const float scale = plot.getHeight() * 0.48f / juce::jmax(peak, 0.05f);
-    const float step = plot.getWidth() / static_cast<float>(frame.size() - 1);
-    for (size_t i = 0; i < frame.size(); ++i) {
-        const float x = plot.getX() + step * static_cast<float>(i);
-        const float y = midY - juce::jlimit(-1.0f, 1.0f, frame[i]) * scale;
-        if (i == 0) path.startNewSubPath(x, y); else path.lineTo(x, y);
+    if (frame.size() > 1) {
+        // The trace is normalised to its own peak so quiet sounds stay readable; the bar shows the true level
+        juce::Path path;
+        const float midY = plot.getCentreY();
+        const float scale = plot.getHeight() * 0.48f / juce::jmax(peak, 0.05f);
+        const float step = plot.getWidth() / static_cast<float>(frame.size() - 1);
+        for (size_t i = 0; i < frame.size(); ++i) {
+            const float x = plot.getX() + step * static_cast<float>(i);
+            const float y = midY - juce::jlimit(-1.0f, 1.0f, frame[i]) * scale;
+            if (i == 0) path.startNewSubPath(x, y); else path.lineTo(x, y);
+        }
+        g.setColour(peak > kSilence ? UiTheme::green : UiTheme::dim);
+        g.strokePath(path, juce::PathStrokeType(1.5f));
     }
-    g.setColour(peak > kSilence ? UiTheme::green : UiTheme::dim);
-    g.strokePath(path, juce::PathStrokeType(1.5f));
     
-    // Level bar under the trace
     auto bar = bounds.reduced(2.0f, 0.0f).removeFromBottom(4.0f).translated(0.0f, -2.0f);
     g.setColour(UiTheme::borderSoft);
     g.fillRoundedRectangle(bar, 2.0f);

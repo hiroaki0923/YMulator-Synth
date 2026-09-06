@@ -1,35 +1,30 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
-#include <functional>
 #include <vector>
-#include "../dsp/ScopeBuffer.h"
 
-/** Oscilloscope of the plugin output: three periods of the lowest sounding note, triggered on a rising zero crossing, with a level bar. */
-class OutputScope : public juce::Component,
-                    private juce::Timer
+/**
+ * Shows a rendered waveform: three periods taken where the sound is loudest,
+ * triggered on a rising zero crossing, with the peak level as a bar.
+ */
+class OutputScope : public juce::Component
 {
 public:
-    /** periodInSamples returns the period of the sounding note, or 0 when nothing is known. */
-    OutputScope(const ymulatorsynth::ScopeBuffer& buffer, std::function<double()> periodInSamples);
-    ~OutputScope() override;
+    OutputScope();
+    ~OutputScope() override = default;
     
     void paint(juce::Graphics& g) override;
-    void visibilityChanged() override;
     
-    static constexpr int kPeriods = 3;        // periods shown across the width
-    static constexpr int kMaxWindow = 4096;   // samples shown when no period can be found (3 periods down to about 35 Hz)
-    static constexpr int kCapture = 8192;     // samples pulled from the ring each frame
+    static constexpr int kPeriods = 3;
+    
+    /** Takes a mono render and the period of its note in samples. */
+    void setWaveform(const std::vector<float>& samples, double periodInSamples);
+    const std::vector<float>& shownFrame() const { return frame; }
+    float peakLevel() const { return peak; }
     
 private:
-    const ymulatorsynth::ScopeBuffer& scope;
-    std::function<double()> periodInSamples;
     std::vector<float> frame;
-    std::vector<float> latest;
     float peak = 0.0f;
-    size_t lastSeen = 0;
-    
-    void timerCallback() override;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OutputScope)
 };
