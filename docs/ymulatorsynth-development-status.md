@@ -42,7 +42,11 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
-## 🎛️ Quick パネル実装 (2026-09-06 進行中)
+## 🎉 Version 0.1.0 (2026-09-06)
+
+Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容は下の「Quick パネル実装」の各項目と [CHANGELOG_ja.md](../CHANGELOG_ja.md)。
+
+## 🎛️ Quick パネル実装 (2026-09-06)
 
 仕様は [Quick パネル設計](ymulatorsynth-quick-panel-design.md)、決定は [ADR-010](ymulatorsynth-adr.md)。ブランチ `feature/quick-panel-step0`。
 
@@ -384,6 +388,7 @@
 
 ## 更新履歴
 
+- **2026-09-06**: Version 0.1.0（Quick 画面、Motion、Quick / Motion の CC、キーオン順の再修正、Init の MUL）
 - **2026-09-06**: Version 0.0.8（LFO 経路、SLOT 復旧、ベロシティ、プリセット保存の修正）
 - **2026-09-06**: Quick パネル ステップ 0〜4（差分送信、AlgorithmInfo、マクロ層、Detail / Quick ビュー、ジェネレータ）
 - **2026-09-05**: メンテナンス再開、v0.0.7 リリース

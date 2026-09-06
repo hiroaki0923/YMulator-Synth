@@ -2,8 +2,8 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
-## Unreleased
-**Quick view, Motion and MIDI expression**
+## Version 0.1.0 (2026-09-06)
+**Feature Release: Quick view, Motion and MIDI expression**
 
 **✨ New:**
 - **Quick view**: seven TONE macros (Brightness, Harmonics, Attack, Decay, Release, Spread, Feedback) that move the operator parameters relative to the loaded preset, a patch generator with categories and Undo / A-B comparison, an algorithm picker and an OUTPUT view that plays the current sound back visually: the waveform at a moving playhead over its level envelope, from key-on through release. The Detail view keeps every register parameter and shows which knobs a macro is moving

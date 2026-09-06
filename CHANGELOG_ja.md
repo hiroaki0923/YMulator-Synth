@@ -2,8 +2,8 @@
 
 YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
-## 未リリース
-**Quick 画面、Motion、MIDI での表現**
+## バージョン 0.1.0 (2026-09-06)
+**機能リリース: Quick 画面、Motion、MIDI での表現**
 
 **✨ 新機能:**
 - **Quick 画面**: 読み込んだプリセットを基準にオペレーターのパラメーターを相対的に動かす 7 つの TONE マクロ（Brightness / Harmonics / Attack / Decay / Release / Spread / Feedback）、カテゴリ付きの音色ジェネレーターと Undo / A-B 比較、アルゴリズム選択、現在の音を目で再生する OUTPUT（鳴り始めからリリースまでのレベル包絡線の上を再生位置が進み、その位置の波形を表示）。Detail 画面には従来どおり全レジスタのパラメーターがあり、マクロがどのノブを動かしているかを表示

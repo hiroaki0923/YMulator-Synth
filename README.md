@@ -364,6 +364,12 @@ This project is actively developed with the following status:
 - **Phase 3+ (Quality Enhancement)**: ✅ 100% Complete (Global pan & DAW compatibility)
 - **Overall Progress**: 100% Complete
 
+### Version 0.1.0 Features (Released 2026-09-06)
+- **Quick view**: seven TONE macros, a recipe-driven patch generator with Undo and A/B, algorithm diagrams and an animated OUTPUT view of the current sound
+- **Motion**: tempo-syncable vibrato, timbre LFO, tremolo, pan motion, pitch envelopes, sweep, level envelope, portamento, chip arpeggio, Wide (a second chip, all 8 voices kept) and Echo
+- **MIDI**: CCs for the macros and Motion amounts, VOPMex PMS/AMS numbers, optional mod wheel / aftertouch expression
+- **Fixes**: operator on/off keys the right operator, Init preset at the right octave
+
 ### Version 0.0.8 Features (Released 2026-09-06)
 - **Working LFO**: Vibrato and tremolo from the hardware LFO now reach the chip, and presets bring their LFO settings with them
 - **SLOT Control Restored**: The per-operator on/off switches are connected again and follow the .opm SLOT mask

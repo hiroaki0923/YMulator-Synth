@@ -15,6 +15,7 @@
 #include "PluginProcessor.h"
 #include "ui/MainComponent.h"
 #include "ui/OutputScope.h"
+#include "core/PatchPreview.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -33,6 +34,8 @@ struct Options {
     int focusMacro = -1;   // index into ymulatorsynth::Macro, highlights its targets
     double scopeTime = -1.0; // --scope-time: seconds into the OUTPUT render (its timer needs a desktop window)
     std::vector<std::pair<juce::String, float>> params; // --param id=value (plain value, e.g. motion_sync=1)
+    bool previewDebug = false; // --preview-debug: print the extracted preset and the preview's peak
+    juce::String stateFile;  // --state-file: raw plugin state blob (as saved by a host) restored before the editor opens
     int note = -1;         // MIDI note to hold while capturing (fills the output scope)
     juce::String view;     // "quick" or "detail"
 };
@@ -49,6 +52,8 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--scale") == 0) o.scale = static_cast<float>(std::atof(next()));
         else if (std::strcmp(argv[i], "--settle") == 0) o.settleMs = std::atoi(next());
         else if (std::strcmp(argv[i], "--scope-time") == 0) o.scopeTime = std::atof(next());
+        else if (std::strcmp(argv[i], "--state-file") == 0) o.stateFile = next();
+        else if (std::strcmp(argv[i], "--preview-debug") == 0) o.previewDebug = true;
         else if (std::strcmp(argv[i], "--param") == 0) {
             juce::String spec(next());
             o.params.emplace_back(spec.upToFirstOccurrenceOf("=", false, false), spec.fromFirstOccurrenceOf("=", false, false).getFloatValue());
@@ -105,6 +110,13 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    if (options.stateFile.isNotEmpty()) {
+        juce::MemoryBlock blob;
+        if (!juce::File::getCurrentWorkingDirectory().getChildFile(options.stateFile).loadFileAsData(blob)) { std::fprintf(stderr, "cannot read state file\n"); return 1; }
+        processor.setStateInformation(blob.getData(), static_cast<int>(blob.getSize()));
+        pumpMessages(options.settleMs);
+        std::printf("restored %d bytes of state\n", static_cast<int>(blob.getSize()));
+    }
     if (options.preset >= 0) {
         if (options.bank >= 0)
             processor.setCurrentPresetInBank(options.bank, options.preset);
@@ -158,6 +170,34 @@ int main(int argc, char** argv)
         visit(*editor);
     }
 
+    if (options.previewDebug) {
+        ymulatorsynth::Preset preset;
+        processor.extractCurrentPreset(preset);
+        std::printf("alg %d fb %d noise %d nfrq %d lfo %d/%d/%d/%d ams %d pms %d\n", preset.algorithm, preset.feedback,
+                    preset.channels[0].noiseEnable, preset.lfo.noiseFreq, preset.lfo.rate, preset.lfo.amd, preset.lfo.pmd, preset.lfo.waveform,
+                    preset.channels[0].ams, preset.channels[0].pms);
+        for (int op = 0; op < 4; ++op) {
+            const auto& o = preset.operators[op];
+            std::printf("op%d tl %.0f ar %.0f d1r %.0f d1l %.0f d2r %.0f rr %.0f ks %.0f mul %.0f dt1 %.0f dt2 %.0f ams %d slot %d\n", op + 1,
+                        o.totalLevel, o.attackRate, o.decay1Rate, o.sustainLevel, o.decay2Rate, o.releaseRate, o.keyScale, o.multiple,
+                        o.detune1, o.detune2, o.amsEnable ? 1 : 0, o.slotEnable ? 1 : 0);
+        }
+        for (const char* id : { "op1_tl", "op1_ar", "op2_tl", "op2_ar", "op1_slot_en", "algorithm" }) {
+            auto* p = processor.getParameters().getParameter(id);
+            std::printf("  %s: getValue %.4f -> %.1f, raw atomic %.1f, tree value %s\n", id, p->getValue(), p->convertFrom0to1(p->getValue()),
+                        processor.getParameters().getRawParameterValue(id)->load(),
+                        processor.getParameters().state.getChildWithProperty("id", id).getProperty("value").toString().toRawUTF8());
+        }
+        ymulatorsynth::PatchPreview preview;
+        auto peakOf = [](const std::vector<float>& v) { float p = 0.0f; for (float x : v) p = std::max(p, std::abs(x)); return p; };
+        std::printf("preview peak: %.4f\n", peakOf(preview.render(preset, 24000)));
+        auto allOn = preset; for (auto& o : allOn.operators) o.slotEnable = true;
+        std::printf("preview peak with every slot on: %.4f\n", peakOf(preview.render(allOn, 24000)));
+        auto mul1 = preset; for (auto& o : mul1.operators) o.multiple = 1;
+        std::printf("preview peak with MUL 1: %.4f\n", peakOf(preview.render(mul1, 24000)));
+        auto ks = preset; for (auto& o : ks.operators) { o.keyScale = 0; o.detune1 = 0; o.detune2 = 0; }
+        std::printf("preview peak with KS/DT cleared: %.4f\n", peakOf(preview.render(ks, 24000)));
+    }
     if (options.dump) {
         dumpState(processor.getParameters());
         dumpControls(*editor);
