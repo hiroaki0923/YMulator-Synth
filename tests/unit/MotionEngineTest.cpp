@@ -210,3 +210,24 @@ TEST_F(MotionEngineTest, SweepOpensTheModulatorsOverTime)
     EXPECT_EQ(tl(0), 30) << "settled on the patch";
     EXPECT_EQ(tl(2), 30);
 }
+
+TEST_F(MotionEngineTest, TwoStagePitchEnvelopeForDrums)
+{
+    set(ParamID::Motion::PitchEnv, 1200.0f);          // an octave up at the key-on
+    set(ParamID::Motion::PitchTime, 20.0f);
+    set(ParamID::Motion::PitchEnv2, -500.0f);         // then below the note
+    set(ParamID::Motion::PitchTime2, 150.0f);
+    const int ch = noteOn(48);
+    float first = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_GT(first, 0.0f) << "still above the note after the first block (10 ms of 20)";
+    runBlocks(2);                                     // about 32 ms: past the first stage, near -5
+    const float dip = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_LT(dip, -3.5f);
+    EXPECT_GT(dip, -5.5f);
+    runBlocks(6);                                     // about 96 ms: rising back
+    const float rising = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_GT(rising, dip);
+    EXPECT_LT(rising, 0.0f);
+    runBlocks(10);                                    // past 170 ms
+    EXPECT_FLOAT_EQ(processor.getMotionEngine().currentOffset(ch), 0.0f);
+}

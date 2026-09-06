@@ -73,6 +73,10 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
         const int i = juce::roundToInt(v);
         return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
     addKnob(pitch, PitchTime, "Time", UiTheme::carrier, false, milliseconds);
+    addKnob(pitch, PitchEnv2, "Env2", UiTheme::carrier, false, [](double v) {
+        const int i = juce::roundToInt(v);
+        return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
+    addKnob(pitch, PitchTime2, "Time2", UiTheme::carrier, false, milliseconds);
     
     auto& glide = addGroup("Glide", 1);
     monoButton = std::make_unique<juce::ToggleButton>("Legato");

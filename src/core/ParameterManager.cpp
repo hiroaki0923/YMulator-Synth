@@ -197,9 +197,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreDiv, "Timbre LFO Sync Rate", divisions, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TremoloDiv, "Tremolo Sync Rate", divisions, 3));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ParamID::Motion::PitchEnv, "Pitch Env", juce::NormalisableRange<float>(-100.0f, 100.0f, 1.0f), 0.0f));
+        ParamID::Motion::PitchEnv, "Pitch Env", juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f, 0.5f, true), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ParamID::Motion::PitchTime, "Pitch Env Time", juce::NormalisableRange<float>(0.0f, 500.0f, 5.0f, 0.6f), 60.0f));
+        ParamID::Motion::PitchTime, "Pitch Env Time", juce::NormalisableRange<float>(0.0f, 500.0f, 1.0f, 0.5f), 60.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchEnv2, "Pitch Env 2", juce::NormalisableRange<float>(-2400.0f, 2400.0f, 1.0f, 0.5f, true), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchTime2, "Pitch Env Time 2", juce::NormalisableRange<float>(0.0f, 1000.0f, 1.0f, 0.5f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::EchoLevel, "Echo Level", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(

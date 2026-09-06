@@ -30,6 +30,8 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     tremoloDiv = parameters.getParameter(ParamID::Motion::TremoloDiv);
     pitchEnv = parameters.getParameter(ParamID::Motion::PitchEnv);
     pitchTime = parameters.getParameter(ParamID::Motion::PitchTime);
+    pitchEnv2 = parameters.getParameter(ParamID::Motion::PitchEnv2);
+    pitchTime2 = parameters.getParameter(ParamID::Motion::PitchTime2);
     echoLevel = parameters.getParameter(ParamID::Motion::EchoLevel);
     echoTime = parameters.getParameter(ParamID::Motion::EchoTime);
     echoDiv = parameters.getParameter(ParamID::Motion::EchoDiv);
@@ -149,8 +151,12 @@ void MotionEngine::tick(int numSamples)
     const double timbreHz = read(timbreRate, 1.0f);
     const float tremoloSteps = read(tremoloDepth, 0.0f);
     const double tremoloHz = read(tremoloRate, 5.0f);
+    // Two-stage pitch envelope: key-on at pitchStart, to pitchMid after pitchSettle, then to the note after pitchSettle2
     const float pitchStart = read(pitchEnv, 0.0f) / 100.0f;        // semitones at the key-on
     const double pitchSettle = read(pitchTime, 60.0f) / 1000.0;
+    const float pitchMid = read(pitchEnv2, 0.0f) / 100.0f;
+    const double pitchSettle2 = read(pitchTime2, 0.0f) / 1000.0;
+    const bool pitchEnvelopeOn = pitchStart != 0.0f || pitchMid != 0.0f;
     const float sweepSteps = read(sweepAmount, 0.0f);                // modulator TL offset at the key-on
     const double sweepSeconds = read(sweepTime, 1500.0f) / 1000.0;
     const double portaSeconds = read(portaTime, 0.0f) / 1000.0;
@@ -218,7 +224,7 @@ void MotionEngine::tick(int numSamples)
         }
         
         float offset = 0.0f;
-        if (active && (depthSemitones > 0.0f || pitchStart != 0.0f || sweepSteps != 0.0f)) c.time += dt;
+        if (active && (depthSemitones > 0.0f || pitchEnvelopeOn || sweepSteps != 0.0f)) c.time += dt;
         c.glideOffset = 0.0f;
         if (active && c.glideFrom != 0.0f && portaSeconds > 0.0) {
             c.glideTime += dt;
@@ -226,10 +232,14 @@ void MotionEngine::tick(int numSamples)
             c.glideOffset = static_cast<float>(c.glideFrom * remaining);
             offset += c.glideOffset;
         }
-        if (active && pitchStart != 0.0f) {
-            // Slides from the start offset onto the note, linearly over the settle time
-            const double remaining = pitchSettle <= 0.0 ? 0.0 : std::max(0.0, 1.0 - c.time / pitchSettle);
-            offset += static_cast<float>(pitchStart * remaining);
+        if (active && pitchEnvelopeOn) {
+            if (c.time < pitchSettle) {
+                const double t = pitchSettle <= 0.0 ? 1.0 : c.time / pitchSettle;
+                offset += static_cast<float>(pitchStart + (pitchMid - pitchStart) * t);
+            } else if (c.time < pitchSettle + pitchSettle2) {
+                const double t = (c.time - pitchSettle) / pitchSettle2;
+                offset += static_cast<float>(pitchMid * (1.0 - t));
+            }
         }
         if (active && depthSemitones > 0.0f) {
             c.phase = synced ? syncedPhase(vibratoDiv) : std::fmod(c.phase + rateHz * dt, 1.0);

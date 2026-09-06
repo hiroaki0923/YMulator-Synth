@@ -114,7 +114,7 @@ void YmLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button
 juce::Font YmLookAndFeel::getTextButtonFont(juce::TextButton& button, int)
 {
     const bool chip = button.getProperties()["chip"];
-    return UiTheme::sans(chip ? 11.0f : 12.0f, !chip);
+    return UiTheme::sans(chip ? 10.0f : 12.0f, !chip);
 }
 
 void YmLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,

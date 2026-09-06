@@ -87,6 +87,8 @@ private:
     const juce::RangedAudioParameter* tremoloDiv = nullptr;
     const juce::RangedAudioParameter* pitchEnv = nullptr;
     const juce::RangedAudioParameter* pitchTime = nullptr;
+    const juce::RangedAudioParameter* pitchEnv2 = nullptr;
+    const juce::RangedAudioParameter* pitchTime2 = nullptr;
     const juce::RangedAudioParameter* echoLevel = nullptr;
     const juce::RangedAudioParameter* echoTime = nullptr;
     const juce::RangedAudioParameter* echoDiv = nullptr;

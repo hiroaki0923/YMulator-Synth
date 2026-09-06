@@ -28,6 +28,9 @@ using ParamID::Motion::PortaTime;
 using ParamID::Motion::ArpMode;
 using ParamID::Motion::ArpDiv;
 using ParamID::Motion::VelBright;
+using ParamID::Motion::PitchTime;
+using ParamID::Motion::PitchEnv2;
+using ParamID::Motion::PitchTime2;
 }
 
 const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
@@ -44,6 +47,7 @@ const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
         { "Growl", { { Wide, 40 }, { WidePan, 0 }, { VibratoDepth, 30 }, { VibratoRate, 6 }, { VibratoDelay, 150 }, { VibratoRise, 300 }, { TimbreDepth, 20 }, { TimbreRate, 0.7f }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, -60 } } },
         { "Pan",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 2 }, { PanRate, 3 }, { Sync, 1 }, { PitchEnv, 0 } } },
         { "Trem",  { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 10 }, { TimbreRate, 0.3f }, { TremoloDepth, 16 }, { TremoloRate, 4 }, { PanMode, 0 }, { PitchEnv, 0 } } },
+        { "Kick",  { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 1200 }, { PitchTime, 18 }, { PitchEnv2, -500 }, { PitchTime2, 140 }, { EchoLevel, 0 } } },
     };
     return list;
 }
@@ -122,8 +126,8 @@ void MotionPanel::updateSyncVisibility()
 void MotionPanel::resized()
 {
     auto bounds = getLocalBounds();
-    // Chips in rows of five
-    const int perRow = 5;
+    // Chips in rows of six
+    const int perRow = 6;
     const int chipWidth = (bounds.getWidth() - (perRow - 1) * 4) / perRow;
     for (size_t i = 0; i < chips.size(); ++i) {
         if (i % static_cast<size_t>(perRow) == 0) {

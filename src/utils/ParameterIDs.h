@@ -65,8 +65,10 @@ namespace Motion {
     constexpr const char* VibratoDiv = "motion_vib_div";       // note value when synced
     constexpr const char* TimbreDiv = "motion_timbre_div";
     constexpr const char* TremoloDiv = "motion_trem_div";
-    constexpr const char* PitchEnv = "motion_pitch_env";        // cents at the key-on, -100..+100
-    constexpr const char* PitchTime = "motion_pitch_time";      // ms to settle on the note
+    constexpr const char* PitchEnv = "motion_pitch_env";        // cents at the key-on, -2400..+2400
+    constexpr const char* PitchTime = "motion_pitch_time";      // ms to reach the second point
+    constexpr const char* PitchEnv2 = "motion_pitch_env2";      // cents at the second point
+    constexpr const char* PitchTime2 = "motion_pitch_time2";    // ms from the second point to the note
     constexpr const char* EchoLevel = "motion_echo_level";      // 0 off .. 100 as loud as the note
     constexpr const char* EchoTime = "motion_echo_time";        // ms
     constexpr const char* EchoDiv = "motion_echo_div";          // note value when synced
