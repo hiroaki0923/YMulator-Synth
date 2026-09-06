@@ -308,8 +308,9 @@ int PresetManager::loadBundledPresets()
     // First try to load from bundled binary resources
     if (BinaryData::ymulatorsynthpresetcollection_opmSize > 0)
     {
-        juce::String content(static_cast<const char*>(BinaryData::ymulatorsynthpresetcollection_opm), 
-                           BinaryData::ymulatorsynthpresetcollection_opmSize);
+        // The bundled collection carries UTF-8 comments; the plain char* constructor asserts on those
+        const juce::String content = juce::String::fromUTF8(BinaryData::ymulatorsynthpresetcollection_opm,
+                                                            BinaryData::ymulatorsynthpresetcollection_opmSize);
         
         auto voices = VOPMParser::parseContent(content);
         for (const auto& voice : voices)
