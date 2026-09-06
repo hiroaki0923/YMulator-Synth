@@ -173,14 +173,12 @@ TEST_F(ParameterManagerTest, GlobalPanParameterExists) {
     globalPanParam->setValueNotifyingHost(1.0f); // RANDOM
 }
 
-TEST_F(ParameterManagerTest, PanParametersExistForAllChannels) {
+TEST_F(ParameterManagerTest, PanIsAGlobalParameterOnly) {
     auto& parameters = processor->getParameters();
-    
-    // Verify pan parameters exist for all 8 channels
-    for (int ch = 0; ch < 8; ++ch) {
-        auto* panParam = parameters.getParameter(ParamID::Channel::pan(ch));
-        EXPECT_NE(panParam, nullptr) << "Pan parameter for channel " << ch << " missing";
-    }
+    EXPECT_NE(parameters.getParameter(ParamID::Global::GlobalPan), nullptr);
+    // Voices are allocated dynamically, so per-hardware-channel pan parameters make no sense and were removed
+    for (int ch = 0; ch < 8; ++ch)
+        EXPECT_EQ(parameters.getParameter(ParamID::Channel::pan(ch)), nullptr) << "channel " << ch;
 }
 
 // ============================================================================

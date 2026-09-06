@@ -20,11 +20,6 @@ YmfmWrapper::YmfmWrapper()
     std::memset(currentRegisters, 0, sizeof(currentRegisters));
     
     // Initialize velocity sensitivity to default values (1.0 = no scaling)
-    for (auto& channel : velocitySensitivity) {
-        for (auto& op : channel) {
-            op = 1.0f;
-        }
-    }
 }
 
 void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
@@ -231,8 +226,8 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Apply velocity sensitivity to channel before key on
         applyVelocityToChannel(channel, velocity);
         
-        // Key On (all operators enabled)
-        writeRegister(YM2151Regs::REG_KEY_ON_OFF, YM2151Regs::KEY_ON_ALL_OPS | channel);
+        writeRegister(YM2151Regs::REG_KEY_ON_OFF,
+                      static_cast<uint8_t>(YM2151Regs::keyOnBitsForSlotMask(channelStates[channel].slotMask) | channel));
         
         // Key-on debug output disabled
         
@@ -251,6 +246,13 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
         // Key On (all operators)
         writeRegister(YM2151Regs::REG_OPNA_KEY_ON_OFF, YM2151Regs::OPNA_KEY_ON_ALL_OPS | channel);
     }
+}
+
+void YmfmWrapper::setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    channelStates[channel].slotMask = static_cast<uint8_t>(voiceOrderMask & YM2151Regs::MASK_SLOT_ENABLE);
 }
 
 void YmfmWrapper::noteOff(uint8_t channel, uint8_t note)
@@ -342,7 +344,8 @@ void YmfmWrapper::setOperatorParameter(uint8_t channel, uint8_t operator_num, Op
         switch (param) {
             case OperatorParameter::TotalLevel:
                 CS_ASSERT_PARAMETER_RANGE(value, 0, 127);  // TL is 7-bit (0-127)
-                writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, value);
+                baseTotalLevel[channel][operator_num] = value;
+                writeTotalLevel(channel, operator_num);
                 break;
                 
             case OperatorParameter::AttackRate:
@@ -484,6 +487,23 @@ void YmfmWrapper::setChannelParameter(uint8_t channel, ChannelParameter param, u
 void YmfmWrapper::setAlgorithm(uint8_t channel, uint8_t algorithm)
 {
     setChannelParameter(channel, ChannelParameter::Algorithm, algorithm);
+    // The carrier set changed; a held note keeps its velocity on the new carriers
+    if (channel < YM2151Regs::MAX_OPM_CHANNELS && velocityAttenuation[channel] != 0)
+        for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
+}
+
+bool YmfmWrapper::isCarrier(uint8_t channel, uint8_t operator_num) const
+{
+    const uint8_t algorithm = currentRegisters[YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel] & YM2151Regs::MASK_ALGORITHM;
+    return ((YM2151Regs::ALGORITHM_CARRIER_MASK[algorithm] >> operator_num) & 1) != 0;
+}
+
+void YmfmWrapper::writeTotalLevel(uint8_t channel, uint8_t operator_num)
+{
+    const int attenuation = isCarrier(channel, operator_num) ? velocityAttenuation[channel] : 0;
+    const int tl = juce::jmin(127, baseTotalLevel[channel][operator_num] + attenuation);
+    writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel,
+                  static_cast<uint8_t>(tl));
 }
 
 void YmfmWrapper::setFeedback(uint8_t channel, uint8_t feedback)
@@ -617,11 +637,9 @@ void YmfmWrapper::setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8
         // Write LFO frequency
         writeRegister(YM2151Regs::REG_LFO_RATE, rate);
         
-        // Write amplitude modulation depth (7-bit value)
-        writeRegister(YM2151Regs::REG_LFO_AMD, amd & 0x7F);
-        
-        // Write phase modulation depth (7-bit value)
-        writeRegister(YM2151Regs::REG_LFO_PMD, pmd & 0x7F);
+        // AMD and PMD share one register; bit 7 selects which depth the write sets
+        writeRegister(YM2151Regs::REG_LFO_DEPTH, amd & YM2151Regs::MASK_LFO_DEPTH);
+        writeRegister(YM2151Regs::REG_LFO_DEPTH, YM2151Regs::LFO_DEPTH_SELECT_PMD | (pmd & YM2151Regs::MASK_LFO_DEPTH));
         
         // Read current waveform register to preserve CT1/CT2 bits
         uint8_t currentWaveform = readCurrentRegister(YM2151Regs::REG_LFO_WAVEFORM);
@@ -827,60 +845,17 @@ YmfmWrapper::EnvelopeDebugInfo YmfmWrapper::getEnvelopeDebugInfo(uint8_t channel
     return info;
 }
 
-void YmfmWrapper::setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity)
-{
-    CS_ASSERT_CHANNEL(channel);
-    CS_ASSERT_OPERATOR(operator_num);
-    CS_ASSERT_PARAMETER_RANGE(sensitivity, 0.0f, 2.0f);
-    
-    if (channel >= YM2151Regs::MAX_OPM_CHANNELS || operator_num >= YM2151Regs::MAX_OPERATORS_PER_VOICE) return;
-    
-    velocitySensitivity[channel][operator_num] = sensitivity;
-    
-    CS_DBG("Set velocity sensitivity for channel " + juce::String((int)channel) + 
-           ", operator " + juce::String((int)operator_num) + 
-           " to " + juce::String(sensitivity, 3));
-}
-
 void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
 {
     CS_ASSERT_CHANNEL(channel);
     CS_ASSERT_VELOCITY(velocity);
-    
     if (channel >= YM2151Regs::MAX_OPM_CHANNELS || chipType != ChipType::OPM) return;
     
-    // Normalize velocity to 0.0-1.0 range
-    float normalizedVelocity = velocity / 127.0f;
-    
-    CS_DBG("Applying velocity " + juce::String((int)velocity) + 
-           " (normalized: " + juce::String(normalizedVelocity, 3) + 
-           ") to channel " + juce::String((int)channel));
-    
-    // Apply velocity sensitivity to each operator's Total Level
-    for (int op = 0; op < 4; ++op) {
-        float sensitivity = velocitySensitivity[channel][op];
-        
-        // Only apply velocity if sensitivity is not 1.0 (default)
-        if (std::abs(sensitivity - 1.0f) > 0.001f) {
-            uint8_t base_addr = YM2151Regs::OPERATOR_SLOT_OFFSET[op] + channel;
-            
-            // Read current TL value
-            uint8_t currentTL = currentRegisters[YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr];
-            
-            // Calculate velocity-adjusted TL
-            // Lower velocity = higher TL (quieter), Higher velocity = lower TL (louder)
-            float velocityAdjustment = (1.0f - normalizedVelocity) * sensitivity * 32.0f; // Up to 32 TL steps
-            uint8_t adjustedTL = juce::jlimit(0, 127, static_cast<int>(currentTL + velocityAdjustment));
-            
-            // Write adjusted TL
-            writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + base_addr, adjustedTL);
-            
-            CS_DBG("Operator " + juce::String(op) + 
-                   " TL adjusted from " + juce::String((int)currentTL) + 
-                   " to " + juce::String((int)adjustedTL) + 
-                   " (sensitivity=" + juce::String(sensitivity, 2) + ")");
-        }
-    }
+    // Linear: velocity 127 plays the preset level, low velocities attenuate the carriers only,
+    // so the timbre (modulator levels) does not change with velocity
+    const float quiet = 1.0f - static_cast<float>(velocity) / static_cast<float>(YM2151Regs::MAX_VELOCITY);
+    velocityAttenuation[channel] = static_cast<uint8_t>(juce::roundToInt(quiet * static_cast<float>(YM2151Regs::VELOCITY_TL_RANGE)));
+    for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
 }
 
 // =============================================================================

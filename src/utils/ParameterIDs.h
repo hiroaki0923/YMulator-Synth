@@ -34,6 +34,8 @@ namespace Global {
     constexpr const char* LfoAmd = "lfo_amd";
     constexpr const char* LfoPmd = "lfo_pmd";
     constexpr const char* LfoWaveform = "lfo_waveform";
+    constexpr const char* LfoAms = "lfo_ams";          // channel AMS sensitivity, shared by all channels
+    constexpr const char* LfoPms = "lfo_pms";          // channel PMS sensitivity, shared by all channels
     
     // Noise parameters
     constexpr const char* NoiseEnable = "noise_enable";
@@ -202,16 +204,6 @@ namespace MIDI_CC {
     constexpr int NoiseEnable = 80;   // Noise enable (0 = off, otherwise on)
     constexpr int NoiseFrequency = 82; // Noise frequency (0-31)
     constexpr int LegacyNoiseFrequency = 81;
-    
-    // Channel Pan (CC 32-39) - YMulator Synth extension
-    constexpr int Ch0_Pan = 32;
-    constexpr int Ch1_Pan = 33;
-    constexpr int Ch2_Pan = 34;
-    constexpr int Ch3_Pan = 35;
-    constexpr int Ch4_Pan = 36;
-    constexpr int Ch5_Pan = 37;
-    constexpr int Ch6_Pan = 38;
-    constexpr int Ch7_Pan = 39;
     
     // Operator Total Level (CC 16-19)
     constexpr int Op1_TL = 16;

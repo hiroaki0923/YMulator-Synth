@@ -28,6 +28,8 @@ public:
     // MIDI interface
     virtual void noteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
     virtual void noteOff(uint8_t channel, uint8_t note) = 0;
+    /** Operators keyed on with the next note, bit n = operator n in voice order (M1, C1, M2, C2). */
+    virtual void setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask) { (void) channel; (void) voiceOrderMask; }
     
     // Parameter control enums
     enum class OperatorParameter {
@@ -74,7 +76,6 @@ public:
                                    uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l) = 0;
     
     // Velocity and dynamics
-    virtual void setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity) = 0;
     virtual void applyVelocityToChannel(uint8_t channel, uint8_t velocity) = 0;
     
     // Noise generator control
