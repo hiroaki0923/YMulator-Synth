@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include "../mocks/MockAudioProcessorHost.h"
 #include "PluginProcessor.h"
 #include "utils/ParameterIDs.h"
@@ -539,6 +540,10 @@ TEST_F(PluginProcessorComprehensiveTest, BusLayoutSupport) {
 
 TEST_F(PluginProcessorComprehensiveTest, EditorCreation) {
     EXPECT_TRUE(processor->hasEditor());
+#if JUCE_LINUX
+    // The editor needs a window system for its fonts, timers and tooltip window; the Linux CI runner has none
+    if (std::getenv("DISPLAY") == nullptr) GTEST_SKIP() << "no display";
+#endif
     
     auto editor = std::unique_ptr<juce::AudioProcessorEditor>(processor->createEditor());
     EXPECT_NE(editor.get(), nullptr);
