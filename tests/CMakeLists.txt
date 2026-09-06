@@ -135,6 +135,8 @@ if(GTest_FOUND)
         unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
+        unit/ParameterReachTest.cpp
+        unit/VelocityTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -186,6 +188,8 @@ if(GTest_FOUND)
         unit/RegisterUpdateTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
+        unit/ParameterReachTest.cpp
+        unit/VelocityTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

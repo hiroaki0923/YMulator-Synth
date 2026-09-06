@@ -81,7 +81,6 @@ public:
     MOCK_METHOD(void, setOperatorAmsEnable, (uint8_t channel, uint8_t operator_num, bool enable), (override));
     MOCK_METHOD(void, setOperatorParameters, (uint8_t channel, uint8_t operator_num, uint8_t tl, uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l, uint8_t ks, uint8_t mul, uint8_t dt1, uint8_t dt2), (override));
     MOCK_METHOD(void, setOperatorEnvelope, (uint8_t channel, uint8_t operator_num, uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l), (override));
-    MOCK_METHOD(void, setVelocitySensitivity, (uint8_t channel, uint8_t operator_num, float sensitivity), (override));
     MOCK_METHOD(void, applyVelocityToChannel, (uint8_t channel, uint8_t velocity), (override));
     MOCK_METHOD(void, setNoiseEnable, (bool enable), (override));
     MOCK_METHOD(void, setNoiseFrequency, (uint8_t frequency), (override));
@@ -134,12 +133,6 @@ protected:
         layout.add(std::make_unique<juce::AudioParameterInt>(
             ParamID::Op::ar(1), "Op1 AR", 0, 31, 31));
             
-        // Add channel pan parameters
-        for (int ch = 0; ch < 8; ++ch) {
-            layout.add(std::make_unique<juce::AudioParameterFloat>(
-                ParamID::Channel::pan(ch), "Ch" + juce::String(ch) + " Pan", 0.0f, 1.0f, 0.5f));
-        }
-        
         // Create parameter tree with dummy processor
         dummyProcessor = std::make_unique<DummyAudioProcessor>();
         parameters = std::make_unique<juce::AudioProcessorValueTreeState>(*dummyProcessor, nullptr, "TEST", std::move(layout));
@@ -265,24 +258,6 @@ TEST_F(MidiProcessorTest, HandleMidiCCOperatorParameter) {
     // Verify parameter was updated
     float expectedNormalized = 100.0f / 127.0f;
     EXPECT_NEAR(tlParam->getValue(), expectedNormalized, 0.01f);
-}
-
-// Test MIDI CC channel pan mapping
-TEST_F(MidiProcessorTest, HandleMidiCCChannelPan) {
-    const int channel = 3;
-    const int channelPanCC = ParamID::MIDI_CC::Ch0_Pan + channel;
-    const int ccValue = 32; // Left pan
-    
-    // Get channel pan parameter
-    auto* panParam = parameters->getParameter(ParamID::Channel::pan(channel));
-    ASSERT_NE(panParam, nullptr);
-    
-    // Process CC message
-    midiProcessor->handleMidiCC(channelPanCC, ccValue);
-    
-    // Verify parameter was updated
-    float expectedNormalized = 32.0f / 127.0f;
-    EXPECT_NEAR(panParam->getValue(), expectedNormalized, 0.01f);
 }
 
 // Test pitch bend handling

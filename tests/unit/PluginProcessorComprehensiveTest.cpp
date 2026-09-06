@@ -96,12 +96,6 @@ TEST_F(PluginProcessorComprehensiveTest, AllParametersExist) {
         EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Op::mul(op)) >= 0.0f);
     }
     
-    // Test channel parameters (Ch0-Ch7)
-    for (int ch = 0; ch < 8; ++ch) {
-        EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Channel::pan(ch)) >= 0.0f);
-        EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Channel::ams(ch)) >= 0.0f);
-        EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Channel::pms(ch)) >= 0.0f);
-    }
 }
 
 TEST_F(PluginProcessorComprehensiveTest, ParameterRangeValidation) {

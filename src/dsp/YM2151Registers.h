@@ -161,6 +161,10 @@ constexpr uint8_t OPERATOR_SLOT_OFFSET[MAX_OPERATORS_PER_VOICE] = {0, 16, 8, 24}
 // The key-on register enables slots in bits 3..6 in this hardware order.
 constexpr uint8_t OPERATOR_HW_SLOT[MAX_OPERATORS_PER_VOICE] = {0, 2, 1, 3};
 constexpr uint8_t SHIFT_KEY_ON_SLOTS = 3;
+// Carriers of each algorithm as a voice-order mask (bit n = operator n reaches the output)
+constexpr uint8_t ALGORITHM_CARRIER_MASK[8] = {0x08, 0x08, 0x08, 0x08, 0x0A, 0x0E, 0x0E, 0x0F};
+// MIDI velocity attenuates carrier TL linearly by up to this many steps (about 24 dB)
+constexpr int VELOCITY_TL_RANGE = 32;
 constexpr uint8_t MASK_SLOT_ENABLE = 0x0F;
 
 /** Key-on register bits for a voice-order slot mask (bit n = operator n on). */

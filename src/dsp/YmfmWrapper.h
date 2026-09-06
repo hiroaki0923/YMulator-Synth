@@ -49,7 +49,6 @@ public:
                             uint8_t ar, uint8_t d1r, uint8_t d2r, uint8_t rr, uint8_t d1l) override;
     
     // Velocity and dynamics - interface implementation
-    void setVelocitySensitivity(uint8_t channel, uint8_t operator_num, float sensitivity) override;
     void applyVelocityToChannel(uint8_t channel, uint8_t velocity) override;
     
     // Noise generator control - interface implementation
@@ -121,8 +120,12 @@ private:
     };
     std::array<ChannelState, 8> channelStates;
     
-    // Velocity sensitivity per operator (32 operators total: 8 channels × 4 operators)
-    std::array<std::array<float, 4>, 8> velocitySensitivity;
+    // TL as set by the parameters, and the velocity attenuation of the note on each channel.
+    // Carriers are written as base + attenuation so velocity survives parameter rewrites.
+    std::array<std::array<uint8_t, 4>, 8> baseTotalLevel {};
+    std::array<uint8_t, 8> velocityAttenuation {};
+    bool isCarrier(uint8_t channel, uint8_t operator_num) const;
+    void writeTotalLevel(uint8_t channel, uint8_t operator_num);
     
     // Helper methods
     void initializeOPM();

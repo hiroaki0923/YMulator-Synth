@@ -219,16 +219,6 @@ namespace MIDI_CC {
     constexpr int NoiseFrequency = 82; // Noise frequency (0-31)
     constexpr int LegacyNoiseFrequency = 81;
     
-    // Channel Pan (CC 32-39) - YMulator Synth extension
-    constexpr int Ch0_Pan = 32;
-    constexpr int Ch1_Pan = 33;
-    constexpr int Ch2_Pan = 34;
-    constexpr int Ch3_Pan = 35;
-    constexpr int Ch4_Pan = 36;
-    constexpr int Ch5_Pan = 37;
-    constexpr int Ch6_Pan = 38;
-    constexpr int Ch7_Pan = 39;
-    
     // Operator Total Level (CC 16-19)
     constexpr int Op1_TL = 16;
     constexpr int Op2_TL = 17;
