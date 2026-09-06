@@ -74,21 +74,38 @@ TEST_F(EchoTest, EchoIsAudibleOnTheOtherSideAndStopsWhenOff)
     };
     set(ParamID::Motion::EchoLevel, 80.0f);
     set(ParamID::Motion::EchoTime, 150.0f);
-    set(ParamID::Motion::WidePan, 0.0f);            // note left, echo right
+    set(ParamID::Motion::WidePan, 0.0f);            // note centred, first echo right
     runBlocks(1);
     noteOn(69);
-    const auto early = render(8);                    // 10-95 ms: only the note, on the left
+    const auto early = render(8);                    // 10-95 ms: only the note, on both sides
     EXPECT_GT(early.first, 0.02);
-    EXPECT_LT(early.second, 1e-4) << "nothing on the right before the echo";
+    EXPECT_NEAR(early.first, early.second, 1e-4) << "the note itself stays centred";
     runBlocks(6);                                    // past 150 ms
     const auto late = render(6);
-    EXPECT_GT(late.second, 0.01) << "the echo plays on the right";
+    EXPECT_GT(late.second, late.first + 0.005) << "the echo adds on the right: L " << late.first << " R " << late.second;
     
     set(ParamID::Motion::EchoLevel, 0.0f);
     runBlocks(1);
     EXPECT_FALSE(processor.getYmfmWrapper().isEchoEnabled());
     for (int a = 0x08; a < 0x100; ++a)
         if (a < 0x20 || a >= 0x28) EXPECT_EQ(main(a), shadow(a)) << "register " << a << " mirrors again";
+}
+
+TEST_F(EchoTest, EchoesTakeSidesInTurnWhileTheNoteKeepsItsPan)
+{
+    set(ParamID::Motion::EchoLevel, 50.0f);
+    set(ParamID::Motion::EchoTime, 50.0f);
+    set(ParamID::Motion::WidePan, 0.0f);
+    runBlocks(1);
+    const int first = noteOn(69);
+    const int second = noteOn(72);
+    runBlocks(8);                                    // past 50 ms: the pans have reached the shadow
+    const int panFirst = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + first;
+    const int panSecond = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + second;
+    EXPECT_EQ(main(panFirst) & YM2151Regs::MASK_PAN_LR, YM2151Regs::PAN_CENTER) << "the note keeps the global pan";
+    EXPECT_EQ(shadow(panFirst) & YM2151Regs::MASK_PAN_LR, YM2151Regs::PAN_RIGHT_ONLY);
+    EXPECT_EQ(shadow(panSecond) & YM2151Regs::MASK_PAN_LR, YM2151Regs::PAN_LEFT_ONLY) << "the next echo takes the other side";
+    EXPECT_EQ(shadow(panFirst) & ~YM2151Regs::MASK_PAN_LR, main(panFirst) & ~YM2151Regs::MASK_PAN_LR) << "algorithm and feedback still mirror";
 }
 
 TEST_F(EchoTest, SyncedEchoFollowsTheTempoDivision)

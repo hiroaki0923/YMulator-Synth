@@ -58,6 +58,8 @@ void YmfmWrapper::reset()
     modulatorMotion.fill(0);
     echoHead = echoTail = 0;
     nativeSampleCount = 0;
+    for (auto& side : echoSide) side = YM2151Regs::PAN_RIGHT_ONLY;
+    nextEchoRight = true;
     if (shadowChip) shadowChip->reset();
     if (chipType == ChipType::OPM && opmChip) {
         opmChip->reset();
@@ -202,10 +204,11 @@ void YmfmWrapper::writeShadow(uint8_t address, uint8_t data)
 
 bool YmfmWrapper::isEchoDelayedRegister(uint8_t address) const
 {
-    // Everything that makes a note: key on/off, pitch, and level (velocity and motion ride on TL)
+    // Everything that makes a note: key on/off, pitch, level (velocity and motion ride on TL) and the pan it was played with
     return address == YM2151Regs::REG_KEY_ON_OFF
         || (address >= YM2151Regs::REG_KEY_CODE_BASE && address < YM2151Regs::REG_KEY_FRACTION_BASE + YM2151Regs::MAX_OPM_CHANNELS)
-        || (address >= YM2151Regs::REG_TOTAL_LEVEL_BASE && address < YM2151Regs::REG_TOTAL_LEVEL_BASE + 32);
+        || (address >= YM2151Regs::REG_TOTAL_LEVEL_BASE && address < YM2151Regs::REG_TOTAL_LEVEL_BASE + 32)
+        || (address >= YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE && address < YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + YM2151Regs::MAX_OPM_CHANNELS);
 }
 
 uint8_t YmfmWrapper::echoAttenuated(uint8_t address, uint8_t data) const
@@ -256,10 +259,15 @@ void YmfmWrapper::setEcho(bool enabled, double delaySeconds, int attenuationStep
 
 uint8_t YmfmWrapper::panForChip(uint8_t address, uint8_t data, bool shadow) const
 {
-    // With Wide panned apart, the main chip takes the left and the shadow the right
+    // Panned apart: with Echo the note keeps its own pan and each echo takes a side in turn;
+    // with Wide alone the main chip takes the left and the shadow the right
     const bool panRegister = address >= YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE
                           && address < YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + YM2151Regs::MAX_OPM_CHANNELS;
     if (!panRegister || !shadowActive() || widePan != WidePan::LeftRight) return data;
+    if (echoEnabled) {
+        if (!shadow) return data;
+        return static_cast<uint8_t>((data & ~YM2151Regs::MASK_PAN_LR) | echoSide[address - YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE]);
+    }
     return static_cast<uint8_t>((data & ~YM2151Regs::MASK_PAN_LR) | (shadow ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_LEFT_ONLY));
 }
 
@@ -338,6 +346,12 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     ++channelStates[channel].noteOnCount;
     
     if (chipType == ChipType::OPM) {
+        if (echoEnabled && widePan == WidePan::LeftRight) {
+            echoSide[channel] = nextEchoRight ? YM2151Regs::PAN_RIGHT_ONLY : YM2151Regs::PAN_LEFT_ONLY;
+            nextEchoRight = !nextEchoRight;
+            const uint8_t panAddr = static_cast<uint8_t>(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
+            writeShadow(panAddr, panForChip(panAddr, currentRegisters[panAddr], true));
+        }
         writePitch(channel);
         
         // Apply velocity sensitivity to channel before key on

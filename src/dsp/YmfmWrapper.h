@@ -119,6 +119,9 @@ private:
     bool echoEnabled = false;
     uint64_t echoDelaySamples = 0;
     int echoAttenuation = 0;
+    // With Echo panned apart the note keeps its own pan and each echo takes a side in turn
+    uint8_t echoSide[8] = {};
+    bool nextEchoRight = true;
     uint64_t nativeSampleCount = 0;
     bool shadowActive() const { return wideEnabled || echoEnabled; }
     bool isEchoDelayedRegister(uint8_t address) const;
