@@ -22,7 +22,7 @@ and every combo box text), `--scale` (render scale, default 2), `--settle` (mill
 message-loop time given to asynchronous UI updates before capture, default 300), `--focus-macro N`
 (0 Brightness, 1 Harmonics, 2 Attack, 3 Decay, 4 Release, 5 Spread: draws the amber rings on that
 macro's target knobs, the way touching the TONE knob does), `--note N` (holds MIDI note N for 40 blocks
-before the capture so the output scope shows a waveform).
+before the capture so the output scope shows a waveform), `--view quick|detail` (which view to show).
 
 ## gen_algorithm_svg.py
 

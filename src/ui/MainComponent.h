@@ -10,6 +10,7 @@
 #include "OperatorPanel.h"
 #include "ToneStrip.h"
 #include "LfoNoiseStrip.h"
+#include "MotionStrip.h"
 #include "QuickView.h"
 #include "PresetUIManager.h"
 #include "../core/MacroMapper.h"
@@ -62,6 +63,7 @@ private:
     std::unique_ptr<QuickView> quickView;
     std::unique_ptr<ToneStrip> toneStrip;
     std::array<std::unique_ptr<OperatorPanel>, 4> operatorPanels;
+    std::unique_ptr<MotionStrip> motionStrip;
     std::unique_ptr<LfoNoiseStrip> lfoNoiseStrip;
     
     ViewMode viewMode = ViewMode::Quick;

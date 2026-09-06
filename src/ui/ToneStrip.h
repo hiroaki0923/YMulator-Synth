@@ -53,7 +53,6 @@ private:
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
     std::unique_ptr<juce::ComboBox> algorithmComboBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
-    std::unique_ptr<juce::Label> algorithmLabel;
     int currentAlgorithm = 0;
     
     void addMacroKnob(std::optional<ymulatorsynth::Macro> macro, const char* parameterId, const juce::String& label, juce::Colour accent);

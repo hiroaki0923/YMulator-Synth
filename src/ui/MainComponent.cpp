@@ -10,6 +10,7 @@ namespace {
 constexpr int kHeaderHeight = 50;
 constexpr int kToneHeight = 72;
 constexpr int kFooterHeight = 46;
+constexpr int kMotionHeight = 58;
 constexpr int kRowGap = 6;
 const char* const kRoleParameters[] = { ParamID::Global::Algorithm, ParamID::Global::Feedback, ParamID::Global::NoiseEnable };
 const juce::Identifier kViewModeProperty("uiViewMode");
@@ -52,6 +53,9 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
         addAndMakeVisible(*operatorPanels[static_cast<size_t>(i)]);
     }
     
+    motionStrip = std::make_unique<MotionStrip>(processor);
+    addAndMakeVisible(*motionStrip);
+    
     lfoNoiseStrip = std::make_unique<LfoNoiseStrip>(processor);
     addAndMakeVisible(*lfoNoiseStrip);
     
@@ -73,6 +77,7 @@ MainComponent::~MainComponent()
         audioProcessor.getParameters().removeParameterListener(id, this);
     
     lfoNoiseStrip.reset();
+    motionStrip.reset();
     for (auto& panel : operatorPanels) panel.reset();
     toneStrip.reset();
     quickView.reset();
@@ -115,6 +120,7 @@ void MainComponent::resized()
     
     toneStrip->setBounds(bounds.removeFromTop(kToneHeight));
     lfoNoiseStrip->setBounds(bounds.removeFromBottom(kFooterHeight));
+    motionStrip->setBounds(bounds.removeFromBottom(kMotionHeight));
     
     auto rows = bounds.reduced(20, 8);
     const int rowHeight = (rows.getHeight() - kRowGap * 3) / 4;
@@ -167,6 +173,7 @@ void MainComponent::setViewMode(ViewMode mode)
     toneStrip->setVisible(!quick);
     for (auto& panel : operatorPanels) panel->setVisible(!quick);
     lfoNoiseStrip->setVisible(!quick);
+    motionStrip->setVisible(!quick);
     quickModeButton->setToggleState(quick, juce::dontSendNotification);
     detailModeButton->setToggleState(!quick, juce::dontSendNotification);
     audioProcessor.getParameters().state.setProperty(kViewModeProperty, quick ? "quick" : "detail", nullptr);

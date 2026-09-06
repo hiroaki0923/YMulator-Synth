@@ -59,6 +59,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/ui/GeneratorPanel.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/OutputScope.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/MotionPanel.cpp
+        ${CMAKE_SOURCE_DIR}/src/ui/MotionStrip.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/LfoNoiseStrip.cpp
         ${CMAKE_SOURCE_DIR}/src/ui/YmLookAndFeel.cpp
         

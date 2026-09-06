@@ -92,12 +92,8 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*algorithmCard);
     algorithmDisplay = std::make_unique<AlgorithmDisplay>();
     algorithmCard->addAndMakeVisible(*algorithmDisplay);
-    algorithmTitle = std::make_unique<juce::Label>("", "");
-    algorithmTitle->setFont(UiTheme::mono(12.0f, true));
-    algorithmTitle->setColour(juce::Label::textColourId, UiTheme::text);
-    algorithmCard->addAndMakeVisible(*algorithmTitle);
     algorithmDescription = std::make_unique<juce::Label>("", "");
-    algorithmDescription->setFont(UiTheme::sans(11.0f));
+    algorithmDescription->setFont(UiTheme::sans(12.0f));
     algorithmDescription->setColour(juce::Label::textColourId, UiTheme::muted);
     algorithmDescription->setJustificationType(juce::Justification::topLeft);
     algorithmCard->addAndMakeVisible(*algorithmDescription);
@@ -219,7 +215,6 @@ void QuickView::refresh()
     const auto& info = ymulatorsynth::algorithmInfo(displayedAlgorithm);
     algorithmDisplay->setAlgorithm(displayedAlgorithm);
     algorithmDisplay->setFeedbackLevel(feedback);
-    algorithmTitle->setText(info.structure, juce::dontSendNotification);
     algorithmDescription->setText(info.description, juce::dontSendNotification);
     algorithmCaption->setText("ALG " + juce::String(displayedAlgorithm) + " / FB " + juce::String(feedback), juce::dontSendNotification);
     updateSummary();
@@ -334,7 +329,6 @@ void QuickView::resized()
         algorithmDisplay->setBounds(diagram.withHeight(66).withY(body.getY() + 2));
         algorithmCaption->setBounds(diagram.withY(body.getY() + 70).withHeight(14));
         body.removeFromLeft(10);
-        algorithmTitle->setBounds(body.removeFromTop(18));
         auto buttons = body.removeFromBottom(22);
         previousAlgorithmButton->setBounds(buttons.removeFromLeft(28));
         buttons.removeFromLeft(4);

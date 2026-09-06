@@ -50,11 +50,6 @@ ToneStrip::ToneStrip(YMulatorSynthAudioProcessor& processor)
     algorithmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getParameters(), ParamID::Global::Algorithm, *algorithmComboBox);
     
-    algorithmLabel = std::make_unique<juce::Label>("", "");
-    algorithmLabel->setFont(UiTheme::mono(9.0f));
-    algorithmLabel->setColour(juce::Label::textColourId, UiTheme::muted);
-    addAndMakeVisible(*algorithmLabel);
-    
     setAlgorithm(algorithmComboBox->getSelectedId() - 1);
 }
 
@@ -103,7 +98,6 @@ void ToneStrip::setAlgorithm(int algorithm)
 {
     currentAlgorithm = juce::jlimit(0, 7, algorithm);
     algorithmDisplay->setAlgorithm(currentAlgorithm);
-    algorithmLabel->setText(ymulatorsynth::algorithmInfo(currentAlgorithm).structure, juce::dontSendNotification);
     algorithmComboBox->setTooltip(ymulatorsynth::algorithmInfo(currentAlgorithm).description);
 }
 
@@ -153,8 +147,7 @@ void ToneStrip::resized()
     // Right cluster: diagram, then the picker with the structure text under it
     auto right = bounds;
     auto pickerArea = right.removeFromRight(100);
-    algorithmComboBox->setBounds(pickerArea.withHeight(24).withY(centreY - 20));
-    algorithmLabel->setBounds(pickerArea.withHeight(14).withY(centreY + 6));
+    algorithmComboBox->setBounds(pickerArea.withHeight(26).withCentre(pickerArea.getCentre()));
     right.removeFromRight(10);
     algorithmDisplay->setBounds(right.removeFromRight(120).withHeight(getHeight() - 8).withCentre({ right.getRight() + 60, centreY }));
     right.removeFromRight(16);

@@ -2,7 +2,7 @@
 // without opening a host. Built as YMulatorSynthAU_UISnapshot (see tests/CMakeLists.txt).
 //
 //   YMulatorSynthAU_UISnapshot --out ui.png [--preset N | --bank B --preset P] [--then-preset N]
-//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N] [--note N]
+//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N] [--note N] [--view quick|detail]
 //   YMulatorSynthAU_UISnapshot --list-presets
 //
 // --preset alone selects a global program index the way a host program change
@@ -31,6 +31,7 @@ struct Options {
     bool dump = false;
     int focusMacro = -1;   // index into ymulatorsynth::Macro, highlights its targets
     int note = -1;         // MIDI note to hold while capturing (fills the output scope)
+    juce::String view;     // "quick" or "detail"
 };
 
 Options parseArgs(int argc, char** argv)
@@ -48,6 +49,7 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--dump") == 0) o.dump = true;
         else if (std::strcmp(argv[i], "--focus-macro") == 0) o.focusMacro = std::atoi(next());
         else if (std::strcmp(argv[i], "--note") == 0) o.note = std::atoi(next());
+        else if (std::strcmp(argv[i], "--view") == 0) o.view = next();
     }
     return o;
 }
@@ -126,12 +128,15 @@ int main(int argc, char** argv)
         pumpMessages(options.settleMs);
     }
 
-    if (options.focusMacro >= 0) {
-        for (int i = 0; i < editor->getNumChildComponents(); ++i)
-            if (auto* main = dynamic_cast<MainComponent*>(editor->getChildComponent(i)))
-                main->setMacroFocus(static_cast<ymulatorsynth::Macro>(options.focusMacro));
-        pumpMessages(options.settleMs);
+    for (int i = 0; i < editor->getNumChildComponents(); ++i) {
+        auto* main = dynamic_cast<MainComponent*>(editor->getChildComponent(i));
+        if (main == nullptr) continue;
+        if (options.view.isNotEmpty())
+            main->setViewMode(options.view == "detail" ? MainComponent::ViewMode::Detail : MainComponent::ViewMode::Quick);
+        if (options.focusMacro >= 0)
+            main->setMacroFocus(static_cast<ymulatorsynth::Macro>(options.focusMacro));
     }
+    if (options.view.isNotEmpty() || options.focusMacro >= 0) pumpMessages(options.settleMs);
 
     if (options.dump) {
         dumpState(processor.getParameters());
