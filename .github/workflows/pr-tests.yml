@@ -116,5 +116,5 @@ jobs:
       run: |
         cd build
         for t in Basic Preset Parameter Pan Integration Quality UI; do
-          xvfb-run -a ./bin/YMulatorSynthAU_${t}Tests --gtest_brief
+          xvfb-run -a ./bin/YMulatorSynthAU_${t}Tests 2> /dev/null
         done

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <juce_core/juce_core.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 #include "utils/PresetManager.h"
 
 // Basic test to verify test framework is working
@@ -30,6 +31,9 @@ struct ScopedTestUserData {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    // GUI classes (editors, timers, tooltip windows) need JUCE's GUI subsystem and a message manager;
+    // macOS tolerates their absence, Linux does not
+    juce::ScopedJuceInitialiser_GUI juceInit;
     ScopedTestUserData userData;
     return RUN_ALL_TESTS();
 }
