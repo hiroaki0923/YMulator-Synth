@@ -4,26 +4,45 @@
 #include <vector>
 
 /**
- * Shows a rendered waveform: three periods taken where the sound is loudest,
- * triggered on a rising zero crossing, with the peak level as a bar.
+ * Plays a rendered note back visually: three periods of the waveform at a
+ * playhead that runs through the render in real time and loops, over a strip
+ * showing the level envelope with the key-off marked. The trace keeps the
+ * render's own scale so the envelope is visible in the waveform too.
  */
-class OutputScope : public juce::Component
+class OutputScope : public juce::Component,
+                    private juce::Timer
 {
 public:
     OutputScope();
-    ~OutputScope() override = default;
+    ~OutputScope() override;
     
     void paint(juce::Graphics& g) override;
+    void visibilityChanged() override;
+    void parentHierarchyChanged() override;
     
     static constexpr int kPeriods = 3;
+    static constexpr int kEnvelopeBins = 160;
+    static constexpr double kLoopPauseSeconds = 0.35;
     
-    /** Takes a mono render and the period of its note in samples. */
-    void setWaveform(const std::vector<float>& samples, double periodInSamples);
+    /** Takes a mono render, the period of its note and the render's sample rate; `noteOffSample` marks the key-off. */
+    void setWaveform(const std::vector<float>& samples, double periodInSamples, double sampleRate, size_t noteOffSample);
+    
+    /** Moves the playhead to `seconds` into the render (used by tests and snapshots). */
+    void setPlayhead(double seconds);
+    double playheadSeconds() const { return playhead; }
+    
     const std::vector<float>& shownFrame() const { return frame; }
+    const std::vector<float>& envelope() const { return envelopeBins; }
     float peakLevel() const { return peak; }
     
 private:
-    std::vector<float> frame;
+    void timerCallback() override;
+    void updateTimer();
+    void selectFrame();
+    
+    std::vector<float> samples, frame, envelopeBins;
+    double period = 1.0, rate = 48000.0, playhead = 0.0, loopStartMs = 0.0;
+    size_t noteOff = 0;
     float peak = 0.0f;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OutputScope)

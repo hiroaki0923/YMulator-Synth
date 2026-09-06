@@ -16,6 +16,11 @@ double PatchPreview::periodInSamples()
 
 std::vector<float> PatchPreview::render(const Preset& preset, int numSamples)
 {
+    return render(preset, numSamples, numSamples);
+}
+
+std::vector<float> PatchPreview::render(const Preset& preset, int holdSamples, int numSamples)
+{
     chip.reset();
     constexpr uint8_t ch = 0;
     using P = YmfmWrapperInterface::OperatorParameter;
@@ -48,7 +53,12 @@ std::vector<float> PatchPreview::render(const Preset& preset, int numSamples)
     chip.noteOn(ch, static_cast<uint8_t>(kNote), YM2151Regs::MAX_VELOCITY);
     left.assign(static_cast<size_t>(numSamples), 0.0f);
     right.assign(static_cast<size_t>(numSamples), 0.0f);
-    chip.generateSamples(left.data(), right.data(), numSamples);
+    const int hold = juce::jlimit(0, numSamples, holdSamples);
+    chip.generateSamples(left.data(), right.data(), hold);
+    if (hold < numSamples) {
+        chip.noteOff(ch, static_cast<uint8_t>(kNote));
+        chip.generateSamples(left.data() + hold, right.data() + hold, numSamples - hold);
+    }
     
     std::vector<float> mono(static_cast<size_t>(numSamples));
     for (size_t i = 0; i < mono.size(); ++i) mono[i] = 0.5f * (left[i] + right[i]);

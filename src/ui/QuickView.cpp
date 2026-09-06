@@ -230,8 +230,11 @@ void QuickView::updatePreview()
     
     ymulatorsynth::Preset preset;
     audioProcessor.extractCurrentPreset(preset);
-    const auto samples = patchPreview->render(preset, static_cast<int>(ymulatorsynth::PatchPreview::kSampleRate / 2));
-    outputScope->setWaveform(samples, ymulatorsynth::PatchPreview::periodInSamples());
+    // Half a second held, then half a second of release
+    const int hold = static_cast<int>(ymulatorsynth::PatchPreview::kSampleRate / 2);
+    const auto samples = patchPreview->render(preset, hold, hold * 2);
+    outputScope->setWaveform(samples, ymulatorsynth::PatchPreview::periodInSamples(),
+                             ymulatorsynth::PatchPreview::kSampleRate, static_cast<size_t>(hold));
 }
 
 void QuickView::generateNewSound()

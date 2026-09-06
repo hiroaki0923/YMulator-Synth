@@ -22,6 +22,9 @@ public:
     /** Mono render of `numSamples` samples of `preset` playing kNote at full velocity from the key-on. */
     std::vector<float> render(const Preset& preset, int numSamples);
     
+    /** The same, with the key released after `holdSamples` so the release is heard too. */
+    std::vector<float> render(const Preset& preset, int holdSamples, int numSamples);
+    
     /** Samples per period of kNote at kSampleRate. */
     static double periodInSamples();
     
