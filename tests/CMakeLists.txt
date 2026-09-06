@@ -128,6 +128,7 @@ if(GTest_FOUND)
     add_executable(YMulatorSynthAU_UITests
         test_main.cpp
         ui/MainComponentTest.cpp
+        ui/EnvelopeDisplayTest.cpp
         ${COMMON_SOURCES}
     )
     

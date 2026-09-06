@@ -42,6 +42,10 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
+## 🔧 0.1.1 後 (2026-09-07)
+
+- ✅ **エンベロープ表示の修正** - `EnvelopeDisplay` を YM2151 の動作に合わせて書き直し。サステインは TL + 4×D1L（D1L 15 は無音まで）、D1R 0 はピーク保持で D2 は始まらない、D2 は保持中に傾き無音に届きうる、RR はチップレート 2×RR+1。時間は `2^((31−R)/4)` で対数軸に描画。`tests/ui/EnvelopeDisplayTest.cpp` で形を検証
+
 ## 🔧 Version 0.1.1 (2026-09-07)
 
 Detail の MOTION 行のテーマカード化、Linux のフォント修正、テストの隔離と Linux CI を 0.1.1 としてリリース。

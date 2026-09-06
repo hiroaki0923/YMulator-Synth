@@ -2,6 +2,11 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
+## Unreleased
+
+**🐛 Fixes:**
+- **Operator envelope drawing**: the Detail view drew the sustain level as 4*D1L on its own instead of TL + 4*D1L, so a decay to the sustain level was often missing, D1L 15 stopped half way instead of at silence, D1R 0 still showed a decay, and the rate knobs barely changed the picture. The drawing now follows the chip: peak at TL, decay 1 to TL + 4*D1L, decay 2 sloping on while held, release from wherever the level was, with times that double every four rate steps on a log time axis
+
 ## Version 0.1.1 (2026-09-07)
 **Detail MOTION cards and a Linux fix**
 
