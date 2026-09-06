@@ -44,6 +44,8 @@
 
 ## 🔧 0.1.0 後のメンテナンス (2026-09-06)
 
+- ✅ **Detail の MOTION 行をテーマカードに（2026-09-07）** - 13 グループを 2 行に折り返していた並びを、高さ 2 段のカード 4 枚（LFO / ENVELOPE / SPACE / PLAY）に。上段が周期的な動き（Sync で音価になるもの）、下段が発音ごとの形、という規則を全カードで揃えた。`MotionStrip` はテーマ＋行の表から配置し、高さは `preferredHeight()` で MainComponent に伝える。対象別・Quick チップ順・大きめノブの案もモックで比較し、幅 1000 に収まり境界線が少ないこの案を採用
+- ✅ **Linux のフォント問題（2026-09-07）** - JUCE の Linux 実装は未知のタイプフェイス名に代替を持たず null を返す。SVG の "Menlo, monospace" でエディターが落ちていた（CI の xvfb で発覚、gdb のバックトレースで特定）。`AlgorithmDisplay` が読み込み時に `<text>` の font-family を `Font::getDefaultMonospacedFontName()` に差し替え、フォントが無ければ文字を外す。CI には `JUCE_FONT_PATH=/usr/share/fonts` と fonts-dejavu-core
 - ✅ **テストのユーザーデータ隔離** - `PresetManager::setUserDataDirectoryOverride` を追加し、`tests/test_main.cpp` が一時ディレクトリに向ける。以前はテストの .opm 読み込みが `~/Library/YMulator-Synth/banks/` に複製を残し、実環境のバンク一覧を汚していた（bell / duplicate / gm / piano / saved / single / test / testbank）。`PresetManagerTest.TestsKeepUserDataOutOfTheUsersFolder`
 - ✅ **Linux CI を xvfb で** - リリースと PR の両ワークフローで全テストバイナリ（UI テスト含む）を `xvfb-run` で実行。0.1.0 のエディタはヘッドレスで落ちたため、`EditorCreation` の DISPLAY 無しスキップは保険として残す
 

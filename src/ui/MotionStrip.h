@@ -8,7 +8,7 @@
 
 class YMulatorSynthAudioProcessor;
 
-/** Detail-view row with every motion parameter: vibrato, wide, timbre LFO, tremolo, pan motion, pitch envelope, sync. */
+/** Detail-view row with every motion parameter: four themed cards two controls high (LFO, ENVELOPE, SPACE, PLAY). */
 class MotionStrip : public juce::Component
 {
 public:
@@ -17,6 +17,9 @@ public:
     
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    /** Height the strip needs for its two rows and the theme titles. */
+    int preferredHeight() const;
     
 private:
     struct Knob {
@@ -29,25 +32,41 @@ private:
         std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> divAttachment;
     };
     struct Group {
-        juce::String title;
         std::vector<Knob> knobs;
         std::vector<juce::ComboBox*> boxes;
         std::vector<juce::ToggleButton*> toggles;
+        int theme = 0;
         int row = 0;
+        juce::Rectangle<int> bounds;
+    };
+    struct Theme {
+        juce::String title, subtitle;
         juce::Rectangle<int> bounds;
     };
     
     YMulatorSynthAudioProcessor& audioProcessor;
+    RotaryKnob::Style knobStyle = RotaryKnob::Style::Tiny;
     std::unique_ptr<juce::Label> sectionLabel;
+    std::vector<Theme> themes;
     std::vector<Group> groups;
     std::unique_ptr<juce::ComboBox> widePanBox, panModeBox, panRateBox, arpModeBox, arpDivBox, vibWaveBox, timbreWaveBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> widePanAttachment, panModeAttachment, panRateAttachment, arpModeAttachment, arpDivAttachment, vibWaveAttachment, timbreWaveAttachment;
     std::unique_ptr<juce::ToggleButton> syncButton, monoButton, oneShotButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment, monoAttachment, oneShotAttachment;
     
-    Group& addGroup(const juce::String& title, int row = 0);
+    int addTheme(const juce::String& title, const juce::String& subtitle);
+    Group& addGroup(int theme, int row);
     void addKnob(Group& group, const char* parameterId, const juce::String& label, juce::Colour accent, bool isRate = false,
                  std::function<juce::String(double)> formatter = {}, const char* divParameterId = nullptr);
+    juce::ComboBox* addBox(Group& group, std::unique_ptr<juce::ComboBox>& box,
+                           std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>& attachment,
+                           const char* parameterId, const juce::StringArray& items, const juce::String& tooltip);
+    juce::ToggleButton* addToggle(Group& group, std::unique_ptr<juce::ToggleButton>& button,
+                                  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>& attachment,
+                                  const char* parameterId, const juce::String& text, const juce::String& tooltip);
+    void buildLayout();
+    int widthOf(const Group& group) const;
+    int knobSlot(const Knob& knob) const;
     void updateRateKnobs();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MotionStrip)
