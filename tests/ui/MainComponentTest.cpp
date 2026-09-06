@@ -5,6 +5,7 @@
 #include "../../src/ui/MainComponent.h"
 #include "../../src/ui/PresetUIManager.h"
 #include "../../src/ui/QuickView.h"
+#include "../../src/ui/MotionPanel.h"
 #include "../mocks/MockAudioProcessorHost.h"
 #include "../../src/core/MacroMapper.h"
 #include "../../src/dsp/AlgorithmInfo.h"
@@ -562,4 +563,32 @@ TEST_F(MainComponentTest, NewSoundButtonGeneratesAndCompareSwitchesBack) {
     slotA->onClick();
     EXPECT_TRUE(processor->getPatchWorkspace().capture() == before);
     EXPECT_TRUE(slotA->getToggleState());
+}
+
+TEST_F(MainComponentTest, MotionChipsApplyTheirPresets) {
+    MotionPanel* panel = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            if (auto* p = dynamic_cast<MotionPanel*>(c->getChildComponent(i))) panel = p;
+            find(c->getChildComponent(i));
+        }
+    };
+    find(mainComponent.get());
+    ASSERT_NE(panel, nullptr);
+    
+    auto value = [&](const char* id) {
+        auto* p = processor->getParameters().getParameter(id);
+        return p->convertFrom0to1(p->getValue());
+    };
+    panel->applyPreset(1);                                   // Wide
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 60.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::VibratoDepth), 0.0f);
+    panel->applyPreset(4);                                   // Pan (Step, synced)
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 2.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 1.0f);
+    panel->applyPreset(0);                                   // Off
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 0.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 0.0f);
+    EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 0.0f);
+    EXPECT_TRUE(processor->isInCustomMode()) << "a motion change marks the sound as edited";
 }

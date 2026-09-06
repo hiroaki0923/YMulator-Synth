@@ -143,13 +143,15 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     slotBButton->setTooltip("The generated sound");
     slotBButton->onClick = [this]() { audioProcessor.getPatchWorkspace().selectSlot(ymulatorsynth::PatchWorkspace::Slot::B); refresh(); };
     compareCard->addAndMakeVisible(*slotBButton);
-    compareNote = std::make_unique<juce::Label>("", "The sound before generating stays in A. Compare with B and go back if A was better.");
+    compareNote = std::make_unique<juce::Label>("", "A keeps the sound from before generating.");
     compareNote->setFont(UiTheme::sans(11.0f));
     compareNote->setColour(juce::Label::textColourId, UiTheme::muted);
     compareNote->setJustificationType(juce::Justification::topLeft);
     compareCard->addAndMakeVisible(*compareNote);
-    motionCard = std::make_unique<Card>("MOTION", "Wide, vibrato and pan motion arrive with the motion engine.");
+    motionCard = std::make_unique<Card>("MOTION", "");
     addAndMakeVisible(*motionCard);
+    motionPanel = std::make_unique<MotionPanel>(processor);
+    motionCard->addAndMakeVisible(*motionPanel);
     outputCard = std::make_unique<Card>("OUTPUT", "");
     addAndMakeVisible(*outputCard);
     outputScope = std::make_unique<OutputScope>();
@@ -355,19 +357,20 @@ void QuickView::resized()
         generateNote->setBounds(header);
         generatorPanel->setBounds(generateCard->bodyBounds().withTrimmedTop(6));
     }
-    outputCard->setBounds(side.removeFromBottom(96));
+    outputCard->setBounds(side.removeFromBottom(86));
     outputScope->setBounds(outputCard->bodyBounds());
     side.removeFromBottom(10);
-    motionCard->setBounds(side.removeFromBottom(110));
+    motionCard->setBounds(side.removeFromBottom(182));
+    motionPanel->setBounds(motionCard->bodyBounds());
     side.removeFromBottom(10);
     compareCard->setBounds(side);
     {
         auto body = compareCard->bodyBounds();
-        auto buttons = body.removeFromTop(34);
+        auto buttons = body.removeFromTop(30);
         slotAButton->setBounds(buttons.removeFromLeft(buttons.getWidth() / 2 - 3));
         buttons.removeFromLeft(6);
         slotBButton->setBounds(buttons);
-        body.removeFromTop(8);
-        compareNote->setBounds(body);
+        body.removeFromTop(6);
+        compareNote->setBounds(body.withHeight(16));
     }
 }

@@ -66,6 +66,7 @@ target_sources(YMulator-Synth
         ui/QuickView.cpp
         ui/GeneratorPanel.cpp
         ui/OutputScope.cpp
+        ui/MotionPanel.cpp
         ui/LfoNoiseStrip.cpp
         ui/YmLookAndFeel.cpp
         utils/PresetManager.cpp

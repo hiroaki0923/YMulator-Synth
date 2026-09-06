@@ -10,6 +10,7 @@
 #include "../core/MacroMapper.h"
 #include "GeneratorPanel.h"
 #include "OutputScope.h"
+#include "MotionPanel.h"
 #include "../core/PatchPreview.h"
 
 class YMulatorSynthAudioProcessor;
@@ -60,6 +61,7 @@ private:
     
     std::unique_ptr<Card> algorithmCard, generateCard, compareCard, motionCard, outputCard;
     std::unique_ptr<GeneratorPanel> generatorPanel;
+    std::unique_ptr<MotionPanel> motionPanel;
     std::unique_ptr<OutputScope> outputScope;
     std::unique_ptr<ymulatorsynth::PatchPreview> patchPreview;
     double previewSignature = -1.0;
