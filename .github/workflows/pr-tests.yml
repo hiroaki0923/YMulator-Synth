@@ -110,7 +110,7 @@ jobs:
     - name: Build (release with symbols)
       run: |
         ./scripts/build.sh setup
-        cd build
+        mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
         cmake --build . --parallel
 
