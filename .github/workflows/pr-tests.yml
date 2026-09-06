@@ -112,7 +112,8 @@ jobs:
         ./scripts/build.sh setup
         mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        cmake --build . --parallel
+        # Two jobs: an unbounded parallel build with LTO exhausts the runner's memory and gets it shut down
+        cmake --build . --parallel 2
 
     - name: Backtrace of the editor test (diagnostic)
       run: |
