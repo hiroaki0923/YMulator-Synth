@@ -16,6 +16,8 @@
 - ✅ **LFO 経路の修正** - PMD をレジスタ 0x1A に書いていた（YM2151 では AMD と PMD は 0x19 を共有し bit 7 で選択。ymfm は 0x1A への書込を無視）ため、ビブラートが一切効いていなかった。さらにプリセットの LFO 値（LFRQ/AMD/PMD/WF/NFRQ）とチャンネルの AMS/PMS 感度がパラメータにもチップにも渡っていなかった。`lfo_ams` / `lfo_pms` パラメータを追加し、プリセット読込・保存・チップ更新に配線。ゴールデンテストに LFO / AMS・PMS / ノイズのレジスタを追加、`tests/unit/LfoWiringTest.cpp` で音の変化を実測
 - ✅ **SLOT（オペレータ ON/OFF）の復旧** - 2025-06 に実装された SLOT 制御は、その後のパラメータ整理で `op*_slot_en` が APVTS から消え、UI のチェックボックスと保存経路だけが残っていた。パラメータを復活させ、キーオン時のスロットマスク（ハードウェア順 M1, M2, C1, C2 = bit 3〜6）へ配線。.opm の SLOT 値とオペレータ（音色順 M1, C1, M2, C2）の対応も修正（`tests/unit/SlotEnableTest.cpp`）
 - ✅ **プリセット保存の統一** - 保存経路 2 か所の手書き抽出（正規化値×最大値の切り捨てあり）を `extractCurrentParameterValues` に統一
+- ✅ **死んだパラメータの除去** - `ch0_pan`〜`ch7_pan` は CC 32〜39 から書かれるだけでチップに届かず、CC 33（LFO レート LSB）を横取りしていた。パラメータと CC を削除。`op*_ams_en` は 0〜3 の整数だったのを bool に。`tests/unit/ParameterReachTest.cpp` で全パラメータがレジスタを変えることを検査
+- ⚠️ **未対応: ベロシティ** - `setVelocitySensitivity` の呼び出し元が無く、MIDI ベロシティは音量に反映されていない（感度 1.0 = 無効という実装）。仕様を決めてから対応する
 
 ## 🔧 メンテナンス再開 (2026-09-05)
 

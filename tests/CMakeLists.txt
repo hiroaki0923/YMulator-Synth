@@ -124,6 +124,7 @@ if(GTest_FOUND)
         unit/RegisterGoldenTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
+        unit/ParameterReachTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -173,6 +174,7 @@ if(GTest_FOUND)
         unit/RegisterGoldenTest.cpp
         unit/SlotEnableTest.cpp
         unit/LfoWiringTest.cpp
+        unit/ParameterReachTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
         # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring

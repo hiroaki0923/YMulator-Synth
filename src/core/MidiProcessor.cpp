@@ -100,22 +100,6 @@ void MidiProcessor::handleMidiCC(int ccNumber, int value)
     CS_ASSERT_PARAMETER_RANGE(ccNumber, 0, 127);
     CS_ASSERT_PARAMETER_RANGE(value, 0, 127);
     
-    // Handle channel pan CCs (32-39)
-    if (ccNumber >= ParamID::MIDI_CC::Ch0_Pan && ccNumber <= ParamID::MIDI_CC::Ch7_Pan)
-    {
-        int channel = ccNumber - ParamID::MIDI_CC::Ch0_Pan;
-        if (auto* param = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter(ParamID::Channel::pan(channel))))
-        {
-            // Normalize CC value (0-127) to parameter range (0.0-1.0)
-            float normalizedValue = juce::jlimit(0.0f, 1.0f, value / 127.0f);
-            param->setValueNotifyingHost(normalizedValue);
-            
-            CS_DBG(" MIDI CC " + juce::String(ccNumber) + " = " + juce::String(value) + 
-                " -> Channel " + juce::String(channel) + " Pan = " + juce::String(normalizedValue, 3));
-        }
-        return;
-    }
-    
     // NRPN: VOPMex uses MSB 126 / LSB 127 (all channels) or 0 (this channel) with
     // data 127 to switch to register-value input, data 0 back to natural
     if (ccNumber == ParamID::MIDI_CC::NrpnMsb) { nrpnMsb = value; return; }

@@ -406,12 +406,15 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **LFO settings from presets**: A preset's LFO rate, depths, waveform, noise and channel AMS/PMS sensitivity were never loaded into the parameters or sent to the chip. Two new parameters, LFO AMS and LFO PMS, carry the sensitivity for all channels. More than 20 of the bundled presets use the LFO and now sound as written
 - **SLOT (operator on/off)**: The per-operator enable parameters had been dropped from the parameter tree, leaving the checkboxes disconnected. They are back, drive the key-on register in hardware slot order, and the .opm SLOT mask maps to operators correctly
 - **Preset saving**: Both save paths built the preset by hand with truncating conversions; they now use the same extraction as the chip, so saved values match what was heard
+- **MIDI CC 33**: The LFO rate LSB was swallowed by a leftover per-channel pan handler on CC 32-39. Those eight per-channel pan parameters never reached the chip (voices are allocated dynamically) and are removed together with their CCs
+- **AMS enable**: The per-operator AM enable was a 0-3 integer parameter; it is now a switch
 
 **⚠️ Change:**
 - Presets that use the LFO sound different from 0.0.7 and earlier because the LFO is now audible
 
 **🔧 Developer:**
 - Register golden test extended to LFO, sensitivity and noise registers; new tests render audio to confirm PMD/PMS and AMD/AMS take effect, and cover the key-on slot mask
+- New test asserts that every parameter changes a chip register, so a parameter can no longer be exposed and ignored
 
 ### Version 0.0.7 (2026-09-05)
 **Bug Fix Release: Pitch, Operator Mapping, MIDI CC and Host Compatibility**

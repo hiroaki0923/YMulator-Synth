@@ -93,8 +93,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
             ParamID::Op::dt2(op), "Op" + juce::String(op) + " DT2", 0, 3, 0));
             
         // Amplitude Modulation Sensitivity (0-3)
-        layout.add(std::make_unique<juce::AudioParameterInt>(
-            ParamID::Op::ams_en(op), "Op" + juce::String(op) + " AMS", 0, 3, 0));
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            ParamID::Op::ams_en(op), "Op" + juce::String(op) + " AMS Enable", false));
         
         // Slot enable: operator keyed on with the note (VOPM SLOT mask)
         layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -104,13 +104,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     // ========================================================================
     // Channel Parameters (8 channels × individual pan = 8)
     // ========================================================================
-    
-    for (int ch = 0; ch < 8; ++ch) {
-        layout.add(std::make_unique<juce::AudioParameterFloat>(
-            ParamID::Channel::pan(ch), 
-            "Ch" + juce::String(ch) + " Pan", 
-            juce::NormalisableRange<float>(0.0f, 1.0f), 0.5f));
-    }
     
     // ========================================================================
     // Global Parameters (Algorithm, Feedback, etc.)

@@ -72,6 +72,12 @@ TEST_F(MidiCcMappingTest, NaturalModeScalesAndReversesLikeVopmex)
     // AME: 2 steps
     sendCC(MIDI_CC::Op2_AME, 127); EXPECT_GT(registerValue(Op::ams_en(2)), 0.5f);
     sendCC(MIDI_CC::Op2_AME, 0);   EXPECT_LT(registerValue(Op::ams_en(2)), 0.5f);
+    
+    // LFO rate: CC 1 carries the upper 7 bits, CC 33 the lowest bit of the 8-bit register
+    sendCC(MIDI_CC::LfoRate, 64);
+    sendCC(MIDI_CC::LfoRateLsb, 127);
+    sendCC(MIDI_CC::LfoRate, 64);
+    EXPECT_EQ(registerValue(Global::LfoRate), 129.0f);
     // Algorithm / feedback: 8 steps
     sendCC(MIDI_CC::Algorithm, 127); EXPECT_FLOAT_EQ(registerValue(Global::Algorithm), 7.0f);
     sendCC(MIDI_CC::Algorithm, 64);  EXPECT_FLOAT_EQ(registerValue(Global::Algorithm), 4.0f);
