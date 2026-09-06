@@ -630,3 +630,30 @@ TEST_F(MainComponentTest, PresetBoxShowsGeneratedAfterGenerateAndThePresetAgainA
     presets->syncCustomMode();
     EXPECT_EQ(presetBox->getText(), loadedName) << "loading a preset shows it again";
 }
+
+TEST_F(MainComponentTest, EditorOpensWithEveryMotionSwitchAlreadyOn) {
+    // A saved project restores the parameters before the editor exists; attachments then fire
+    // their handlers during construction. This crashed when Sync was stored on.
+    using namespace ParamID::Motion;
+    for (const char* id : { Sync, Mono, LfoOneShot })
+        processor->getParameters().getParameter(id)->setValueNotifyingHost(1.0f);
+    for (const char* id : { PanMode, ArpMode, WidePan, VibratoWave, TimbreWave, EchoDiv })
+        processor->getParameters().getParameter(id)->setValueNotifyingHost(1.0f);
+    processor->getParameters().getParameter(EchoLevel)->setValueNotifyingHost(0.5f);
+    
+    auto editor = std::make_unique<MainComponent>(*processor);
+    editor->setSize(MainComponent::kWidth, MainComponent::kHeight);
+    editor->setViewMode(MainComponent::ViewMode::Detail);
+    editor->setViewMode(MainComponent::ViewMode::Quick);
+    juce::ToggleButton* sync = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents(); ++i) {
+            auto* child = c->getChildComponent(i);
+            if (auto* b = dynamic_cast<juce::ToggleButton*>(child)) if (b->getButtonText() == "Sync" && sync == nullptr) sync = b;
+            find(child);
+        }
+    };
+    find(editor.get());
+    ASSERT_NE(sync, nullptr);
+    EXPECT_TRUE(sync->getToggleState());
+}

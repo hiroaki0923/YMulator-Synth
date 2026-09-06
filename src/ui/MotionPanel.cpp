@@ -73,17 +73,19 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*arpModeBox);
     arpModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), ArpMode, *arpModeBox);
     
-    syncButton = std::make_unique<juce::ToggleButton>("Sync");
-    syncButton->setTooltip("Rates follow the host tempo");
-    syncButton->onClick = [this]() { updateSyncVisibility(); };
-    addAndMakeVisible(*syncButton);
-    syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(), Sync, *syncButton);
-    
+    // The division box must exist before the Sync attachment: attaching fires the
+    // button's click handler at once when the stored value is on
     rateDivisionBox = std::make_unique<juce::ComboBox>();
     rateDivisionBox->addItemList({ "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" }, 1);
     rateDivisionBox->setTooltip("Vibrato rate as a note value");
     addChildComponent(*rateDivisionBox);
     rateDivisionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), VibratoDiv, *rateDivisionBox);
+    
+    syncButton = std::make_unique<juce::ToggleButton>("Sync");
+    syncButton->setTooltip("Rates follow the host tempo");
+    syncButton->onClick = [this]() { updateSyncVisibility(); };
+    addAndMakeVisible(*syncButton);
+    syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(), Sync, *syncButton);
     
     updateSyncVisibility();
     refresh();
@@ -147,6 +149,7 @@ void MotionPanel::refresh()
 
 void MotionPanel::updateSyncVisibility()
 {
+    if (!syncButton || !rateDivisionBox || !rate.knob) return;
     const bool synced = syncButton->getToggleState();
     rateDivisionBox->setVisible(synced);
     rate.knob->setVisible(!synced);
