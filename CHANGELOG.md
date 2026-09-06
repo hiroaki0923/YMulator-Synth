@@ -4,6 +4,12 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 
 ## Unreleased
 
+**✨ New:**
+- **Detail MOTION row**: the motion parameters sit in four themed cards two controls high, LFO (vibrato over timbre and tremolo), ENVELOPE (pitch over sweep and level), SPACE (wide and echo over pan) and PLAY (glide and velocity over arpeggio), instead of two unrelated rows
+
+**🐛 Fixes:**
+- **Linux**: the editor crashed while loading the algorithm diagrams when the SVG's font name was unknown to the system; the labels now use JUCE's own monospaced font and are dropped on a system without fonts
+
 **🔧 Developer:**
 - Tests keep imported banks and user presets in a throw-away directory instead of the user's own YMulator-Synth folder
 - Linux CI runs every test binary, the UI tests included, under a virtual display; pull requests now get a Linux job as well

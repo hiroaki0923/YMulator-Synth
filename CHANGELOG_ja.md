@@ -4,6 +4,12 @@ YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
 ## 未リリース
 
+**✨ 新機能:**
+- **Detail の MOTION 行**: 関係のない 2 行ではなく、高さ 2 段のテーマカード 4 枚に整理。LFO（ビブラートの下に音色 LFO とトレモロ）、ENVELOPE（ピッチの下に Sweep と Level EG）、SPACE（Wide と Echo の下に Pan）、PLAY（Glide と Vel の下に Arpeggio）
+
+**🐛 修正:**
+- **Linux**: アルゴリズム図の SVG に書かれたフォント名がシステムに無いとエディターが落ちていた。ラベルは JUCE の等幅フォントを使い、フォントの無い環境では省く
+
 **🔧 開発者向け:**
 - テストが読み込むバンクやユーザープリセットを、ユーザー自身の YMulator-Synth フォルダではなく一時ディレクトリに置くように
 - Linux の CI が UI テストを含む全テストバイナリを仮想ディスプレイ上で実行。Pull Request にも Linux ジョブを追加
