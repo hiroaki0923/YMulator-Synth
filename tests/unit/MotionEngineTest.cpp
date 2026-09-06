@@ -160,3 +160,33 @@ TEST_F(MotionEngineTest, TremoloAttenuatesCarriersOnTopOfVelocity)
     EXPECT_EQ(lo, 66) << "loudest point: parameter TL 50 + velocity 16";
     EXPECT_EQ(hi, 90) << "quietest point adds the full 24 steps";
 }
+
+TEST_F(MotionEngineTest, PitchEnvelopeSlidesOntoTheNote)
+{
+    set(ParamID::Motion::PitchEnv, -100.0f);          // start a semitone low
+    set(ParamID::Motion::PitchTime, 200.0f);
+    const int ch = noteOn();
+    const float atStart = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_LT(atStart, -0.85f) << "one block in, still close to the start offset";
+    runBlocks(8);                                     // about 0.1 s: halfway
+    const float halfway = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_GT(halfway, -0.7f);
+    EXPECT_LT(halfway, -0.3f);
+    runBlocks(12);                                    // past 0.2 s
+    EXPECT_FLOAT_EQ(processor.getMotionEngine().currentOffset(ch), 0.0f);
+    EXPECT_EQ(processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_KEY_FRACTION_BASE + ch), 0) << "settled exactly on the note";
+}
+
+TEST_F(MotionEngineTest, PitchEnvelopeAndVibratoAddUp)
+{
+    set(ParamID::Motion::PitchEnv, 100.0f);
+    set(ParamID::Motion::PitchTime, 500.0f);
+    set(ParamID::Motion::VibratoDepth, 100.0f);
+    set(ParamID::Motion::VibratoRate, 4.0f);
+    set(ParamID::Motion::VibratoDelay, 0.0f);
+    set(ParamID::Motion::VibratoRise, 0.0f);
+    const int ch = noteOn();
+    const auto [lo, hi] = offsetRange(ch, 12);        // first 0.13 s: envelope still above +0.7
+    EXPECT_GT(hi, 1.2f) << "envelope plus vibrato peak";
+    EXPECT_GT(lo, 0.2f) << "envelope keeps the trough above the note";
+}

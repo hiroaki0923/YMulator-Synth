@@ -78,6 +78,8 @@ private:
     const juce::RangedAudioParameter* vibratoDiv = nullptr;
     const juce::RangedAudioParameter* timbreDiv = nullptr;
     const juce::RangedAudioParameter* tremoloDiv = nullptr;
+    const juce::RangedAudioParameter* pitchEnv = nullptr;
+    const juce::RangedAudioParameter* pitchTime = nullptr;
     
     // Beat clock: follows the host while it plays, free-runs otherwise
     double bpm = 120.0;

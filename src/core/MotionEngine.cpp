@@ -27,6 +27,8 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     vibratoDiv = parameters.getParameter(ParamID::Motion::VibratoDiv);
     timbreDiv = parameters.getParameter(ParamID::Motion::TimbreDiv);
     tremoloDiv = parameters.getParameter(ParamID::Motion::TremoloDiv);
+    pitchEnv = parameters.getParameter(ParamID::Motion::PitchEnv);
+    pitchTime = parameters.getParameter(ParamID::Motion::PitchTime);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -119,6 +121,8 @@ void MotionEngine::tick(int numSamples)
     const double timbreHz = read(timbreRate, 1.0f);
     const float tremoloSteps = read(tremoloDepth, 0.0f);
     const double tremoloHz = read(tremoloRate, 5.0f);
+    const float pitchStart = read(pitchEnv, 0.0f) / 100.0f;        // semitones at the key-on
+    const double pitchSettle = read(pitchTime, 60.0f) / 1000.0;
     
     for (int ch = 0; ch < 8; ++ch) {
         auto& c = channels[static_cast<size_t>(ch)];
@@ -147,12 +151,17 @@ void MotionEngine::tick(int numSamples)
         }
         
         float offset = 0.0f;
+        if (active && (depthSemitones > 0.0f || pitchStart != 0.0f)) c.time += dt;
+        if (active && pitchStart != 0.0f) {
+            // Slides from the start offset onto the note, linearly over the settle time
+            const double remaining = pitchSettle <= 0.0 ? 0.0 : std::max(0.0, 1.0 - c.time / pitchSettle);
+            offset += static_cast<float>(pitchStart * remaining);
+        }
         if (active && depthSemitones > 0.0f) {
-            c.time += dt;
             c.phase = synced ? syncedPhase(vibratoDiv) : std::fmod(c.phase + rateHz * dt, 1.0);
             const double sinceDelay = c.time - delay;
             const double envelope = sinceDelay <= 0.0 ? 0.0 : (rise <= 0.0 ? 1.0 : std::min(1.0, sinceDelay / rise));
-            offset = static_cast<float>(depthSemitones * envelope * std::sin(juce::MathConstants<double>::twoPi * c.phase));
+            offset += static_cast<float>(depthSemitones * envelope * std::sin(juce::MathConstants<double>::twoPi * c.phase));
         }
         if (offset != c.offset) {
             c.offset = offset;

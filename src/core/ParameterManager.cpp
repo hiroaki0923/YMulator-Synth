@@ -196,6 +196,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoDiv, "Vibrato Sync Rate", divisions, 3));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreDiv, "Timbre LFO Sync Rate", divisions, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TremoloDiv, "Tremolo Sync Rate", divisions, 3));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchEnv, "Pitch Env", juce::NormalisableRange<float>(-100.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PitchTime, "Pitch Env Time", juce::NormalisableRange<float>(0.0f, 500.0f, 5.0f, 0.6f), 60.0f));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",
