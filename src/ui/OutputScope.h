@@ -27,6 +27,9 @@ public:
     /** Takes a mono render, the period of its note and the render's sample rate; `noteOffSample` marks the key-off. */
     void setWaveform(const std::vector<float>& samples, double periodInSamples, double sampleRate, size_t noteOffSample);
     
+    /** Shown in place of the trace while the render is silent, e.g. "no carrier is on". */
+    void setSilenceHint(const juce::String& hint) { silenceHint = hint; repaint(); }
+    
     /** Moves the playhead to `seconds` into the render (used by tests and snapshots). */
     void setPlayhead(double seconds);
     double playheadSeconds() const { return playhead; }
@@ -44,6 +47,7 @@ private:
     double period = 1.0, rate = 48000.0, playhead = 0.0, loopStartMs = 0.0;
     size_t noteOff = 0;
     float peak = 0.0f;
+    juce::String silenceHint;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OutputScope)
 };

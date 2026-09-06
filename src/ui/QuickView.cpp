@@ -235,6 +235,16 @@ void QuickView::updatePreview()
     const auto samples = patchPreview->render(preset, hold, hold * 2);
     outputScope->setWaveform(samples, ymulatorsynth::PatchPreview::periodInSamples(),
                              ymulatorsynth::PatchPreview::kSampleRate, static_cast<size_t>(hold));
+    
+    // Why a patch is silent, for the message shown in place of the trace
+    const auto& info = ymulatorsynth::algorithmInfo(juce::jlimit(0, 7, preset.algorithm));
+    bool carrierOn = false, carrierAudible = false;
+    for (int op = 0; op < 4; ++op) {
+        if (!info.isCarrier(op) || !preset.operators[op].slotEnable) continue;
+        carrierOn = true;
+        if (preset.operators[op].totalLevel < 120) carrierAudible = true;
+    }
+    outputScope->setSilenceHint(!carrierOn ? "no carrier is on" : !carrierAudible ? "carrier level is 0" : "check the envelopes");
 }
 
 void QuickView::generateNewSound()

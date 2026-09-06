@@ -109,6 +109,11 @@ void OutputScope::paint(juce::Graphics& g)
         g.setColour(audible ? UiTheme::green : UiTheme::dim);
         g.strokePath(path, juce::PathStrokeType(1.5f));
     }
+    if (!audible && !samples.empty()) {
+        g.setColour(UiTheme::amber);
+        g.setFont(UiTheme::mono(11.0f));
+        g.drawText(silenceHint.isNotEmpty() ? "silent: " + silenceHint : juce::String("silent"), plot, juce::Justification::centred);
+    }
     
     // Envelope strip: level over the whole render, the key-off as a tick, the playhead as a cursor
     g.setColour(UiTheme::borderSoft);
