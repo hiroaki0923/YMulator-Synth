@@ -16,22 +16,25 @@ AlgorithmDisplay::AlgorithmDisplay()
     const int fbSizes[8] = { BinaryData::algorithm0_fb_svgSize, BinaryData::algorithm1_fb_svgSize, BinaryData::algorithm2_fb_svgSize,
                              BinaryData::algorithm3_fb_svgSize, BinaryData::algorithm4_fb_svgSize, BinaryData::algorithm5_fb_svgSize,
                              BinaryData::algorithm6_fb_svgSize, BinaryData::algorithm7_fb_svgSize };
-    // The diagrams carry text labels. Without any typeface on the system, JUCE's SVG parser
-    // dereferences a null typeface for them, so on such a system the labels are dropped.
+    // The diagrams carry text labels in a font the SVG names. JUCE on Linux has no fallback
+    // for an unknown typeface name and dereferences null for it, so the labels are re-pointed
+    // at JUCE's own monospaced placeholder, which every platform maps to a real font; on a
+    // system with no fonts at all the labels are dropped.
     const bool haveFonts = !juce::Font::findAllTypefaceNames().isEmpty();
     auto load = [haveFonts](const void* svg, int size) -> std::unique_ptr<juce::Drawable> {
-        if (haveFonts) return juce::Drawable::createFromImageData(svg, static_cast<size_t>(size));
         auto xml = juce::parseXML(juce::String::fromUTF8(static_cast<const char*>(svg), size));
         if (xml == nullptr) return nullptr;
-        std::function<void(juce::XmlElement&)> stripText = [&](juce::XmlElement& element) {
+        std::function<void(juce::XmlElement&)> fixText = [&](juce::XmlElement& element) {
             for (auto* child = element.getFirstChildElement(); child != nullptr;) {
                 auto* next = child->getNextElement();
-                if (child->hasTagName("text")) element.removeChildElement(child, true);
-                else stripText(*child);
+                if (child->hasTagName("text")) {
+                    if (haveFonts) child->setAttribute("font-family", juce::Font::getDefaultMonospacedFontName());
+                    else element.removeChildElement(child, true);
+                } else fixText(*child);
                 child = next;
             }
         };
-        stripText(*xml);
+        fixText(*xml);
         return juce::Drawable::createFromSVG(*xml);
     };
     for (size_t i = 0; i < diagrams.size(); ++i) {
