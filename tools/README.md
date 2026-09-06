@@ -34,3 +34,16 @@ either, then rebuild.
 ```bash
 python3 tools/gen_algorithm_svg.py
 ```
+
+## song_render.cpp
+
+`YMulatorSynthAU_SongRender` plays a standard MIDI file through one plugin instance per
+track and writes the mix as a WAV, so a demo song can be checked without a host. Tracks
+take a bundled program (`--program 1=10`) or a voice from an `.opm` file (`--opm v.opm
+--voice 1=0`); `--param 3=motion_wide:45` sets any parameter, `--motion 3=2` applies a
+MOTION card preset, `--bpm` overrides the file tempo reported to the motion engine, and
+`--gain` / `--master` set levels.
+
+```bash
+./bin/YMulatorSynthAU_SongRender --midi song.mid --out song.wav --program 1=10 --program 2=17 --motion 2=2
+```

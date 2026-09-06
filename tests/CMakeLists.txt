@@ -232,7 +232,23 @@ if(GTest_FOUND)
             juce::juce_gui_basics
             juce::juce_gui_extra
     )
-    set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot)
+    add_executable(YMulatorSynthAU_SongRender
+        ${CMAKE_SOURCE_DIR}/tools/song_render.cpp
+        ${COMMON_SOURCES}
+    )
+    target_compile_definitions(YMulatorSynthAU_SongRender PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
+    target_link_libraries(YMulatorSynthAU_SongRender
+        PRIVATE
+            juce::juce_audio_processors
+            juce::juce_audio_utils
+            juce::juce_audio_basics
+            juce::juce_core
+            juce::juce_graphics
+            juce::juce_gui_basics
+            juce::juce_gui_extra
+            juce::juce_audio_formats
+    )
+    set(HOST_TARGETS ${TEST_EXECUTABLES} YMulatorSynthAU_UISnapshot YMulatorSynthAU_SongRender)
     
     # Configure each test executable
     # Embedded resources (presets, algorithm diagrams) come from the same
