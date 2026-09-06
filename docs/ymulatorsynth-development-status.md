@@ -42,6 +42,11 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
+## 🔧 0.1.0 後のメンテナンス (2026-09-06)
+
+- ✅ **テストのユーザーデータ隔離** - `PresetManager::setUserDataDirectoryOverride` を追加し、`tests/test_main.cpp` が一時ディレクトリに向ける。以前はテストの .opm 読み込みが `~/Library/YMulator-Synth/banks/` に複製を残し、実環境のバンク一覧を汚していた（bell / duplicate / gm / piano / saved / single / test / testbank）。`PresetManagerTest.TestsKeepUserDataOutOfTheUsersFolder`
+- ✅ **Linux CI を xvfb で** - リリースと PR の両ワークフローで全テストバイナリ（UI テスト含む）を `xvfb-run` で実行。0.1.0 のエディタはヘッドレスで落ちたため、`EditorCreation` の DISPLAY 無しスキップは保険として残す
+
 ## 🎉 Version 0.1.0 (2026-09-06)
 
 Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容は下の「Quick パネル実装」の各項目と [CHANGELOG_ja.md](../CHANGELOG_ja.md)。

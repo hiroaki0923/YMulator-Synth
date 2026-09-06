@@ -118,6 +118,10 @@ public:
     int loadUserData() override;
     juce::File getUserDataDirectory() const override;
     
+    /** Redirects every instance's user data (banks, user presets) to `directory`; an invalid file restores the default.
+        Tests use it so imported banks never land in the user's own folder. */
+    static void setUserDataDirectoryOverride(const juce::File& directory);
+    
     // Interface implementation - Factory presets
     std::vector<Preset> getFactoryPresets() override;
     

@@ -308,8 +308,9 @@ int PresetManager::loadBundledPresets()
     // First try to load from bundled binary resources
     if (BinaryData::ymulatorsynthpresetcollection_opmSize > 0)
     {
-        juce::String content(static_cast<const char*>(BinaryData::ymulatorsynthpresetcollection_opm), 
-                           BinaryData::ymulatorsynthpresetcollection_opmSize);
+        // The bundled collection carries UTF-8 comments; the plain char* constructor asserts on those
+        const juce::String content = juce::String::fromUTF8(BinaryData::ymulatorsynthpresetcollection_opm,
+                                                            BinaryData::ymulatorsynthpresetcollection_opmSize);
         
         auto voices = VOPMParser::parseContent(content);
         for (const auto& voice : voices)
@@ -633,8 +634,20 @@ int PresetManager::getGlobalPresetIndex(int bankIndex, int presetIndex) const
     return bank.presetIndices[presetIndex];
 }
 
+static juce::File& userDataDirectoryOverride()
+{
+    static juce::File override;
+    return override;
+}
+
+void PresetManager::setUserDataDirectoryOverride(const juce::File& directory)
+{
+    userDataDirectoryOverride() = directory;
+}
+
 juce::File PresetManager::getUserDataDirectory() const
 {
+    if (userDataDirectoryOverride() != juce::File()) return userDataDirectoryOverride();
     return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                      .getChildFile("YMulator-Synth");
 }

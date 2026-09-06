@@ -2,6 +2,12 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
+## Unreleased
+
+**🔧 Developer:**
+- Tests keep imported banks and user presets in a throw-away directory instead of the user's own YMulator-Synth folder
+- Linux CI runs every test binary, the UI tests included, under a virtual display; pull requests now get a Linux job as well
+
 ## Version 0.1.0 (2026-09-06)
 **Feature Release: Quick view, Motion and MIDI expression**
 
