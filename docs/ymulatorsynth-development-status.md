@@ -55,7 +55,8 @@
 - ✅ **ステップ 3: Quick ビュー** - `src/ui/QuickView`。TONE の大ノブ 7 個（人間向け表示＋一言）、アルゴリズムカード（図・構造・説明・前後ボタン）、GENERATE / COMPARE / MOTION / OUTPUT の枠、DETAIL への導線と現在値の要約行。Quick / Detail の選択は state の `uiViewMode` に残り、初期表示は Quick
 - ✅ **LFO 経路の修正** - PMD をレジスタ 0x1A に書いていた（YM2151 では AMD と PMD は 0x19 を共有し bit 7 で選択。ymfm は 0x1A への書込を無視）ため、ビブラートが一切効いていなかった。さらにプリセットの LFO 値（LFRQ/AMD/PMD/WF/NFRQ）とチャンネルの AMS/PMS 感度がパラメータにもチップにも渡っていなかった。`lfo_ams` / `lfo_pms` パラメータを追加し、プリセット読込・保存・差分送信に配線。保存経路 2 か所の手書き抽出（正規化値×最大値の切り捨てあり）を `extractCurrentParameterValues` に統一。ゴールデンテストに LFO / AMS・PMS / ノイズのレジスタを追加、`tests/unit/LfoWiringTest.cpp` で音の変化を実測
 - ✅ **ステップ 4: ジェネレータ / Undo / A-B** - `src/core/PatchGenerator`（カテゴリ表＋方向 6 本から決定的に生成、最初のキャリアは必ず可聴）、`SnapshotStore`（Undo 16 段、A/B スロット）、`PatchWorkspace`（適用・復元・アンカー再取得、TONE 操作前と生成前に Undo 点）。UI は `GeneratorPanel`（カテゴリチップ、スライダー 6 本。設定は state の `generator` ノードに永続化）と COMPARE カードの A/B
-- ⏳ 次: ステップ 5 出力波形 → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
+- ✅ **ステップ 5: 出力波形** - `src/dsp/ScopeBuffer.h`（オーディオスレッドが書き、UI が読むロックフリーのリング）と `src/ui/OutputScope`（立ち上がりゼロクロスでトリガ、ピーク正規化、実レベルのバー）。スナップショットツールは `--note N` で音を鳴らしてから撮影できる
+- ⏳ 次: Motion エンジン（設計 docs/ymulatorsynth-motion-design.md、Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 
