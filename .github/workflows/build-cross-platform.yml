@@ -154,7 +154,8 @@ jobs:
           libglu1-mesa-dev \
           mesa-common-dev \
           pkg-config \
-          xvfb
+          xvfb \
+          fonts-dejavu-core
         
         # Install Google Test if not available via package manager
         if ! pkg-config --exists gtest; then
