@@ -10,7 +10,6 @@ namespace {
 constexpr int kHeaderHeight = 50;
 constexpr int kToneHeight = 64;
 constexpr int kFooterHeight = 40;
-constexpr int kMotionHeight = 112;
 constexpr int kRowGap = 6;
 const char* const kRoleParameters[] = { ParamID::Global::Algorithm, ParamID::Global::Feedback, ParamID::Global::NoiseEnable };
 const juce::Identifier kViewModeProperty("uiViewMode");
@@ -120,7 +119,7 @@ void MainComponent::resized()
     
     toneStrip->setBounds(bounds.removeFromTop(kToneHeight));
     lfoNoiseStrip->setBounds(bounds.removeFromBottom(kFooterHeight));
-    motionStrip->setBounds(bounds.removeFromBottom(kMotionHeight));
+    motionStrip->setBounds(bounds.removeFromBottom(motionStrip->preferredHeight()));
     
     auto rows = bounds.reduced(20, 8);
     const int rowHeight = (rows.getHeight() - kRowGap * 3) / 4;
