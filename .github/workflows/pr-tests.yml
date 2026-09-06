@@ -92,7 +92,7 @@ jobs:
 
   linux-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: Checkout code
@@ -112,8 +112,11 @@ jobs:
         ./scripts/build.sh setup
         mkdir -p build && cd build
         cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        # Two jobs: an unbounded parallel build with LTO exhausts the runner's memory and gets it shut down
-        cmake --build . --parallel 2
+        # Only the test binaries (no plugin formats), on the runner's four cores: an unbounded
+        # parallel build exhausts its memory and gets it shut down
+        cmake --build . --parallel 4 --target YMulatorSynthAU_BasicTests YMulatorSynthAU_PresetTests \
+          YMulatorSynthAU_ParameterTests YMulatorSynthAU_PanTests YMulatorSynthAU_IntegrationTests \
+          YMulatorSynthAU_QualityTests YMulatorSynthAU_UITests
 
     - name: Backtrace of the editor test (diagnostic)
       run: |
