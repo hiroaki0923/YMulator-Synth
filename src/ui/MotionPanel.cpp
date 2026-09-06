@@ -55,7 +55,7 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     makeKnob(vibrato, VibratoDepth, "Vib", UiTheme::green);
     makeKnob(timbre, TimbreDepth, "Timbre", UiTheme::amber);
     makeKnob(echo, EchoLevel, "Echo", UiTheme::carrier);
-    makeKnob(rate, VibratoRate, "Rate", UiTheme::green, [](double v) { return juce::String(v, 1); });
+    makeKnob(rate, VibratoRate, "Vib rate", UiTheme::green, [](double v) { return juce::String(v, 1); });
     makeKnob(sweep, SweepAmount, "Sweep", UiTheme::amber, signedInt);
     makeKnob(swell, LevelAttack, "Swell", UiTheme::green, seconds);
     makeKnob(porta, PortaTime, "Porta", UiTheme::green);
@@ -77,8 +77,13 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     // button's click handler at once when the stored value is on
     rateDivisionBox = std::make_unique<juce::ComboBox>();
     rateDivisionBox->addItemList({ "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" }, 1);
-    rateDivisionBox->setTooltip("Vibrato rate as a note value");
+    rateDivisionBox->setTooltip("Vibrato rate as a note value while Sync is on");
     addChildComponent(*rateDivisionBox);
+    rateDivisionLabel = std::make_unique<juce::Label>("", "Vib rate");
+    rateDivisionLabel->setFont(UiTheme::mono(11.0f));
+    rateDivisionLabel->setColour(juce::Label::textColourId, UiTheme::muted);
+    rateDivisionLabel->setJustificationType(juce::Justification::centred);
+    addChildComponent(*rateDivisionLabel);
     rateDivisionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), VibratoDiv, *rateDivisionBox);
     
     syncButton = std::make_unique<juce::ToggleButton>("Sync");
@@ -152,6 +157,7 @@ void MotionPanel::updateSyncVisibility()
     if (!syncButton || !rateDivisionBox || !rate.knob) return;
     const bool synced = syncButton->getToggleState();
     rateDivisionBox->setVisible(synced);
+    if (rateDivisionLabel) rateDivisionLabel->setVisible(synced);
     rate.knob->setVisible(!synced);
 }
 
@@ -185,9 +191,11 @@ void MotionPanel::resized()
         }
         return row;
     };
-    const auto rowA = placeRow({ &wide, &vibrato, &timbre, &echo, &rate });
-    // The note-value box needs room for "1/16T" plus the arrow; it takes the whole last slot
-    rateDivisionBox->setBounds(juce::Rectangle<int>(58, 24).withRightX(rowA.getRight()).withY(rowA.getY() + 8));
+    const auto rowA = placeRow({ &wide, &vibrato, &rate, &timbre, &echo });
+    // Under Sync the Vib rate knob gives its place to a note-value box, labelled like the knob
+    const auto rateBounds = rate.knob->getBounds();
+    rateDivisionBox->setBounds(juce::Rectangle<int>(58, 24).withCentre({ rateBounds.getCentreX(), rateBounds.getY() + 18 }));
+    rateDivisionLabel->setBounds(juce::Rectangle<int>(60, 14).withCentre({ rateBounds.getCentreX(), rateBounds.getBottom() - 7 }));
     bounds.removeFromTop(4);
     placeRow({ &sweep, &swell, &porta, &pitch, &bright });
     bounds.removeFromTop(6);

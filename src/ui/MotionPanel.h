@@ -48,6 +48,7 @@ private:
     std::unique_ptr<juce::TextButton> offButton;
     Knob wide, vibrato, timbre, echo, rate, sweep, swell, porta, pitch, bright;
     std::unique_ptr<juce::ComboBox> panModeBox, arpModeBox, rateDivisionBox;
+    std::unique_ptr<juce::Label> rateDivisionLabel;   // names the note-value box while it stands in for the Vib rate knob
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> panModeAttachment, arpModeAttachment, rateDivisionAttachment;
     std::unique_ptr<juce::ToggleButton> syncButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment;
