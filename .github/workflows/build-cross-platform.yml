@@ -153,7 +153,8 @@ jobs:
           libxrender-dev \
           libglu1-mesa-dev \
           mesa-common-dev \
-          pkg-config
+          pkg-config \
+          xvfb
         
         # Install Google Test if not available via package manager
         if ! pkg-config --exists gtest; then
@@ -175,11 +176,11 @@ jobs:
         ./scripts/build.sh setup
         ./scripts/build.sh release
         
-        # Run tests using split binaries (excluding Audio Unit validation on Linux)
+        # Run every test binary under a virtual display: the editor needs one (Audio Unit validation is macOS only)
         cd build
-        ./bin/YMulatorSynthAU_BasicTests --gtest_brief
-        ./bin/YMulatorSynthAU_ParameterTests --gtest_brief
-        ./bin/YMulatorSynthAU_IntegrationTests --gtest_brief
+        for t in Basic Preset Parameter Pan Integration Quality UI; do
+          xvfb-run -a ./bin/YMulatorSynthAU_${t}Tests --gtest_brief
+        done
         cd ..
     
     - name: Package Linux plugins

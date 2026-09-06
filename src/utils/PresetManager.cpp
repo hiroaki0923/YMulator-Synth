@@ -633,8 +633,20 @@ int PresetManager::getGlobalPresetIndex(int bankIndex, int presetIndex) const
     return bank.presetIndices[presetIndex];
 }
 
+static juce::File& userDataDirectoryOverride()
+{
+    static juce::File override;
+    return override;
+}
+
+void PresetManager::setUserDataDirectoryOverride(const juce::File& directory)
+{
+    userDataDirectoryOverride() = directory;
+}
+
 juce::File PresetManager::getUserDataDirectory() const
 {
+    if (userDataDirectoryOverride() != juce::File()) return userDataDirectoryOverride();
     return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                      .getChildFile("YMulator-Synth");
 }
