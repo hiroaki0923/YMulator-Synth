@@ -14,6 +14,7 @@ cmake --build . --target YMulatorSynthAU_UISnapshot
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --scale 1 --settle 500
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 2 --then-preset 5 --dump   # program change with the editor open
 ./bin/YMulatorSynthAU_UISnapshot --out ui.png --preset 3 --focus-macro 0          # highlight the knobs a macro drives
+./bin/YMulatorSynthAU_UISnapshot --out ui.png --view quick --scope-time 0.3       # OUTPUT card 0.3 s into its render
 ```
 
 Options: `--out` (default `ui_snapshot.png`, relative to the working directory), `--preset`, `--bank`,
