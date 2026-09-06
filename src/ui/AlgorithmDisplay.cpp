@@ -16,9 +16,27 @@ AlgorithmDisplay::AlgorithmDisplay()
     const int fbSizes[8] = { BinaryData::algorithm0_fb_svgSize, BinaryData::algorithm1_fb_svgSize, BinaryData::algorithm2_fb_svgSize,
                              BinaryData::algorithm3_fb_svgSize, BinaryData::algorithm4_fb_svgSize, BinaryData::algorithm5_fb_svgSize,
                              BinaryData::algorithm6_fb_svgSize, BinaryData::algorithm7_fb_svgSize };
+    // The diagrams carry text labels. Without any typeface on the system, JUCE's SVG parser
+    // dereferences a null typeface for them, so on such a system the labels are dropped.
+    const bool haveFonts = !juce::Font::findAllTypefaceNames().isEmpty();
+    auto load = [haveFonts](const void* svg, int size) -> std::unique_ptr<juce::Drawable> {
+        if (haveFonts) return juce::Drawable::createFromImageData(svg, static_cast<size_t>(size));
+        auto xml = juce::parseXML(juce::String::fromUTF8(static_cast<const char*>(svg), size));
+        if (xml == nullptr) return nullptr;
+        std::function<void(juce::XmlElement&)> stripText = [&](juce::XmlElement& element) {
+            for (auto* child = element.getFirstChildElement(); child != nullptr;) {
+                auto* next = child->getNextElement();
+                if (child->hasTagName("text")) element.removeChildElement(child, true);
+                else stripText(*child);
+                child = next;
+            }
+        };
+        stripText(*xml);
+        return juce::Drawable::createFromSVG(*xml);
+    };
     for (size_t i = 0; i < diagrams.size(); ++i) {
-        diagrams[i] = juce::Drawable::createFromImageData(data[i], static_cast<size_t>(sizes[i]));
-        diagramsWithFb[i] = juce::Drawable::createFromImageData(fbData[i], static_cast<size_t>(fbSizes[i]));
+        diagrams[i] = load(data[i], sizes[i]);
+        diagramsWithFb[i] = load(fbData[i], fbSizes[i]);
     }
 }
 

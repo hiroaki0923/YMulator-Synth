@@ -178,6 +178,7 @@ jobs:
         ./scripts/build.sh release
         
         # Run every test binary under a virtual display: the editor needs one (Audio Unit validation is macOS only)
+        export JUCE_FONT_PATH=/usr/share/fonts
         cd build
         for t in Basic Preset Parameter Pan Integration Quality UI; do
           xvfb-run -a ./bin/YMulatorSynthAU_${t}Tests 2> /dev/null

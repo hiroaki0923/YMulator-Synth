@@ -119,7 +119,15 @@ jobs:
           YMulatorSynthAU_ParameterTests YMulatorSynthAU_PanTests YMulatorSynthAU_IntegrationTests \
           YMulatorSynthAU_QualityTests YMulatorSynthAU_UITests
 
+    - name: Font situation on the runner (diagnostic)
+      run: |
+        ls -la /etc/fonts/fonts.conf || echo "no fonts.conf"
+        ls /usr/share/fonts/truetype 2>/dev/null || echo "no /usr/share/fonts/truetype"
+        (fc-list | head -5) || echo "no fc-list"
+
     - name: Run all tests under a virtual display
+      env:
+        JUCE_FONT_PATH: /usr/share/fonts
       run: |
         cd build
         for t in Basic Preset Parameter Pan Integration Quality UI; do
