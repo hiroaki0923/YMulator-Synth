@@ -165,6 +165,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
             id, name, juce::NormalisableRange<float>(-50.0f, 50.0f, 1.0f), 0.0f,
             juce::AudioParameterFloatAttributes().withMeta(true)));
     }
+    // ========================================================================
+    // Motion: vibrato (per-voice, delayed), rates in Hz
+    // ========================================================================
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoDepth, "Vibrato Depth", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoRate, "Vibrato Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoDelay, "Vibrato Delay", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VibratoRise, "Vibrato Rise", juce::NormalisableRange<float>(0.0f, 2000.0f, 10.0f, 0.6f), 300.0f));
+    
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",
         juce::StringArray{"Preset", "Saw", "Square", "Pulse", "Bright", "Bell", "Metal", "Sub", "Octave"}, 0,

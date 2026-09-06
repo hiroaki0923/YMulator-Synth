@@ -28,6 +28,8 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     stateManager = std::make_unique<ymulatorsynth::StateManager>(parameters, *presetManager, *parameterManager);
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
     stateManager->setMacroMapper(macroMapper.get());
+    motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
+    motionEngine->bindParameters(parameters);
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
@@ -68,6 +70,8 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
         parameterManager->initializeParameters(parameters);
     }
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
+    motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
+    motionEngine->bindParameters(parameters);
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
@@ -127,6 +131,7 @@ double YMulatorSynthAudioProcessor::getTailLengthSeconds() const
 
 void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    if (motionEngine) motionEngine->prepare(sampleRate);
     // Assert valid sample rate and buffer size
     CS_ASSERT_SAMPLE_RATE(sampleRate);
     CS_ASSERT_BUFFER_SIZE(samplesPerBlock);
@@ -440,7 +445,13 @@ void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>&
         float* leftBuffer = buffer.getWritePointer(0);
         float* rightBuffer = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftBuffer;
         
-        ymfmWrapper->generateSamples(leftBuffer, rightBuffer, numSamples);
+        // The motion engine runs at control rate between short chunks of audio
+        for (int done = 0; done < numSamples;) {
+            const int chunk = juce::jmin(ymulatorsynth::MotionEngine::kChunk, numSamples - done);
+            if (motionEngine) motionEngine->tick(chunk);
+            ymfmWrapper->generateSamples(leftBuffer + done, rightBuffer + done, chunk);
+            done += chunk;
+        }
         scopeBuffer.push(leftBuffer, rightBuffer, numSamples);
         
         int lowestNote = 128;

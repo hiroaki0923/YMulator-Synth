@@ -36,6 +36,7 @@ public:
     
     // Advanced features - interface implementation
     void setPitchBend(uint8_t channel, float semitones) override;
+    void setChannelPitchOffset(uint8_t channel, float semitones) override;
     void setChannelPan(uint8_t channel, float panValue) override;
     void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) override;
     void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) override;
@@ -115,6 +116,7 @@ private:
     struct ChannelState {
         uint8_t baseNote = 0;      // Original MIDI note
         float pitchBend = 0.0f;    // Current pitch bend in semitones
+        float motionOffset = 0.0f; // Vibrato / pitch envelope, semitones
         bool active = false;       // Is this channel playing a note
         uint8_t slotMask = YM2151Regs::MASK_SLOT_ENABLE;  // Operators keyed on, voice order
     };
@@ -132,6 +134,7 @@ private:
     void initializeOPNA();
     uint16_t noteToFnum(uint8_t note);
     uint16_t noteToFnumWithPitchBend(uint8_t note, float pitchBendSemitones);
+    void writePitch(uint8_t channel);   // KC/KF from base note + bend + motion offset
     void setupBasicPianoVoice(uint8_t channel);
     void playTestNote();
     void updateRegisterCache(uint8_t address, uint8_t value);

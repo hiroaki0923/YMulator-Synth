@@ -48,6 +48,7 @@ target_sources(YMulator-Synth
         core/PatchGenerator.cpp
         core/SnapshotStore.cpp
         core/PatchWorkspace.cpp
+        core/MotionEngine.cpp
         core/AudioProcessor.cpp
         dsp/YmfmWrapper.cpp
         dsp/RegisterManager.cpp

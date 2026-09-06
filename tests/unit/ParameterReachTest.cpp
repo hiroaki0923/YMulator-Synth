@@ -41,6 +41,7 @@ TEST_F(ParameterReachTest, EveryParameterChangesARegister)
         if (id == ParamID::Global::PitchBendRange) continue;      // only audible with a pitch bend (PitchAccuracyTest)
         if (id == ParamID::Global::LfoAmd) continue;              // shares 0x19 with PMD; LfoWiringTest hears it
         if (id.find("_slot_en") != std::string::npos) continue;   // key-on register only (SlotEnableTest)
+        if (id.rfind(ParamID::Motion::Prefix, 0) == 0) continue;    // acts on sounding notes only (MotionEngineTest)
         
         const float original = ranged->getValue();
         const auto before = registers();

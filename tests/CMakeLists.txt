@@ -42,6 +42,7 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/PatchGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/SnapshotStore.cpp
         ${CMAKE_SOURCE_DIR}/src/core/PatchWorkspace.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/MotionEngine.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
@@ -139,6 +140,7 @@ if(GTest_FOUND)
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
         unit/ScopeBufferTest.cpp
+        unit/MotionEngineTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -193,6 +195,7 @@ if(GTest_FOUND)
         unit/ParameterReachTest.cpp
         unit/VelocityTest.cpp
         unit/ScopeBufferTest.cpp
+        unit/MotionEngineTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

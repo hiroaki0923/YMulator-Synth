@@ -48,6 +48,10 @@ void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate)
 
 void YmfmWrapper::reset()
 {
+    // The chip forgets everything on reset; so must the register cache and the per-channel state
+    std::memset(currentRegisters, 0, sizeof(currentRegisters));
+    for (auto& state : channelStates) state = ChannelState {};
+    velocityAttenuation.fill(0);
     if (chipType == ChipType::OPM && opmChip) {
         opmChip->reset();
         initializeOPM();
@@ -210,19 +214,7 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     channelStates[channel].active = true;
     
     if (chipType == ChipType::OPM) {
-        // Calculate frequency from MIDI note with current pitch bend
-        uint16_t fnum = noteToFnumWithPitchBend(note, channelStates[channel].pitchBend);
-        
-        // Extract KC and KF from FNUM
-        // YM2151 FNUM format: KC (key code) and KF (key fraction)
-        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;  // Upper 7 bits
-        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;  // Lower 6 bits, shifted for register format
-        
-        // MIDI note conversion debug output disabled
-        
-        // Write KC and KF
-        writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
-        writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
+        writePitch(channel);
         
         // Apply velocity sensitivity to channel before key on
         applyVelocityToChannel(channel, velocity);
@@ -570,24 +562,29 @@ void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
     // Update the pitch bend state for this channel
     channelStates[channel].pitchBend = semitones;
     
-    // If this channel is currently playing a note, update its frequency
-    if (channelStates[channel].active && chipType == ChipType::OPM) {
-        uint8_t baseNote = channelStates[channel].baseNote;
-        uint16_t fnum = noteToFnumWithPitchBend(baseNote, semitones);
-        
-        // Extract KC and KF from FNUM
-        uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
-        uint8_t kf = (fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION;
-        
-        // Update the frequency registers
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::setChannelPitchOffset(uint8_t channel, float semitones)
+{
+    CS_ASSERT_CHANNEL(channel);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    if (channelStates[channel].motionOffset == semitones) return;
+    channelStates[channel].motionOffset = semitones;
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::writePitch(uint8_t channel)
+{
+    if (chipType != ChipType::OPM) return;
+    const auto& state = channelStates[channel];
+    const uint16_t fnum = noteToFnumWithPitchBend(state.baseNote, state.pitchBend + state.motionOffset);
+    const uint8_t kc = (fnum >> YM2151Regs::SHIFT_KEY_CODE) & YM2151Regs::MASK_KEY_CODE;
+    const uint8_t kf = static_cast<uint8_t>((fnum & YM2151Regs::MASK_KEY_FRACTION) << YM2151Regs::SHIFT_KEY_FRACTION);
+    if (currentRegisters[YM2151Regs::REG_KEY_CODE_BASE + channel] != kc)
         writeRegister(YM2151Regs::REG_KEY_CODE_BASE + channel, kc);
+    if (currentRegisters[YM2151Regs::REG_KEY_FRACTION_BASE + channel] != kf)
         writeRegister(YM2151Regs::REG_KEY_FRACTION_BASE + channel, kf);
-        
-        CS_DBG(" Pitch bend updated - channel=" + juce::String((int)channel) + 
-            ", semitones=" + juce::String(semitones, 3) + 
-            ", KC=0x" + juce::String::toHexString(kc) + 
-            ", KF=0x" + juce::String::toHexString(kf));
-    }
 }
 
 void YmfmWrapper::setChannelPan(uint8_t channel, float panValue)

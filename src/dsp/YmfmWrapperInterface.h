@@ -63,6 +63,8 @@ public:
     
     // Advanced features
     virtual void setPitchBend(uint8_t channel, float semitones) = 0;
+    /** Extra pitch offset from the motion engine (vibrato, pitch envelope), on top of the pitch bend. */
+    virtual void setChannelPitchOffset(uint8_t channel, float semitones) { (void) channel; (void) semitones; }
     virtual void setChannelPan(uint8_t channel, float panValue) = 0;
     virtual void setLfoParameters(uint8_t rate, uint8_t amd, uint8_t pmd, uint8_t waveform) = 0;
     virtual void setChannelAmsPms(uint8_t channel, uint8_t ams, uint8_t pms) = 0;

@@ -43,6 +43,19 @@ namespace Global {
 } // namespace Global
 
 // =============================================================================
+// Motion (Layer 3): driver-style expression on top of the raw sound.
+// See docs/ymulatorsynth-motion-design.md
+// =============================================================================
+
+namespace Motion {
+    constexpr const char* Prefix = "motion_";
+    constexpr const char* VibratoDepth = "motion_vib_depth";   // 0-100 -> 0-50 cents
+    constexpr const char* VibratoRate = "motion_vib_rate";     // Hz
+    constexpr const char* VibratoDelay = "motion_vib_delay";   // ms from note on
+    constexpr const char* VibratoRise = "motion_vib_rise";     // ms to full depth
+} // namespace Motion
+
+// =============================================================================
 // Macro Parameters (Quick panel). Offsets from the anchored preset values;
 // Feedback is shared with Global::Feedback. See docs/ymulatorsynth-quick-panel-design.md
 // =============================================================================
