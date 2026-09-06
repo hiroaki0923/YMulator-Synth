@@ -361,6 +361,7 @@ This project is actively developed with the following status:
 - **Working LFO**: Vibrato and tremolo from the hardware LFO now reach the chip, and presets bring their LFO settings with them
 - **SLOT Control Restored**: The per-operator on/off switches are connected again and follow the .opm SLOT mask
 - **Exact Preset Saving**: Saved presets carry the same values the chip plays
+- **Velocity**: Carrier level follows MIDI velocity; modulators keep the timbre
 
 ### Version 0.0.7 Features (Released 2026-09-05)
 - **Correct Pitch**: Chip output is resampled from its native 55.9 kHz to the host rate; notes are no longer several semitones flat
@@ -408,9 +409,11 @@ See [docs/ymulatorsynth-development-status.md](docs/ymulatorsynth-development-st
 - **Preset saving**: Both save paths built the preset by hand with truncating conversions; they now use the same extraction as the chip, so saved values match what was heard
 - **MIDI CC 33**: The LFO rate LSB was swallowed by a leftover per-channel pan handler on CC 32-39. Those eight per-channel pan parameters never reached the chip (voices are allocated dynamically) and are removed together with their CCs
 - **AMS enable**: The per-operator AM enable was a 0-3 integer parameter; it is now a switch
+- **Velocity**: MIDI velocity had no effect. It now attenuates the carriers linearly by up to 32 TL steps (about 24 dB) while modulators keep their level, so quieter notes keep their timbre
 
 **⚠️ Change:**
 - Presets that use the LFO sound different from 0.0.7 and earlier because the LFO is now audible
+- Notes below velocity 127 are quieter than before; velocity 127 is unchanged
 
 **🔧 Developer:**
 - Register golden test extended to LFO, sensitivity and noise registers; new tests render audio to confirm PMD/PMS and AMD/AMS take effect, and cover the key-on slot mask
