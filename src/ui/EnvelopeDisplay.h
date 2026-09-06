@@ -1,7 +1,14 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <vector>
 
+/**
+ * Draws an operator's envelope the way the YM2151 runs it: attenuation in TL units
+ * (0 loud, 127 silent), the peak at TL, decay 1 down to TL + 4*D1L, decay 2 sloping
+ * on from there while the key is held, and the release from wherever the level was.
+ * Rates map to times as on the chip, doubling every four steps.
+ */
 class EnvelopeDisplay : public juce::Component
 {
 public:
@@ -11,34 +18,27 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     
-    // Set envelope parameters (normalized 0.0-1.0)
-    void setEnvelopeParameters(float attack, float decay1, float decay1Level, float decay2, float release);
-    
-    // Set parameters with YM2151 ranges
     void setYM2151Parameters(int totalLevel, int attackRate, int decay1Rate, int decay1Level, int decay2Rate, int releaseRate);
     void setLineColour(juce::Colour colour);
+    
+    /** One corner of the envelope: time in chip-ish units from the key-on, attenuation in TL units (0..127). */
+    struct Point { float time; float attenuation; };
+    struct Shape {
+        std::vector<Point> points;   // key-on at time 0; the last point is silence after the release
+        float keyOffTime = 0.0f;
+        bool silent = false;         // AR 0 or TL 127: the operator never sounds
+    };
+    static constexpr float kHoldUnits = 12.0f;     // how long the key is shown held
+    
+    /** Time a full-range sweep takes at `rate` (1..31); rate 0 never moves. Doubles every four steps like the chip. */
+    static float timeForRate(int rate);
+    static Shape computeShape(int totalLevel, int attackRate, int decay1Rate, int decay1Level, int decay2Rate, int releaseRate);
 
 private:
-    // Normalized envelope parameters (0.0-1.0)
-    float totalLevel = 1.0f;    // Peak level (inverted from TL)
-    float attackRate = 0.9f;    // Fast attack by default
-    float decay1Rate = 0.3f;
-    float decay1Level = 0.7f;
-    float decay2Rate = 0.5f;
-    float releaseRate = 0.4f;
-    
-    // Fixed phase widths based on ADSR timing
-    static constexpr float ATTACK_WIDTH = 0.15f;   // Short attack phase
-    static constexpr float DECAY1_WIDTH = 0.25f;   // Decay to sustain level
-    static constexpr float DECAY2_WIDTH = 0.45f;   // Sustain decay (longest phase)
-    static constexpr float RELEASE_WIDTH = 0.15f;  // Short release phase
-    
+    int totalLevel = 0, attackRate = 31, decay1Rate = 0, decay1Level = 0, decay2Rate = 0, releaseRate = 7;
     juce::Path envelopePath;
     juce::Colour lineColour { 0xff52e3a1 };
     void updateEnvelopePath();
-    
-    // Convert YM2151 rates to normalized display values
-    float convertRateToNormalized(int rate, int maxRate) const;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EnvelopeDisplay)
 };
