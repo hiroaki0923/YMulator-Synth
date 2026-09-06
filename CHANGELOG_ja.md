@@ -2,6 +2,12 @@
 
 YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
+## 未リリース
+
+**🔧 開発者向け:**
+- テストが読み込むバンクやユーザープリセットを、ユーザー自身の YMulator-Synth フォルダではなく一時ディレクトリに置くように
+- Linux の CI が UI テストを含む全テストバイナリを仮想ディスプレイ上で実行。Pull Request にも Linux ジョブを追加
+
 ## バージョン 0.1.0 (2026-09-06)
 **機能リリース: Quick 画面、Motion、MIDI での表現**
 

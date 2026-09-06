@@ -609,3 +609,17 @@ TEST_F(PresetManagerTest, HandleRepeatedInitialization) {
     // Should have same number of factory presets
     EXPECT_EQ(firstCount, secondCount);
 }
+
+TEST_F(PresetManagerTest, TestsKeepUserDataOutOfTheUsersFolder)
+{
+    const auto dir = presetManager->getUserDataDirectory();
+    EXPECT_TRUE(dir.getFileName().startsWith("YMulatorSynthTests-")) << dir.getFullPathName();
+    EXPECT_FALSE(dir.getFullPathName().contains("Application Support")) << dir.getFullPathName();
+    
+    // Importing a bank copies it next to the test data, not into ~/Library
+    auto file = createTestOPMFile("isolation.opm", "@:0 Isolated\nLFO: 0 0 0 0 0\nCH: 64 0 4 0 0 120 0\n"
+        "M1: 31 0 0 15 0 20 0 1 0 0 0\nC1: 31 0 0 15 0 0 0 1 0 0 0\nM2: 31 0 0 15 0 127 0 1 0 0 0\nC2: 31 0 0 15 0 127 0 1 0 0 0\n");
+    presetManager->initialize();
+    ASSERT_GT(presetManager->loadOPMFile(file), 0);
+    EXPECT_TRUE(dir.getChildFile("banks").getChildFile("isolation.opm").existsAsFile());
+}
