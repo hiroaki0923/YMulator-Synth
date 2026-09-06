@@ -37,6 +37,10 @@ public:
     // Advanced features - interface implementation
     void setPitchBend(uint8_t channel, float semitones) override;
     void setChannelPitchOffset(uint8_t channel, float semitones) override;
+    void retuneChannel(uint8_t channel, uint8_t note) override;
+    uint32_t getNoteOnCount(uint8_t channel) const override { return channel < 8 ? channelStates[channel].noteOnCount : 0; }
+    void setVelocityBrightness(float amount) override;
+    float getVelocityBrightness() const override { return velocityBrightness; }
     void setChannelLevelMotion(uint8_t channel, int carrierSteps, int modulatorSteps) override;
     void setWide(bool enabled, float detuneCents, WidePan pan) override;
     bool isWideEnabled() const override { return wideEnabled; }
@@ -142,6 +146,7 @@ private:
         uint8_t baseNote = 0;      // Original MIDI note
         float pitchBend = 0.0f;    // Current pitch bend in semitones
         float motionOffset = 0.0f; // Vibrato / pitch envelope, semitones
+        uint32_t noteOnCount = 0;  // Key-ons so far
         bool active = false;       // Is this channel playing a note
         uint8_t slotMask = YM2151Regs::MASK_SLOT_ENABLE;  // Operators keyed on, voice order
     };
@@ -151,6 +156,8 @@ private:
     // Carriers are written as base + attenuation so velocity survives parameter rewrites.
     std::array<std::array<uint8_t, 4>, 8> baseTotalLevel {};
     std::array<uint8_t, 8> velocityAttenuation {};
+    std::array<uint8_t, 8> velocityModulatorAttenuation {};   // velocity brightness, TL steps on modulators
+    float velocityBrightness = 0.0f;
     std::array<int, 8> carrierMotion {};      // tremolo, TL steps
     std::array<int, 8> modulatorMotion {};    // timbre LFO, TL steps (may be negative)
     bool isCarrier(uint8_t channel, uint8_t operator_num) const;

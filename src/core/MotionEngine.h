@@ -5,6 +5,7 @@
 #include <functional>
 #include "../dsp/YmfmWrapperInterface.h"
 #include "VoiceManagerInterface.h"
+#include "HeldNotes.h"
 
 namespace ymulatorsynth {
 
@@ -32,8 +33,10 @@ public:
     
     /** Called when pan motion switches off so the global pan can be put back. */
     std::function<void()> onPanMotionOff;
+    /** Where the MIDI processor keeps the notes held in mono / arpeggio mode. */
+    void setHeldNotes(const HeldNotes* notes) { heldNotes = notes; }
     
-    static constexpr int kDivisions = 8;
+    static constexpr int kDivisions = 11;
     static double beatsForDivision(int index);
     double currentBeat() const { return beat; }
     
@@ -54,6 +57,10 @@ private:
         int carrierSteps = 0;   // tremolo written to the chip
         int modulatorSteps = 0; // timbre LFO written to the chip
         int pan = -1;           // 0 left, 1 centre, 2 right as written by pan motion; -1 untouched
+        uint32_t noteOnCount = 0;
+        float glideFrom = 0.0f; // portamento start offset, semitones
+        double glideTime = 0.0; // seconds since the glide started
+        float glideOffset = 0.0f;
     };
     
     float read(const juce::RangedAudioParameter* param, float fallback) const;
@@ -85,6 +92,13 @@ private:
     const juce::RangedAudioParameter* echoDiv = nullptr;
     const juce::RangedAudioParameter* sweepAmount = nullptr;
     const juce::RangedAudioParameter* sweepTime = nullptr;
+    const juce::RangedAudioParameter* portaTime = nullptr;
+    const juce::RangedAudioParameter* velBright = nullptr;
+    const juce::RangedAudioParameter* arpMode = nullptr;
+    const juce::RangedAudioParameter* arpDiv = nullptr;
+    const HeldNotes* heldNotes = nullptr;
+    int lastNote = -1;
+    float lastVelBright = -1.0f;
     bool lastEchoEnabled = false;
     double lastEchoSeconds = -1.0;
     int lastEchoSteps = -1;

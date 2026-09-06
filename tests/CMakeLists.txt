@@ -147,6 +147,7 @@ if(GTest_FOUND)
         unit/WideTest.cpp
         unit/PanMotionTest.cpp
         unit/EchoTest.cpp
+        unit/MonoArpTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -205,6 +206,7 @@ if(GTest_FOUND)
         unit/WideTest.cpp
         unit/PanMotionTest.cpp
         unit/EchoTest.cpp
+        unit/MonoArpTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

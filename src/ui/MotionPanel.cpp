@@ -23,13 +23,20 @@ using ParamID::Motion::EchoTime;
 using ParamID::Motion::EchoDiv;
 using ParamID::Motion::SweepAmount;
 using ParamID::Motion::SweepTime;
+using ParamID::Motion::Mono;
+using ParamID::Motion::PortaTime;
+using ParamID::Motion::ArpMode;
+using ParamID::Motion::ArpDiv;
+using ParamID::Motion::VelBright;
 }
 
 const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
 {
     // Every preset states every motion parameter it touches; "Off" clears them all
     static const std::vector<MotionPreset> list = {
-        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 }, { SweepAmount, 0 } } },
+        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 }, { SweepAmount, 0 }, { Mono, 0 }, { PortaTime, 0 }, { ArpMode, 0 }, { VelBright, 0 } } },
+        { "Glide", { { Mono, 1 }, { PortaTime, 120 }, { ArpMode, 0 }, { VelBright, 40 } } },
+        { "Arp",   { { Mono, 1 }, { ArpMode, 1 }, { ArpDiv, 9 }, { PortaTime, 0 } } },
         { "Sweep", { { Wide, 30 }, { WidePan, 1 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { SweepAmount, 32 }, { SweepTime, 1800 }, { EchoLevel, 40 }, { EchoTime, 240 } } },
         { "Echo",  { { Wide, 0 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { EchoLevel, 55 }, { EchoTime, 180 }, { EchoDiv, 3 } } },
         { "Wide",  { { Wide, 60 }, { WidePan, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 } } },
@@ -115,8 +122,8 @@ void MotionPanel::updateSyncVisibility()
 void MotionPanel::resized()
 {
     auto bounds = getLocalBounds();
-    // Chips in rows of four so the names stay readable
-    const int perRow = 4;
+    // Chips in rows of five
+    const int perRow = 5;
     const int chipWidth = (bounds.getWidth() - (perRow - 1) * 4) / perRow;
     for (size_t i = 0; i < chips.size(); ++i) {
         if (i % static_cast<size_t>(perRow) == 0) {

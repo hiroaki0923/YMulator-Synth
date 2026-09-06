@@ -53,6 +53,7 @@ void YmfmWrapper::reset()
     std::memset(shadowRegisters, 0, sizeof(shadowRegisters));
     for (auto& state : channelStates) state = ChannelState {};
     velocityAttenuation.fill(0);
+    velocityModulatorAttenuation.fill(0);
     carrierMotion.fill(0);
     modulatorMotion.fill(0);
     echoHead = echoTail = 0;
@@ -334,6 +335,7 @@ void YmfmWrapper::noteOn(uint8_t channel, uint8_t note, uint8_t velocity)
     // Store the base note for this channel
     channelStates[channel].baseNote = note;
     channelStates[channel].active = true;
+    ++channelStates[channel].noteOnCount;
     
     if (chipType == ChipType::OPM) {
         writePitch(channel);
@@ -629,7 +631,8 @@ void YmfmWrapper::setChannelLevelMotion(uint8_t channel, int carrierSteps, int m
 void YmfmWrapper::writeTotalLevel(uint8_t channel, uint8_t operator_num)
 {
     const bool carrier = isCarrier(channel, operator_num);
-    const int attenuation = carrier ? velocityAttenuation[channel] + carrierMotion[channel] : modulatorMotion[channel];
+    const int attenuation = carrier ? velocityAttenuation[channel] + carrierMotion[channel]
+                                    : velocityModulatorAttenuation[channel] + modulatorMotion[channel];
     const int tl = juce::jlimit(0, 127, baseTotalLevel[channel][operator_num] + attenuation);
     writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[operator_num] + channel,
                   static_cast<uint8_t>(tl));
@@ -699,6 +702,20 @@ void YmfmWrapper::setPitchBend(uint8_t channel, float semitones)
     channelStates[channel].pitchBend = semitones;
     
     if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::retuneChannel(uint8_t channel, uint8_t note)
+{
+    CS_ASSERT_CHANNEL(channel);
+    CS_ASSERT_NOTE(note);
+    if (channel >= YM2151Regs::MAX_OPM_CHANNELS) return;
+    channelStates[channel].baseNote = note;
+    if (channelStates[channel].active) writePitch(channel);
+}
+
+void YmfmWrapper::setVelocityBrightness(float amount)
+{
+    velocityBrightness = juce::jlimit(0.0f, 1.0f, amount);
 }
 
 void YmfmWrapper::setChannelPitchOffset(uint8_t channel, float semitones)
@@ -1002,6 +1019,8 @@ void YmfmWrapper::applyVelocityToChannel(uint8_t channel, uint8_t velocity)
     // so the timbre (modulator levels) does not change with velocity
     const float quiet = 1.0f - static_cast<float>(velocity) / static_cast<float>(YM2151Regs::MAX_VELOCITY);
     velocityAttenuation[channel] = static_cast<uint8_t>(juce::roundToInt(quiet * static_cast<float>(YM2151Regs::VELOCITY_TL_RANGE)));
+    // Optionally the modulators too, so soft notes are also darker (the FM way to play expressively)
+    velocityModulatorAttenuation[channel] = static_cast<uint8_t>(juce::roundToInt(quiet * velocityBrightness * static_cast<float>(YM2151Regs::VELOCITY_TL_RANGE) * 1.25f));
     for (uint8_t op = 0; op < YM2151Regs::MAX_OPERATORS_PER_VOICE; ++op) writeTotalLevel(channel, op);
 }
 

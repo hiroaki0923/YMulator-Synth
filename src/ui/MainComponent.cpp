@@ -8,9 +8,9 @@
 
 namespace {
 constexpr int kHeaderHeight = 50;
-constexpr int kToneHeight = 72;
-constexpr int kFooterHeight = 46;
-constexpr int kMotionHeight = 58;
+constexpr int kToneHeight = 64;
+constexpr int kFooterHeight = 40;
+constexpr int kMotionHeight = 112;
 constexpr int kRowGap = 6;
 const char* const kRoleParameters[] = { ParamID::Global::Algorithm, ParamID::Global::Feedback, ParamID::Global::NoiseEnable };
 const juce::Identifier kViewModeProperty("uiViewMode");

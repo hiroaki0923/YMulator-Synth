@@ -91,3 +91,23 @@ TEST_F(VelocityTest, AlgorithmChangeMovesTheAttenuationToTheNewCarriers)
     runBlocks(1);
     for (int op = 0; op < 4; ++op) EXPECT_EQ(tl(ch, op), 10 * (op + 1) + YM2151Regs::VELOCITY_TL_RANGE) << "op " << op + 1;
 }
+
+TEST_F(VelocityTest, VelocityBrightnessDarkensTheModulators)
+{
+    auto* p = processor.getParameters().getParameter(ParamID::Motion::VelBright);
+    ASSERT_NE(p, nullptr);
+    p->setValueNotifyingHost(p->convertTo0to1(100.0f));
+    runBlocks(1);
+    EXPECT_FLOAT_EQ(processor.getYmfmWrapper().getVelocityBrightness(), 1.0f);
+    // quiet 0.496: carriers +16 (32-step range), modulators +20 (40-step range at full brightness)
+    const int ch = noteOn(64);
+    EXPECT_EQ(tl(ch, 0), 10 + 20) << "modulator M1";
+    EXPECT_EQ(tl(ch, 2), 30 + 20) << "modulator M2";
+    EXPECT_EQ(tl(ch, 1), 20 + 16) << "carrier C1 keeps the plain velocity";
+    p->setValueNotifyingHost(0.0f);
+    runBlocks(1);
+    noteOff();
+    runBlocks(2);
+    const int again = noteOn(64);
+    EXPECT_EQ(tl(again, 0), 10) << "brightness off: modulators back to the patch";
+}

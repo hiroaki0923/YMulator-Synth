@@ -72,6 +72,11 @@ namespace Motion {
     constexpr const char* EchoDiv = "motion_echo_div";          // note value when synced
     constexpr const char* SweepAmount = "motion_sweep_amount";  // modulator TL at the key-on, -40 (bright) .. +40 (dark)
     constexpr const char* SweepTime = "motion_sweep_time";      // ms to reach the patch brightness
+    constexpr const char* Mono = "motion_mono";                 // legato: held notes retune one channel
+    constexpr const char* PortaTime = "motion_porta_time";      // ms to glide from the previous note, 0 off
+    constexpr const char* VelBright = "motion_vel_bright";      // velocity also darkens the modulators, 0-100
+    constexpr const char* ArpMode = "motion_arp_mode";          // Off / Up / Down / UpDown
+    constexpr const char* ArpDiv = "motion_arp_div";            // note value per step
 } // namespace Motion
 
 // =============================================================================

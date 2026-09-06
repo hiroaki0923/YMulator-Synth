@@ -580,10 +580,10 @@ TEST_F(MainComponentTest, MotionChipsApplyTheirPresets) {
         auto* p = processor->getParameters().getParameter(id);
         return p->convertFrom0to1(p->getValue());
     };
-    panel->applyPreset(3);                                   // Wide
+    panel->applyPreset(5);                                   // Wide
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Wide), 60.0f);
     EXPECT_FLOAT_EQ(value(ParamID::Motion::VibratoDepth), 0.0f);
-    panel->applyPreset(6);                                   // Pan (Step, synced)
+    panel->applyPreset(8);                                   // Pan (Step, synced)
     EXPECT_FLOAT_EQ(value(ParamID::Motion::PanMode), 2.0f);
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 1.0f);
     panel->applyPreset(0);                                   // Off

@@ -88,6 +88,12 @@ void VoiceManager::releaseVoice(uint8_t note)
     CS_DBG(" Note " + juce::String(note) + " not found for release");
 }
 
+void VoiceManager::setNoteForChannel(int channel, uint8_t note)
+{
+    if (channel < 0 || channel >= MAX_VOICES) return;
+    voices[static_cast<size_t>(channel)].note = note;
+}
+
 void VoiceManager::releaseAllVoices()
 {
     for (auto& voice : voices) {

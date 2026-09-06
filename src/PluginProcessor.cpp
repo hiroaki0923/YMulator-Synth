@@ -36,7 +36,9 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
     
     // Initialize MidiProcessor after other components are ready
-    midiProcessor = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
+    auto midi = std::make_unique<ymulatorsynth::MidiProcessor>(*voiceManager, *ymfmWrapper, parameters, *parameterManager);
+    motionEngine->setHeldNotes(&midi->getHeldNotes());
+    midiProcessor = std::move(midi);
     
     // Initialize preset manager
     presetManager->initialize();

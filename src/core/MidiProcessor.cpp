@@ -54,6 +54,21 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     CS_DBG(" Note ON - Note: " + juce::String(message.getNoteNumber()) + 
         ", Velocity: " + juce::String(message.getVelocity()));
     
+    // Mono / arpeggio: held notes share one channel; a second note retunes it (legato) or joins the arpeggio
+    const bool mono = monoModeOn(), arp = arpeggioOn();
+    if (mono || arp) {
+        held.add(static_cast<uint8_t>(message.getNoteNumber()));
+        if (held.channel >= 0 && voiceManager.isVoiceActive(held.channel)) {
+            if (!arp) {
+                ymfmWrapper.retuneChannel(static_cast<uint8_t>(held.channel), static_cast<uint8_t>(message.getNoteNumber()));
+                voiceManager.setNoteForChannel(held.channel, static_cast<uint8_t>(message.getNoteNumber()));
+            }
+            return;
+        }
+    } else if (held.count > 0) {
+        held.clear();
+    }
+    
     // Check if current preset needs noise (has noise enabled)
     bool needsNoise = currentPresetNeedsNoise();
     
@@ -70,6 +85,19 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     
     // Tell ymfm to play this note on the allocated channel
     ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
+    if (mono || arp) held.channel = channel;
+}
+
+bool MidiProcessor::monoModeOn() const
+{
+    auto* p = parameters.getParameter(ParamID::Motion::Mono);
+    return p != nullptr && p->getValue() > 0.5f;
+}
+
+bool MidiProcessor::arpeggioOn() const
+{
+    auto* p = parameters.getParameter(ParamID::Motion::ArpMode);
+    return p != nullptr && juce::roundToInt(p->convertFrom0to1(p->getValue())) > 0;
 }
 
 void MidiProcessor::processMidiNoteOff(const juce::MidiMessage& message)
@@ -79,6 +107,22 @@ void MidiProcessor::processMidiNoteOff(const juce::MidiMessage& message)
     
     CS_FILE_DBG("MidiProcessor::processMidiNoteOff - Note: " + juce::String(message.getNoteNumber()));
     CS_DBG(" Note OFF - Note: " + juce::String(message.getNoteNumber()));
+    
+    // Mono / arpeggio: only the last held note releases the channel; otherwise fall back to an earlier note
+    if (held.channel >= 0 && held.contains(static_cast<uint8_t>(message.getNoteNumber()))) {
+        const int ch = held.channel;
+        held.remove(static_cast<uint8_t>(message.getNoteNumber()));
+        if (held.count == 0) {
+            const uint8_t sounding = voiceManager.getNoteForChannel(ch);
+            ymfmWrapper.noteOff(static_cast<uint8_t>(ch), sounding);
+            voiceManager.releaseVoice(sounding);
+            held.channel = -1;
+        } else if (!arpeggioOn() && voiceManager.getNoteForChannel(ch) == message.getNoteNumber()) {
+            ymfmWrapper.retuneChannel(static_cast<uint8_t>(ch), held.last());
+            voiceManager.setNoteForChannel(ch, held.last());
+        }
+        return;
+    }
     
     // Find which channel is playing this note
     int channel = voiceManager.getChannelForNote(message.getNoteNumber());

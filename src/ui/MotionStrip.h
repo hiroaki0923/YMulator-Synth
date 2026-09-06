@@ -29,18 +29,20 @@ private:
         juce::String title;
         std::vector<Knob> knobs;
         std::vector<juce::ComboBox*> boxes;
+        std::vector<juce::ToggleButton*> toggles;
+        int row = 0;
         juce::Rectangle<int> bounds;
     };
     
     YMulatorSynthAudioProcessor& audioProcessor;
     std::unique_ptr<juce::Label> sectionLabel;
     std::vector<Group> groups;
-    std::unique_ptr<juce::ComboBox> widePanBox, panModeBox, panRateBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> widePanAttachment, panModeAttachment, panRateAttachment;
-    std::unique_ptr<juce::ToggleButton> syncButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment;
+    std::unique_ptr<juce::ComboBox> widePanBox, panModeBox, panRateBox, arpModeBox, arpDivBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> widePanAttachment, panModeAttachment, panRateAttachment, arpModeAttachment, arpDivAttachment;
+    std::unique_ptr<juce::ToggleButton> syncButton, monoButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment, monoAttachment;
     
-    Group& addGroup(const juce::String& title);
+    Group& addGroup(const juce::String& title, int row = 0);
     void addKnob(Group& group, const char* parameterId, const juce::String& label, juce::Colour accent, bool isRate = false,
                  std::function<juce::String(double)> formatter = {});
     void updateRateKnobs();

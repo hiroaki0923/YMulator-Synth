@@ -1,4 +1,5 @@
 #include "MotionStrip.h"
+#include <array>
 #include "UiTheme.h"
 #include "../PluginProcessor.h"
 #include "../utils/ParameterIDs.h"
@@ -61,17 +62,42 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     addKnob(echo, EchoLevel, "Level", UiTheme::carrier);
     addKnob(echo, EchoTime, "Time", UiTheme::carrier, true, milliseconds);
     
-    auto& sweep = addGroup("Sweep");
+    auto& sweep = addGroup("Sweep", 1);
     addKnob(sweep, SweepAmount, "Amt", UiTheme::amber, false, [](double v) {
         const int i = juce::roundToInt(v);
         return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
     addKnob(sweep, SweepTime, "Time", UiTheme::amber, false, [](double v) { return juce::String(v / 1000.0, 1); });
     
-    auto& pitch = addGroup("Pitch");
+    auto& pitch = addGroup("Pitch", 1);
     addKnob(pitch, PitchEnv, "Env", UiTheme::carrier, false, [](double v) {
         const int i = juce::roundToInt(v);
         return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
     addKnob(pitch, PitchTime, "Time", UiTheme::carrier, false, milliseconds);
+    
+    auto& glide = addGroup("Glide", 1);
+    monoButton = std::make_unique<juce::ToggleButton>("Legato");
+    monoButton->setTooltip("Mono: a new note retunes the sounding one instead of starting another");
+    addAndMakeVisible(*monoButton);
+    monoAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(), Mono, *monoButton);
+    glide.toggles.push_back(monoButton.get());
+    addKnob(glide, PortaTime, "Porta", UiTheme::green, false, milliseconds);
+    
+    auto& velocity = addGroup("Vel", 1);
+    addKnob(velocity, VelBright, "Bright", UiTheme::amber);
+    
+    auto& arpeggio = addGroup("Arpeggio", 1);
+    arpModeBox = std::make_unique<juce::ComboBox>();
+    arpModeBox->addItemList({ "Off", "Up", "Down", "Up Down" }, 1);
+    arpModeBox->setTooltip("Held notes take turns on one channel");
+    addAndMakeVisible(*arpModeBox);
+    arpModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), ArpMode, *arpModeBox);
+    arpDivBox = std::make_unique<juce::ComboBox>();
+    arpDivBox->addItemList({ "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" }, 1);
+    arpDivBox->setTooltip("Step length");
+    addAndMakeVisible(*arpDivBox);
+    arpDivAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), ArpDiv, *arpDivBox);
+    arpeggio.boxes.push_back(arpModeBox.get());
+    arpeggio.boxes.push_back(arpDivBox.get());
     
     syncButton = std::make_unique<juce::ToggleButton>("Sync");
     syncButton->setTooltip("Rates follow the host tempo (note values are chosen in the Quick view)");
@@ -81,10 +107,11 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     updateRateKnobs();
 }
 
-MotionStrip::Group& MotionStrip::addGroup(const juce::String& title)
+MotionStrip::Group& MotionStrip::addGroup(const juce::String& title, int row)
 {
     groups.push_back(Group {});
     groups.back().title = title;
+    groups.back().row = row;
     return groups.back();
 }
 
@@ -121,9 +148,9 @@ void MotionStrip::paint(juce::Graphics& g)
         const auto& group = groups[i];
         g.setColour(UiTheme::dim);
         g.drawText(group.title, group.bounds.withHeight(12), juce::Justification::centredLeft);
-        if (i > 0) {
+        if (i > 0 && groups[i - 1].row == group.row) {
             g.setColour(UiTheme::border);
-            g.fillRect(group.bounds.getX() - kGroupGap / 2, getHeight() / 2 - 18, 1, 36);
+            g.fillRect(group.bounds.getX() - kGroupGap / 2, group.bounds.getY() + 8, 1, group.bounds.getHeight() - 12);
         }
     }
 }
@@ -131,24 +158,33 @@ void MotionStrip::paint(juce::Graphics& g)
 void MotionStrip::resized()
 {
     auto bounds = getLocalBounds().reduced(20, 0);
-    const int centreY = bounds.getCentreY() + 4;
-    sectionLabel->setBounds(bounds.removeFromLeft(52).withHeight(20).withCentre({ bounds.getX() - 26, centreY }));
-    syncButton->setBounds(bounds.removeFromLeft(58).withHeight(20).withY(centreY - 10));
+    auto labelColumn = bounds.removeFromLeft(58);
+    sectionLabel->setBounds(labelColumn.withHeight(20).withCentre({ labelColumn.getCentreX(), bounds.getCentreY() - 12 }));
+    syncButton->setBounds(labelColumn.withHeight(20).withCentre({ labelColumn.getCentreX() + 4, bounds.getCentreY() + 12 }));
     bounds.removeFromLeft(6);
     const auto knobSize = RotaryKnob::preferredSize(RotaryKnob::Style::Tiny, RotaryKnob::LabelPosition::Below, false, kKnobWidth);
+    const int rowHeight = bounds.getHeight() / 2;
     
-    int x = bounds.getX();
+    std::array<int, 2> x { bounds.getX(), bounds.getX() };
     for (auto& group : groups) {
-        const int start = x;
+        const int row = juce::jlimit(0, 1, group.row);
+        const int top = bounds.getY() + row * rowHeight;
+        const int centreY = top + rowHeight / 2 + 5;
+        const int start = x[static_cast<size_t>(row)];
+        int& cx = x[static_cast<size_t>(row)];
+        for (auto* toggle : group.toggles) {
+            toggle->setBounds(cx, centreY - 10, 78, 20);
+            cx += 78 + kKnobGap;
+        }
         for (auto& k : group.knobs) {
-            k.knob->setBounds(x, centreY - knobSize.getHeight() / 2, knobSize.getWidth(), knobSize.getHeight());
-            x += knobSize.getWidth() + kKnobGap;
+            k.knob->setBounds(cx, centreY - knobSize.getHeight() / 2, knobSize.getWidth(), knobSize.getHeight());
+            cx += knobSize.getWidth() + kKnobGap;
         }
         for (auto* box : group.boxes) {
-            box->setBounds(x, centreY - 10, 60, 22);
-            x += 60 + kKnobGap;
+            box->setBounds(cx, centreY - 10, 60, 22);
+            cx += 60 + kKnobGap;
         }
-        group.bounds = juce::Rectangle<int>(start, bounds.getY() + 4, x - start - kKnobGap, bounds.getHeight());
-        x += kGroupGap;
+        group.bounds = juce::Rectangle<int>(start, top + 2, cx - start - kKnobGap, rowHeight - 2);
+        cx += kGroupGap;
     }
 }

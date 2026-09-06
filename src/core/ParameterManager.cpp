@@ -188,7 +188,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::TremoloDepth, "Tremolo Depth", juce::NormalisableRange<float>(0.0f, 24.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::TremoloRate, "Tremolo Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
-    const juce::StringArray divisions { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T" };
+    const juce::StringArray divisions { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" };
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Motion::PanMode, "Pan Motion", juce::StringArray{ "Off", "Alternate", "Step" }, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::PanRate, "Pan Step", divisions, 2));
@@ -209,6 +209,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::SweepAmount, "Sweep Amount", juce::NormalisableRange<float>(-40.0f, 40.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::SweepTime, "Sweep Time", juce::NormalisableRange<float>(50.0f, 4000.0f, 10.0f, 0.5f), 1500.0f));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Mono, "Mono / Legato", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::PortaTime, "Portamento Time", juce::NormalisableRange<float>(0.0f, 1000.0f, 5.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::VelBright, "Velocity Brightness", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::ArpMode, "Arpeggio", juce::StringArray{ "Off", "Up", "Down", "Up Down" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::ArpDiv, "Arpeggio Step", divisions, 9));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

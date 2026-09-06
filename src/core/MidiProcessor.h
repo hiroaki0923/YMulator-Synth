@@ -8,6 +8,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <unordered_map>
+#include "HeldNotes.h"
 #include <atomic>
 
 namespace ymulatorsynth {
@@ -63,7 +64,13 @@ public:
      */
     void applyGlobalPan(int channel);
     
+    /** Notes held while mono or arpeggio mode is on; read by the motion engine. */
+    const ymulatorsynth::HeldNotes& getHeldNotes() const { return held; }
+    
 private:
+    ymulatorsynth::HeldNotes held;
+    bool monoModeOn() const;
+    bool arpeggioOn() const;
     // Dependencies (interfaces for testability)
     VoiceManagerInterface& voiceManager;
     YmfmWrapperInterface& ymfmWrapper;

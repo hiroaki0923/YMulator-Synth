@@ -1,5 +1,6 @@
 #include "MotionEngine.h"
 #include "../utils/ParameterIDs.h"
+#include <algorithm>
 #include <cmath>
 
 namespace ymulatorsynth {
@@ -34,6 +35,10 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     echoDiv = parameters.getParameter(ParamID::Motion::EchoDiv);
     sweepAmount = parameters.getParameter(ParamID::Motion::SweepAmount);
     sweepTime = parameters.getParameter(ParamID::Motion::SweepTime);
+    portaTime = parameters.getParameter(ParamID::Motion::PortaTime);
+    velBright = parameters.getParameter(ParamID::Motion::VelBright);
+    arpMode = parameters.getParameter(ParamID::Motion::ArpMode);
+    arpDiv = parameters.getParameter(ParamID::Motion::ArpDiv);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -50,11 +55,13 @@ void MotionEngine::prepare(double newSampleRate)
     lastEchoEnabled = false;
     lastEchoSeconds = -1.0;
     lastEchoSteps = -1;
+    lastNote = -1;
+    lastVelBright = -1.0f;
 }
 
 double MotionEngine::beatsForDivision(int index)
 {
-    static constexpr double kBeats[kDivisions] = { 4.0, 2.0, 1.0, 0.5, 0.25, 4.0 / 3.0, 2.0 / 3.0, 1.0 / 3.0 };
+    static constexpr double kBeats[kDivisions] = { 4.0, 2.0, 1.0, 0.5, 0.25, 4.0 / 3.0, 2.0 / 3.0, 1.0 / 3.0, 0.125, 0.0625, 1.0 / 6.0 };
     return kBeats[juce::jlimit(0, kDivisions - 1, index)];
 }
 
@@ -146,19 +153,56 @@ void MotionEngine::tick(int numSamples)
     const double pitchSettle = read(pitchTime, 60.0f) / 1000.0;
     const float sweepSteps = read(sweepAmount, 0.0f);                // modulator TL offset at the key-on
     const double sweepSeconds = read(sweepTime, 1500.0f) / 1000.0;
+    const double portaSeconds = read(portaTime, 0.0f) / 1000.0;
+    
+    const float brightness = read(velBright, 0.0f) / 100.0f;
+    if (brightness != lastVelBright) { lastVelBright = brightness; ymfm.setVelocityBrightness(brightness); }
+    
+    // Arpeggio: the held notes take turns on the one sounding channel, one per step
+    const int arp = juce::roundToInt(read(arpMode, 0.0f));
+    if (arp > 0 && heldNotes != nullptr && heldNotes->count >= 2 && heldNotes->channel >= 0) {
+        std::array<uint8_t, 16> sorted {};
+        const int count = heldNotes->count;
+        for (int i = 0; i < count; ++i) sorted[static_cast<size_t>(i)] = heldNotes->notes[static_cast<size_t>(i)];
+        std::sort(sorted.begin(), sorted.begin() + count);
+        const double beats = beatsForDivision(juce::roundToInt(read(arpDiv, 9.0f)));
+        const int step = static_cast<int>(std::floor(beat / beats));
+        int index = 0;
+        if (arp == 1) index = step % count;
+        else if (arp == 2) index = count - 1 - (step % count);
+        else { const int cycle = juce::jmax(1, 2 * count - 2); const int s = step % cycle; index = s < count ? s : cycle - s; }
+        const uint8_t target = sorted[static_cast<size_t>(index)];
+        const int ch = heldNotes->channel;
+        if (voices.getNoteForChannel(ch) != target) {
+            ymfm.retuneChannel(static_cast<uint8_t>(ch), target);
+            voices.setNoteForChannel(ch, target);
+            channels[static_cast<size_t>(ch)].note = target;   // an arpeggio step is not a glide
+        }
+    }
     
     for (int ch = 0; ch < 8; ++ch) {
         auto& c = channels[static_cast<size_t>(ch)];
         const bool active = voices.isVoiceActive(ch);
         const int note = active ? voices.getNoteForChannel(ch) : -1;
-        const bool noteStarted = active && (!c.active || note != c.note);
+        const uint32_t noteOns = ymfm.getNoteOnCount(static_cast<uint8_t>(ch));
+        const bool noteStarted = active && (!c.active || noteOns != c.noteOnCount);
+        const bool retuned = active && !noteStarted && note != c.note && c.note >= 0;
         if (noteStarted) {
             c.time = 0.0;
             c.phase = 0.0;
             c.timbrePhase = 0.0;
             c.tremoloPhase = 0.0;
             c.pan = -1;   // the note-on wrote the global pan; pan motion must write again
+            c.noteOnCount = noteOns;
+            // Portamento from the last note played anywhere
+            c.glideFrom = (portaSeconds > 0.0 && lastNote >= 0) ? static_cast<float>(lastNote - note) : 0.0f;
+            c.glideTime = 0.0;
+        } else if (retuned) {
+            // Legato: keep whatever glide is left and add the interval to the new note
+            c.glideFrom = portaSeconds > 0.0 ? c.glideOffset + static_cast<float>(c.note - note) : 0.0f;
+            c.glideTime = 0.0;
         }
+        if (noteStarted || retuned) lastNote = note;
         c.active = active;
         c.note = note;
         
@@ -175,6 +219,13 @@ void MotionEngine::tick(int numSamples)
         
         float offset = 0.0f;
         if (active && (depthSemitones > 0.0f || pitchStart != 0.0f || sweepSteps != 0.0f)) c.time += dt;
+        c.glideOffset = 0.0f;
+        if (active && c.glideFrom != 0.0f && portaSeconds > 0.0) {
+            c.glideTime += dt;
+            const double remaining = std::max(0.0, 1.0 - c.glideTime / portaSeconds);
+            c.glideOffset = static_cast<float>(c.glideFrom * remaining);
+            offset += c.glideOffset;
+        }
         if (active && pitchStart != 0.0f) {
             // Slides from the start offset onto the note, linearly over the settle time
             const double remaining = pitchSettle <= 0.0 ? 0.0 : std::max(0.0, 1.0 - c.time / pitchSettle);

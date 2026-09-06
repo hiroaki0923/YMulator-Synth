@@ -28,6 +28,13 @@ public:
     // MIDI interface
     virtual void noteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
     virtual void noteOff(uint8_t channel, uint8_t note) = 0;
+    /** Changes the pitch of a sounding channel without a key-on (legato, arpeggio). */
+    virtual void retuneChannel(uint8_t channel, uint8_t note) { (void) channel; (void) note; }
+    /** Number of key-ons a channel has had; lets others tell a new note from a retune. */
+    virtual uint32_t getNoteOnCount(uint8_t channel) const { (void) channel; return 0; }
+    /** How much velocity also darkens the modulators: 0 none, 1 up to 40 TL steps at velocity 1. */
+    virtual void setVelocityBrightness(float amount) { (void) amount; }
+    virtual float getVelocityBrightness() const { return 0.0f; }
     /** Operators keyed on with the next note, bit n = operator n in voice order (M1, C1, M2, C2). */
     virtual void setChannelSlotMask(uint8_t channel, uint8_t voiceOrderMask) { (void) channel; (void) voiceOrderMask; }
     
