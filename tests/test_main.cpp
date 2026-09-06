@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstring>
 #include <juce_core/juce_core.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "utils/PresetManager.h"
@@ -30,7 +31,14 @@ struct ScopedTestUserData {
 }
 
 int main(int argc, char **argv) {
+    // CMake's test discovery runs the binary with --gtest_list_tests at build time; it only needs
+    // the list, so the JUCE setup below (which logs to stdout and needs a message thread) is skipped
+    bool listingOnly = false;
+    for (int i = 1; i < argc; ++i)
+        if (std::strncmp(argv[i], "--gtest_list_tests", 18) == 0) listingOnly = true;
     ::testing::InitGoogleTest(&argc, argv);
+    if (listingOnly) return RUN_ALL_TESTS();
+    
     // GUI classes (editors, timers, tooltip windows) need JUCE's GUI subsystem and a message manager;
     // macOS tolerates their absence, Linux does not
     juce::ScopedJuceInitialiser_GUI juceInit;
