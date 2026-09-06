@@ -59,6 +59,12 @@ namespace Motion {
     constexpr const char* TimbreRate = "motion_timbre_rate";   // Hz
     constexpr const char* TremoloDepth = "motion_trem_depth";  // carrier TL attenuation, 0-24 steps
     constexpr const char* TremoloRate = "motion_trem_rate";    // Hz
+    constexpr const char* PanMode = "motion_pan_mode";         // Off / Alternate / Step
+    constexpr const char* PanRate = "motion_pan_rate";         // note value for Step
+    constexpr const char* Sync = "motion_sync";                // LFO rates follow the host tempo
+    constexpr const char* VibratoDiv = "motion_vib_div";       // note value when synced
+    constexpr const char* TimbreDiv = "motion_timbre_div";
+    constexpr const char* TremoloDiv = "motion_trem_div";
 } // namespace Motion
 
 // =============================================================================

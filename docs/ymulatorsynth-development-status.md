@@ -59,7 +59,8 @@
 - ✅ **Motion 1: Vibrato** - `src/core/MotionEngine`。processBlock が 64 サンプルごとに `tick()` を挟んで音を生成する制御レート構造。ボイスごとに遅延・立ち上がり・深さ（最大 ±50 セント）・レートを持ち、`YmfmWrapper::setChannelPitchOffset` 経由で KC/KF を書く（ベンドとは別のオフセット）。パラメータ `motion_vib_*`。リセット時にレジスタキャッシュとチャンネル状態を消すよう修正（`tests/unit/MotionEngineTest.cpp`）
 - ✅ **Motion 2: Wide** - `YmfmWrapper` が 2 つ目の `ymfm::ym2151`（シャドウチップ）を持ち、全レジスタ書込を複製。KC/KF は主 −d / シャドウ +d（最大 ±25 セント）、パンは L/R 配置なら主 L・シャドウ R（メイン側のキャッシュはパラメータどおりの値を保ち、差し替えはチップ書込時のみ）、Center 配置は両方 −3 dB で混合。同時発音 8 を維持。パラメータ `motion_wide` / `motion_wide_pan`（`tests/unit/WideTest.cpp`）
 - ✅ **Motion 3: Timbre LFO / Tremolo** - `YmfmWrapper::setChannelLevelMotion`。TL は「パラメータ値＋ベロシティ（キャリア）＋モーション」で書き、モジュレータには三角波 ±40 ステップ、キャリアには片側正弦で最大 24 ステップの減衰。パラメータ `motion_timbre_*` / `motion_trem_*`
-- ⏳ 次: Motion 4〜6（Pan Motion＋BPM 同期 → Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
+- ✅ **Motion 4: Pan Motion と BPM 同期** - `MotionEngine::setTransport` がプレイヘッドの BPM / 拍位置を受け、再生中は拍位置から位相を再計算、停止中は最後のテンポで自走。`motion_sync` ON でビブラート・音色 LFO・トレモロは音価（1/1〜1/8T）で回る。Pan Motion は Alternate（発音ごとに L / R 交互）と Step（拍ごとに L→C→R→C）。Wide が L/R 配置のときは無効、Off に戻すとグローバルパンを書き戻す（`tests/unit/PanMotionTest.cpp`）
+- ⏳ 次: Motion 5〜6（Pitch Env → MOTION カード） → Motion エンジン（Vibrato → Wide → Timbre/Tremolo → Pan Motion＋同期 → Pitch Env → MOTION カード）
 
 ## 🚀 Version 0.0.6 開発中 (2025-06-23)
 

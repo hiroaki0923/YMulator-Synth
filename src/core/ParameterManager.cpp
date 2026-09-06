@@ -188,6 +188,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::TremoloDepth, "Tremolo Depth", juce::NormalisableRange<float>(0.0f, 24.0f, 1.0f), 0.0f));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamID::Motion::TremoloRate, "Tremolo Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
+    const juce::StringArray divisions { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T" };
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        ParamID::Motion::PanMode, "Pan Motion", juce::StringArray{ "Off", "Alternate", "Step" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::PanRate, "Pan Step", divisions, 2));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Sync, "Motion Sync", false));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoDiv, "Vibrato Sync Rate", divisions, 3));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreDiv, "Timbre LFO Sync Rate", divisions, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TremoloDiv, "Tremolo Sync Rate", divisions, 3));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

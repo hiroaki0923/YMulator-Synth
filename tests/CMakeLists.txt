@@ -143,6 +143,7 @@ if(GTest_FOUND)
         unit/PatchPreviewTest.cpp
         unit/MotionEngineTest.cpp
         unit/WideTest.cpp
+        unit/PanMotionTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -199,6 +200,7 @@ if(GTest_FOUND)
         unit/PatchPreviewTest.cpp
         unit/MotionEngineTest.cpp
         unit/WideTest.cpp
+        unit/PanMotionTest.cpp
         unit/MacroMapperTest.cpp
         unit/PatchGeneratorTest.cpp
         unit/PatchWorkspaceTest.cpp

@@ -30,6 +30,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     stateManager->setMacroMapper(macroMapper.get());
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
+    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
@@ -72,6 +73,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
+    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
@@ -210,6 +212,20 @@ void YMulatorSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     
     // Process all MIDI events through MidiProcessor
     midiProcessor->processMidiMessages(midiMessages);
+    
+    if (motionEngine) {
+        double bpm = 120.0, ppq = 0.0;
+        bool playing = false, known = false;
+        if (auto* playHead = getPlayHead()) {
+            if (const auto position = playHead->getPosition()) {
+                known = position->getBpm().hasValue() && position->getPpqPosition().hasValue();
+                bpm = position->getBpm().orFallback(120.0);
+                ppq = position->getPpqPosition().orFallback(0.0);
+                playing = position->getIsPlaying();
+            }
+        }
+        motionEngine->setTransport(bpm, ppq, playing, known);
+    }
     
     // Update parameters periodically (rate limiting handled by ParameterManager)
     updateYmfmParameters();

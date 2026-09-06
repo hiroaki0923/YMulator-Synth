@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <array>
+#include <functional>
 #include "../dsp/YmfmWrapperInterface.h"
 #include "VoiceManagerInterface.h"
 
@@ -25,7 +26,16 @@ public:
     
     void bindParameters(juce::AudioProcessorValueTreeState& parameters);
     void prepare(double sampleRate);
+    /** Host transport for the coming block; call once per processBlock before the ticks. */
+    void setTransport(double bpm, double ppqAtBlockStart, bool playing, bool known);
     void tick(int numSamples);
+    
+    /** Called when pan motion switches off so the global pan can be put back. */
+    std::function<void()> onPanMotionOff;
+    
+    static constexpr int kDivisions = 8;
+    static double beatsForDivision(int index);
+    double currentBeat() const { return beat; }
     
     /** Current pitch offset of a channel in semitones (tests and displays). */
     float currentOffset(int channel) const { return channels[static_cast<size_t>(channel)].offset; }
@@ -43,6 +53,7 @@ private:
         float offset = 0.0f;    // semitones written to the chip
         int carrierSteps = 0;   // tremolo written to the chip
         int modulatorSteps = 0; // timbre LFO written to the chip
+        int pan = -1;           // 0 left, 1 centre, 2 right as written by pan motion; -1 untouched
     };
     
     float read(const juce::RangedAudioParameter* param, float fallback) const;
@@ -61,6 +72,24 @@ private:
     const juce::RangedAudioParameter* timbreRate = nullptr;
     const juce::RangedAudioParameter* tremoloDepth = nullptr;
     const juce::RangedAudioParameter* tremoloRate = nullptr;
+    const juce::RangedAudioParameter* panMode = nullptr;
+    const juce::RangedAudioParameter* panRate = nullptr;
+    const juce::RangedAudioParameter* sync = nullptr;
+    const juce::RangedAudioParameter* vibratoDiv = nullptr;
+    const juce::RangedAudioParameter* timbreDiv = nullptr;
+    const juce::RangedAudioParameter* tremoloDiv = nullptr;
+    
+    // Beat clock: follows the host while it plays, free-runs otherwise
+    double bpm = 120.0;
+    double beat = 0.0;
+    double ppqAtBlockStart = 0.0;
+    double samplesIntoBlock = 0.0;
+    bool transportPlaying = false;
+    bool transportKnown = false;
+    int lastPanMode = 0;
+    bool nextAlternateRight = false;
+    
+    void writePan(int channel, int pan);
     bool lastWideEnabled = false;
     float lastWideCents = -1.0f;
     int lastWidePan = -1;
