@@ -62,6 +62,7 @@
 - ✅ **Motion 4: Pan Motion と BPM 同期** - `MotionEngine::setTransport` がプレイヘッドの BPM / 拍位置を受け、再生中は拍位置から位相を再計算、停止中は最後のテンポで自走。`motion_sync` ON でビブラート・音色 LFO・トレモロは音価（1/1〜1/8T）で回る。Pan Motion は Alternate（発音ごとに L / R 交互）と Step（拍ごとに L→C→R→C）。Wide が L/R 配置のときは無効、Off に戻すとグローバルパンを書き戻す（`tests/unit/PanMotionTest.cpp`）
 - ✅ **Motion 5: Pitch Env** - 発音時に ±100 セントから直線で本来の音程へ（0〜500 ms）。ビブラートと加算。パラメータ `motion_pitch_env` / `motion_pitch_time`
 - ✅ **Quick の MOTION カード改訂** - チップを機能ごとの ON/OFF トグル（複数同時 ON）に変更。ノブ 2 段（Wide / Vib / Timbre / Echo / Rate、Sweep / Swell / Porta / Pitch / Bright）とパン／アルペジオのモード、Sync。COMPARE の A/B は GENERATE カードの見出しへ移動し、MOTION が右列を使う
+- ✅ **Motion の同期音価と操作性（2026-09-06）** - Echo / Timbre / Tremolo の音価はパラメータだけあって UI が無かった。Detail の MOTION 行で Sync ON のとき Rate / Time ノブの位置に音価ボックス（Vibrato / Timbre / Tremolo / Echo）を出す。時間系ノブは 1 秒未満を ms、以上を「1.8s」で表示（Level EG Decay 180 が読める）。エディタに TooltipWindow が無くツールチップが一度も出ていなかったので追加。ノブのツールチップに「上下ドラッグ、Shift で微調整、ホイール」を記載し README にも明記。`ui_snapshot --param id=value` を追加
 - ✅ **Quick の配置見直し（2026-09-06）** - 「新しい音はここから」が分かるよう、ジェネレータのカードを左上に置き TONE をその下へ。カード名は RECIPE（材料＝カテゴリと方向）、実行ボタンは「Generate」としてカードの右下に Undo / A / B と並べる。見出しの一言で現在の音を置き換えること（Undo で戻ること）を明記。プリセットのロードとは別の入口であることを配置で示す
 - ✅ **Motion 11: Level EG と LFO 波形** - キャリア TL のソフトエンベロープ（アタック時間で 40 ステップ下から立ち上がり、ディケイ時間でサステイン減衰へ）。ビブラート／音色 LFO の波形（正弦・三角・ノコギリ・矩形・ランダム=サイクルごとのサンプル&ホールド）とワンショット。MOTION カードに Swell チップ
 - ✅ **Motion 10: 2 段ピッチエンベロープ** - 発音時 ±24 半音 → 第 1 時間で第 2 点（±24 半音）→ 第 2 時間で本来の音程。ドラムの「叩いて沈む」やレーザー系 SE に。MOTION カードに Kick チップ（+1200 → −500 セント）

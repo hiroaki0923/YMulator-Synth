@@ -101,7 +101,7 @@ See [Building](#building) section below.
 1. **Load the plugin** in your DAW's instrument track (Music Effect category)
 2. **Choose a preset** from the 8 built-in factory presets
 3. **Play** using your MIDI keyboard or DAW's piano roll
-4. **Adjust parameters** using the intuitive 4-operator interface
+4. **Adjust parameters** using the intuitive 4-operator interface. Knobs move by dragging up or down; hold Shift for ten times finer steps, or use the scroll wheel
 5. **Experiment** with DT2, Key Scale, and Feedback for unique sounds
 
 ## Building

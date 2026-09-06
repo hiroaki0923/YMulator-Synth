@@ -2,7 +2,7 @@
 // without opening a host. Built as YMulatorSynthAU_UISnapshot (see tests/CMakeLists.txt).
 //
 //   YMulatorSynthAU_UISnapshot --out ui.png [--preset N | --bank B --preset P] [--then-preset N]
-//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N] [--note N] [--view quick|detail] [--scope-time S]
+//                              [--scale 2] [--settle 300] [--dump] [--focus-macro N] [--note N] [--view quick|detail] [--scope-time S] [--param id=value]
 //   YMulatorSynthAU_UISnapshot --list-presets
 //
 // --preset alone selects a global program index the way a host program change
@@ -32,6 +32,7 @@ struct Options {
     bool dump = false;
     int focusMacro = -1;   // index into ymulatorsynth::Macro, highlights its targets
     double scopeTime = -1.0; // --scope-time: seconds into the OUTPUT render (its timer needs a desktop window)
+    std::vector<std::pair<juce::String, float>> params; // --param id=value (plain value, e.g. motion_sync=1)
     int note = -1;         // MIDI note to hold while capturing (fills the output scope)
     juce::String view;     // "quick" or "detail"
 };
@@ -48,6 +49,10 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--scale") == 0) o.scale = static_cast<float>(std::atof(next()));
         else if (std::strcmp(argv[i], "--settle") == 0) o.settleMs = std::atoi(next());
         else if (std::strcmp(argv[i], "--scope-time") == 0) o.scopeTime = std::atof(next());
+        else if (std::strcmp(argv[i], "--param") == 0) {
+            juce::String spec(next());
+            o.params.emplace_back(spec.upToFirstOccurrenceOf("=", false, false), spec.fromFirstOccurrenceOf("=", false, false).getFloatValue());
+        }
         else if (std::strcmp(argv[i], "--list-presets") == 0) o.listPresets = true;
         else if (std::strcmp(argv[i], "--dump") == 0) o.dump = true;
         else if (std::strcmp(argv[i], "--focus-macro") == 0) o.focusMacro = std::atoi(next());
@@ -140,6 +145,11 @@ int main(int argc, char** argv)
             main->setMacroFocus(static_cast<ymulatorsynth::Macro>(options.focusMacro));
     }
     if (options.view.isNotEmpty() || options.focusMacro >= 0) pumpMessages(options.settleMs);
+    for (const auto& [id, value] : options.params) {
+        if (auto* p = processor.getParameters().getParameter(id)) p->setValueNotifyingHost(p->convertTo0to1(value));
+        else std::fprintf(stderr, "no parameter \"%s\"\n", id.toRawUTF8());
+    }
+    if (!options.params.empty()) pumpMessages(options.settleMs);
     if (options.scopeTime >= 0.0) {
         std::function<void(juce::Component&)> visit = [&](juce::Component& c) {
             if (auto* scope = dynamic_cast<OutputScope*>(&c)) scope->setPlayhead(options.scopeTime);

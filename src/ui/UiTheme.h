@@ -31,4 +31,10 @@ inline juce::Font sans(float height, bool bold = false)
     return juce::Font(juce::FontOptions(height, bold ? juce::Font::bold : juce::Font::plain));
 }
 
+
+/** Milliseconds as a short knob value: "180" under a second, "1.8s" above. */
+inline juce::String formatTime(double milliseconds)
+{
+    return milliseconds < 1000.0 ? juce::String(juce::roundToInt(milliseconds)) : juce::String(milliseconds / 1000.0, 1) + "s";
+}
 } // namespace UiTheme

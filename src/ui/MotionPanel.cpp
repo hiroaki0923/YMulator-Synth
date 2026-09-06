@@ -6,7 +6,7 @@
 namespace {
 using namespace ParamID::Motion;
 
-juce::String seconds(double v) { return juce::String(v / 1000.0, 1); }
+juce::String seconds(double v) { return UiTheme::formatTime(v); }
 juce::String signedInt(double v)
 {
     const int i = juce::roundToInt(v);

@@ -8,6 +8,7 @@ namespace {
 constexpr int kGroupGap = 8;
 constexpr int kKnobGap = 3;
 constexpr int kKnobWidth = 36;
+constexpr int kDivSlotWidth = 64;   // a note-value box needs "1/16T" plus the arrow to fit
 juce::String oneDecimal(double v) { return juce::String(v, 1); }
 juce::String milliseconds(double v) { return juce::String(juce::roundToInt(v)); }
 }
@@ -23,7 +24,7 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     
     auto& vib = addGroup("Vibrato");
     addKnob(vib, VibratoDepth, "Depth", UiTheme::green);
-    addKnob(vib, VibratoRate, "Rate", UiTheme::green, true, oneDecimal);
+    addKnob(vib, VibratoRate, "Rate", UiTheme::green, true, oneDecimal, VibratoDiv);
     addKnob(vib, VibratoDelay, "Delay", UiTheme::green, false, milliseconds);
     addKnob(vib, VibratoRise, "Rise", UiTheme::green, false, milliseconds);
     
@@ -38,11 +39,11 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     
     auto& timbre = addGroup("Timbre");
     addKnob(timbre, TimbreDepth, "Depth", UiTheme::amber);
-    addKnob(timbre, TimbreRate, "Rate", UiTheme::amber, true, oneDecimal);
+    addKnob(timbre, TimbreRate, "Rate", UiTheme::amber, true, oneDecimal, TimbreDiv);
     
     auto& trem = addGroup("Tremolo");
     addKnob(trem, TremoloDepth, "Depth", UiTheme::carrier);
-    addKnob(trem, TremoloRate, "Rate", UiTheme::carrier, true, oneDecimal);
+    addKnob(trem, TremoloRate, "Rate", UiTheme::carrier, true, oneDecimal, TremoloDiv);
     
     auto& pan = addGroup("Pan");
     panModeBox = std::make_unique<juce::ComboBox>();
@@ -60,13 +61,13 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     
     auto& echo = addGroup("Echo");
     addKnob(echo, EchoLevel, "Level", UiTheme::carrier);
-    addKnob(echo, EchoTime, "Time", UiTheme::carrier, true, milliseconds);
+    addKnob(echo, EchoTime, "Time", UiTheme::carrier, true, milliseconds, EchoDiv);
     
     auto& sweep = addGroup("Sweep", 1);
     addKnob(sweep, SweepAmount, "Amt", UiTheme::amber, false, [](double v) {
         const int i = juce::roundToInt(v);
         return i == 0 ? juce::String("0") : (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i)); });
-    addKnob(sweep, SweepTime, "Time", UiTheme::amber, false, [](double v) { return juce::String(v / 1000.0, 1); });
+    addKnob(sweep, SweepTime, "Time", UiTheme::amber, false, UiTheme::formatTime);
     
     auto& pitch = addGroup("Pitch", 1);
     addKnob(pitch, PitchEnv, "Env", UiTheme::carrier, false, [](double v) {
@@ -104,8 +105,8 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     arpeggio.boxes.push_back(arpDivBox.get());
     
     auto& level = addGroup("Level EG", 1);
-    addKnob(level, LevelAttack, "Atk", UiTheme::green, false, [](double v) { return juce::String(v / 1000.0, 1); });
-    addKnob(level, LevelDecay, "Dec", UiTheme::green, false, [](double v) { return juce::String(v / 1000.0, 1); });
+    addKnob(level, LevelAttack, "Atk", UiTheme::green, false, UiTheme::formatTime);
+    addKnob(level, LevelDecay, "Dec", UiTheme::green, false, UiTheme::formatTime);
     addKnob(level, LevelSustain, "Sus", UiTheme::green);
     
     auto& shape = addGroup("LFO", 1);
@@ -129,7 +130,7 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     shape.toggles.push_back(oneShotButton.get());
     
     syncButton = std::make_unique<juce::ToggleButton>("Sync");
-    syncButton->setTooltip("Rates follow the host tempo (note values are chosen in the Quick view)");
+    syncButton->setTooltip("Rates follow the host tempo: the rate knobs turn into note values");
     syncButton->onClick = [this]() { updateRateKnobs(); };
     addAndMakeVisible(*syncButton);
     syncAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(), Sync, *syncButton);
@@ -145,7 +146,7 @@ MotionStrip::Group& MotionStrip::addGroup(const juce::String& title, int row)
 }
 
 void MotionStrip::addKnob(Group& group, const char* parameterId, const juce::String& label, juce::Colour accent, bool isRate,
-                          std::function<juce::String(double)> formatter)
+                          std::function<juce::String(double)> formatter, const char* divParameterId)
 {
     Knob k;
     k.parameterId = parameterId;
@@ -155,16 +156,28 @@ void MotionStrip::addKnob(Group& group, const char* parameterId, const juce::Str
     if (formatter) k.knob->setValueFormatter(std::move(formatter));
     addAndMakeVisible(*k.knob);
     k.binding = KnobBinding::attach(audioProcessor.getParameters(), parameterId, *k.knob, *this);
+    if (divParameterId != nullptr) {
+        k.divBox = std::make_unique<juce::ComboBox>();
+        k.divBox->addItemList({ "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" }, 1);
+        k.divBox->setTooltip(label + " as a note value while Sync is on");
+        addChildComponent(*k.divBox);
+        k.divAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), divParameterId, *k.divBox);
+    }
     group.knobs.push_back(std::move(k));
 }
 
 void MotionStrip::updateRateKnobs()
 {
-    // With sync on the rates come from note values; the Hz knobs are shown greyed
+    // With sync on the rates come from note values: each rate knob gives its place to a note-value box
     const bool synced = syncButton->getToggleState();
     for (auto& g : groups)
-        for (auto& k : g.knobs)
-            if (k.isRate) k.knob->setEnabled(!synced);
+        for (auto& k : g.knobs) {
+            if (!k.isRate) continue;
+            const bool hasBox = k.divBox != nullptr;
+            k.knob->setVisible(!(synced && hasBox));
+            k.knob->setEnabled(!synced);
+            if (hasBox) k.divBox->setVisible(synced);
+        }
 }
 
 void MotionStrip::paint(juce::Graphics& g)
@@ -207,8 +220,10 @@ void MotionStrip::resized()
             cx += width + kKnobGap;
         }
         for (auto& k : group.knobs) {
-            k.knob->setBounds(cx, centreY - knobSize.getHeight() / 2, knobSize.getWidth(), knobSize.getHeight());
-            cx += knobSize.getWidth() + kKnobGap;
+            const int slot = k.divBox ? kDivSlotWidth : knobSize.getWidth();
+            k.knob->setBounds(cx + (slot - knobSize.getWidth()) / 2, centreY - knobSize.getHeight() / 2, knobSize.getWidth(), knobSize.getHeight());
+            if (k.divBox) k.divBox->setBounds(cx, centreY - 10, slot, 22);
+            cx += slot + kKnobGap;
         }
         for (auto* box : group.boxes) {
             const int width = row == 0 ? 60 : 56;

@@ -24,6 +24,9 @@ private:
         std::unique_ptr<RotaryKnob> knob;
         KnobBinding binding;
         bool isRate = false;
+        // A rate knob's note-value twin: shown in its place while Sync is on
+        std::unique_ptr<juce::ComboBox> divBox;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> divAttachment;
     };
     struct Group {
         juce::String title;
@@ -44,7 +47,7 @@ private:
     
     Group& addGroup(const juce::String& title, int row = 0);
     void addKnob(Group& group, const char* parameterId, const juce::String& label, juce::Colour accent, bool isRate = false,
-                 std::function<juce::String(double)> formatter = {});
+                 std::function<juce::String(double)> formatter = {}, const char* divParameterId = nullptr);
     void updateRateKnobs();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MotionStrip)

@@ -26,6 +26,7 @@ struct KnobBinding
         if (param != nullptr) {
             const auto& range = param->getNormalisableRange();
             knob.setRange(range.start, range.end, range.interval > 0.0f ? range.interval : 1.0f);
+            knob.setTooltip(param->getName(64) + ": drag up or down, hold Shift for fine steps, or scroll");
         }
         
         auto* slider = binding.hiddenSlider.get();
