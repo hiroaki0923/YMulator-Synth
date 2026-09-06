@@ -597,3 +597,36 @@ TEST_F(MainComponentTest, MotionChipsToggleFeatures) {
     EXPECT_FLOAT_EQ(value(ParamID::Motion::Sync), 0.0f);
     EXPECT_TRUE(processor->isInCustomMode()) << "a motion change marks the sound as edited";
 }
+
+TEST_F(MainComponentTest, PresetBoxShowsGeneratedAfterGenerateAndThePresetAgainAfterLoading) {
+    PresetUIManager* presets = nullptr;
+    std::function<void(juce::Component*)> find = [&](juce::Component* c) {
+        for (int i = 0; i < c->getNumChildComponents() && presets == nullptr; ++i) {
+            auto* child = c->getChildComponent(i);
+            if ((presets = dynamic_cast<PresetUIManager*>(child)) != nullptr) return;
+            find(child);
+        }
+    };
+    find(mainComponent.get());
+    ASSERT_NE(presets, nullptr);
+    juce::ComboBox* presetBox = nullptr;
+    for (int i = 0; i < presets->getNumChildComponents(); ++i)
+        if (auto* box = dynamic_cast<juce::ComboBox*>(presets->getChildComponent(i)))
+            for (int item = 0; item < box->getNumItems(); ++item)
+                if (box->getItemText(item) == "Init") presetBox = box;
+    ASSERT_NE(presetBox, nullptr);
+    
+    processor->setCurrentProgram(3);
+    presets->refreshPresetDisplay();
+    const auto loadedName = presetBox->getText();
+    EXPECT_EQ(loadedName, processor->getProgramName(3));
+    
+    processor->getPatchWorkspace().generate(ymulatorsynth::GeneratorInput{}, 7);
+    presets->syncCustomMode();
+    EXPECT_EQ(presetBox->getText(), "Generated") << "a generated sound has no source preset";
+    EXPECT_EQ(presetBox->getSelectedId(), 0);
+    
+    processor->setCurrentProgram(3);
+    presets->syncCustomMode();
+    EXPECT_EQ(presetBox->getText(), loadedName) << "loading a preset shows it again";
+}

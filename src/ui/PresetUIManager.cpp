@@ -17,12 +17,14 @@ PresetUIManager::PresetUIManager(YMulatorSynthAudioProcessor& processor)
     // No need for async since this is construction time
     updateBankComboBox();
     updatePresetComboBox();
+    startTimerHz(5);
     
     CS_FILE_DBG("PresetUIManager created");
 }
 
 PresetUIManager::~PresetUIManager()
 {
+    stopTimer();
     // Remove listener to avoid dangling pointer - check if state is still valid
     try {
         audioProcessor.getParameters().state.removeListener(this);
@@ -204,7 +206,7 @@ void PresetUIManager::updatePresetComboBox()
     
     // Rebuild the list only when it changed; the selection below must always be
     // refreshed so a preset change within the same bank is reflected.
-    if (needsUpdate || audioProcessor.isInCustomMode())
+    if (needsUpdate)
     {
         presetComboBox->clear();
         
@@ -214,8 +216,8 @@ void PresetUIManager::updatePresetComboBox()
         }
     }
     
-    // Set current selection (if not in custom mode)
-    if (!audioProcessor.isInCustomMode())
+    // Select the preset the sound came from. An edited preset keeps its name next to the
+    // EDITED tag; a generated sound has no source preset and shows its own name instead.
     {
         // Get saved preset index from ValueTreeState (for DAW persistence)
         int savedPresetIndex = 7; // Default to Init preset
@@ -255,6 +257,10 @@ void PresetUIManager::updatePresetComboBox()
         }
         isUpdatingFromState = false;
     }
+    shownCustomMode = audioProcessor.isInCustomMode();
+    shownCustomName = audioProcessor.getCustomPresetName();
+    if (shownCustomMode && shownCustomName.isNotEmpty())
+        presetComboBox->setText(shownCustomName, juce::dontSendNotification);
     
     // The Save button and the EDITED tag follow custom mode
     const bool hasChanges = audioProcessor.isInCustomMode();
@@ -264,6 +270,12 @@ void PresetUIManager::updatePresetComboBox()
                                                 : "Save as new preset (edit a parameter to enable)");
     }
     if (editedTag) editedTag->setVisible(hasChanges);
+}
+
+void PresetUIManager::syncCustomMode()
+{
+    if (audioProcessor.isInCustomMode() != shownCustomMode || audioProcessor.getCustomPresetName() != shownCustomName)
+        updatePresetComboBox();
 }
 
 void PresetUIManager::refreshPresetDisplay()
