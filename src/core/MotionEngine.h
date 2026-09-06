@@ -61,6 +61,13 @@ private:
         float glideFrom = 0.0f; // portamento start offset, semitones
         double glideTime = 0.0; // seconds since the glide started
         float glideOffset = 0.0f;
+        uint32_t randomSeed = 1;   // per-channel sample-and-hold source
+        int randomCycle = -1;
+        int vibCycles = 0;      // completed vibrato cycles, the random wave's clock
+        int timbreCycles = 0;
+        float randomValue = 0.0f;
+        int timbreRandomCycle = -1;
+        float timbreRandomValue = 0.0f;
     };
     
     float read(const juce::RangedAudioParameter* param, float fallback) const;
@@ -98,6 +105,12 @@ private:
     const juce::RangedAudioParameter* velBright = nullptr;
     const juce::RangedAudioParameter* arpMode = nullptr;
     const juce::RangedAudioParameter* arpDiv = nullptr;
+    const juce::RangedAudioParameter* levelAttack = nullptr;
+    const juce::RangedAudioParameter* levelDecay = nullptr;
+    const juce::RangedAudioParameter* levelSustain = nullptr;
+    const juce::RangedAudioParameter* vibratoWave = nullptr;
+    const juce::RangedAudioParameter* timbreWave = nullptr;
+    const juce::RangedAudioParameter* lfoOneShot = nullptr;
     const HeldNotes* heldNotes = nullptr;
     int lastNote = -1;
     float lastVelBright = -1.0f;
@@ -116,6 +129,10 @@ private:
     bool nextAlternateRight = false;
     
     void writePan(int channel, int pan);
+    /** -1..+1 for the wave at the phase; random holds one value per cycle. */
+    static float waveform(int wave, double phase, int cycleId, int& cycle, float& held, uint32_t& seed);
+    /** Advances a phase; one-shot phases stop at the end of the first cycle. */
+    static double advancePhase(double phase, double increment, bool oneShot);
     bool lastWideEnabled = false;
     float lastWideCents = -1.0f;
     int lastWidePan = -1;

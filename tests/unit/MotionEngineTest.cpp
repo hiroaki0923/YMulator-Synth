@@ -231,3 +231,59 @@ TEST_F(MotionEngineTest, TwoStagePitchEnvelopeForDrums)
     runBlocks(10);                                    // past 170 ms
     EXPECT_FLOAT_EQ(processor.getMotionEngine().currentOffset(ch), 0.0f);
 }
+
+TEST_F(MotionEngineTest, LevelEnvelopeSwellsThenFallsToSustain)
+{
+    set(ParamID::Global::Algorithm, 4.0f);
+    for (int op = 1; op <= 4; ++op) set(ParamID::Op::tl(op).c_str(), 20.0f);
+    set(ParamID::Motion::LevelAttack, 200.0f);
+    set(ParamID::Motion::LevelDecay, 200.0f);
+    set(ParamID::Motion::LevelSustain, 12.0f);
+    runBlocks(1);
+    const int ch = noteOn();
+    auto tl = [&](int op) { return static_cast<int>(processor.getYmfmWrapper().readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + YM2151Regs::OPERATOR_SLOT_OFFSET[op] + ch)); };
+    EXPECT_GE(tl(1), 50) << "swell starts about 40 steps down";
+    EXPECT_EQ(tl(0), 20) << "modulators untouched";
+    runBlocks(18);                                    // about 0.2 s: attack done
+    EXPECT_LE(tl(1), 22);
+    runBlocks(20);                                    // about 0.41 s: decayed to the sustain attenuation
+    EXPECT_EQ(tl(1), 20 + 12);
+    EXPECT_EQ(tl(3), 20 + 12);
+}
+
+TEST_F(MotionEngineTest, SawOneShotVibratoRampsUpAndHolds)
+{
+    set(ParamID::Motion::VibratoDepth, 100.0f);
+    set(ParamID::Motion::VibratoRate, 4.0f);
+    set(ParamID::Motion::VibratoDelay, 0.0f);
+    set(ParamID::Motion::VibratoRise, 0.0f);
+    set(ParamID::Motion::VibratoWave, 2.0f);          // saw
+    set(ParamID::Motion::LfoOneShot, 1.0f);
+    const int ch = noteOn();
+    const float start = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_LT(start, -0.4f) << "a rising saw begins at -depth";
+    runBlocks(10);                                    // 0.11 s: halfway through the 0.25 s cycle
+    const float mid = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_GT(mid, start);
+    runBlocks(30);                                    // well past one cycle
+    EXPECT_NEAR(processor.getMotionEngine().currentOffset(ch), 0.5f, 0.02f) << "holds at +depth";
+    runBlocks(10);
+    EXPECT_NEAR(processor.getMotionEngine().currentOffset(ch), 0.5f, 0.02f);
+}
+
+TEST_F(MotionEngineTest, RandomVibratoHoldsOneValuePerCycle)
+{
+    set(ParamID::Motion::VibratoDepth, 100.0f);
+    set(ParamID::Motion::VibratoRate, 2.0f);          // 0.5 s per cycle
+    set(ParamID::Motion::VibratoDelay, 0.0f);
+    set(ParamID::Motion::VibratoRise, 0.0f);
+    set(ParamID::Motion::VibratoWave, 4.0f);          // random
+    const int ch = noteOn();
+    const float a = processor.getMotionEngine().currentOffset(ch);
+    runBlocks(10);                                    // still inside the first cycle
+    EXPECT_FLOAT_EQ(processor.getMotionEngine().currentOffset(ch), a);
+    runBlocks(40);                                    // next cycle
+    const float b = processor.getMotionEngine().currentOffset(ch);
+    EXPECT_NE(a, b);
+    EXPECT_LE(std::abs(b), 0.5f);
+}

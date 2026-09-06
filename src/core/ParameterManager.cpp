@@ -221,6 +221,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Motion::ArpMode, "Arpeggio", juce::StringArray{ "Off", "Up", "Down", "Up Down" }, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::ArpDiv, "Arpeggio Step", divisions, 9));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelAttack, "Level EG Attack", juce::NormalisableRange<float>(0.0f, 3000.0f, 10.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelDecay, "Level EG Decay", juce::NormalisableRange<float>(0.0f, 3000.0f, 10.0f, 0.5f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        ParamID::Motion::LevelSustain, "Level EG Sustain", juce::NormalisableRange<float>(0.0f, 40.0f, 1.0f), 0.0f));
+    const juce::StringArray lfoWaves { "Sine", "Triangle", "Saw", "Square", "Random" };
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoWave, "Vibrato Wave", lfoWaves, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::TimbreWave, "Timbre LFO Wave", lfoWaves, 1));
+    layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::LfoOneShot, "LFO One Shot", false));
     
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamID::Macro::Harmonics, "Harmonics",

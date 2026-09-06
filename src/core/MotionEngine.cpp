@@ -41,6 +41,12 @@ void MotionEngine::bindParameters(juce::AudioProcessorValueTreeState& parameters
     velBright = parameters.getParameter(ParamID::Motion::VelBright);
     arpMode = parameters.getParameter(ParamID::Motion::ArpMode);
     arpDiv = parameters.getParameter(ParamID::Motion::ArpDiv);
+    levelAttack = parameters.getParameter(ParamID::Motion::LevelAttack);
+    levelDecay = parameters.getParameter(ParamID::Motion::LevelDecay);
+    levelSustain = parameters.getParameter(ParamID::Motion::LevelSustain);
+    vibratoWave = parameters.getParameter(ParamID::Motion::VibratoWave);
+    timbreWave = parameters.getParameter(ParamID::Motion::TimbreWave);
+    lfoOneShot = parameters.getParameter(ParamID::Motion::LfoOneShot);
 }
 
 void MotionEngine::prepare(double newSampleRate)
@@ -82,6 +88,31 @@ void MotionEngine::writePan(int channel, int pan)
     if (c.pan == pan) return;
     c.pan = pan;
     ymfm.setChannelPan(static_cast<uint8_t>(channel), pan == 0 ? 0.0f : (pan == 2 ? 1.0f : 0.5f));
+}
+
+double MotionEngine::advancePhase(double phase, double increment, bool oneShot)
+{
+    const double next = phase + increment;
+    if (oneShot) return std::min(next, 1.0);
+    return std::fmod(next, 1.0);
+}
+
+float MotionEngine::waveform(int wave, double phase, int cycleId, int& cycle, float& held, uint32_t& seed)
+{
+    switch (wave) {
+        case 1: return static_cast<float>(1.0 - 4.0 * std::abs(phase - 0.5));              // triangle, starts low
+        case 2: return static_cast<float>(2.0 * phase - 1.0);                              // rising saw
+        case 3: return phase < 0.5 ? 1.0f : -1.0f;                                         // square
+        case 4: {                                                                          // random, held per cycle
+            if (cycleId != cycle || cycle < 0) {
+                cycle = cycleId;
+                seed = seed * 1664525u + 1013904223u;
+                held = static_cast<float>((seed >> 8) & 0xFFFF) / 32767.5f - 1.0f;
+            }
+            return held;
+        }
+        default: return static_cast<float>(std::sin(juce::MathConstants<double>::twoPi * phase));
+    }
 }
 
 float MotionEngine::read(const juce::RangedAudioParameter* param, float fallback) const
@@ -159,6 +190,13 @@ void MotionEngine::tick(int numSamples)
     const bool pitchEnvelopeOn = pitchStart != 0.0f || pitchMid != 0.0f;
     const float sweepSteps = read(sweepAmount, 0.0f);                // modulator TL offset at the key-on
     const double sweepSeconds = read(sweepTime, 1500.0f) / 1000.0;
+    const double attackSeconds = read(levelAttack, 0.0f) / 1000.0;
+    const double decaySeconds = read(levelDecay, 0.0f) / 1000.0;
+    const float sustainSteps = read(levelSustain, 0.0f);
+    const bool levelEnvelopeOn = attackSeconds > 0.0 || sustainSteps > 0.0f;
+    const int vibWave = juce::roundToInt(read(vibratoWave, 0.0f));
+    const int timWave = juce::roundToInt(read(timbreWave, 1.0f));
+    const bool oneShot = read(lfoOneShot, 0.0f) > 0.5f;
     const double portaSeconds = read(portaTime, 0.0f) / 1000.0;
     
     const float brightness = read(velBright, 0.0f) / 100.0f;
@@ -203,6 +241,11 @@ void MotionEngine::tick(int numSamples)
             // Portamento from the last note played anywhere
             c.glideFrom = (portaSeconds > 0.0 && lastNote >= 0) ? static_cast<float>(lastNote - note) : 0.0f;
             c.glideTime = 0.0;
+            c.randomCycle = -1;
+            c.timbreRandomCycle = -1;
+            c.vibCycles = 0;
+            c.timbreCycles = 0;
+            c.randomSeed = 0x9E3779B9u * static_cast<uint32_t>(ch + 1) + static_cast<uint32_t>(noteOns);
         } else if (retuned) {
             // Legato: keep whatever glide is left and add the interval to the new note
             c.glideFrom = portaSeconds > 0.0 ? c.glideOffset + static_cast<float>(c.note - note) : 0.0f;
@@ -224,7 +267,7 @@ void MotionEngine::tick(int numSamples)
         }
         
         float offset = 0.0f;
-        if (active && (depthSemitones > 0.0f || pitchEnvelopeOn || sweepSteps != 0.0f)) c.time += dt;
+        if (active && (depthSemitones > 0.0f || pitchEnvelopeOn || sweepSteps != 0.0f || levelEnvelopeOn)) c.time += dt;
         c.glideOffset = 0.0f;
         if (active && c.glideFrom != 0.0f && portaSeconds > 0.0) {
             c.glideTime += dt;
@@ -242,10 +285,13 @@ void MotionEngine::tick(int numSamples)
             }
         }
         if (active && depthSemitones > 0.0f) {
-            c.phase = synced ? syncedPhase(vibratoDiv) : std::fmod(c.phase + rateHz * dt, 1.0);
+            const double before = c.phase;
+            c.phase = synced ? syncedPhase(vibratoDiv) : advancePhase(c.phase, rateHz * dt, oneShot);
+            if (c.phase < before) ++c.vibCycles;
             const double sinceDelay = c.time - delay;
             const double envelope = sinceDelay <= 0.0 ? 0.0 : (rise <= 0.0 ? 1.0 : std::min(1.0, sinceDelay / rise));
-            offset += static_cast<float>(depthSemitones * envelope * std::sin(juce::MathConstants<double>::twoPi * c.phase));
+            const int vibCycleId = synced ? static_cast<int>(std::floor(beat / beatsForDivision(juce::roundToInt(read(vibratoDiv, 0.0f))))) : c.vibCycles;
+            offset += static_cast<float>(depthSemitones * envelope) * waveform(vibWave, c.phase, vibCycleId, c.randomCycle, c.randomValue, c.randomSeed);
         }
         if (offset != c.offset) {
             c.offset = offset;
@@ -261,9 +307,18 @@ void MotionEngine::tick(int numSamples)
                 modulatorSteps += juce::roundToInt(static_cast<double>(sweepSteps) * remaining * remaining);   // eases in, like a filter
             }
             if (timbreSteps > 0.0f) {
-                c.timbrePhase = synced ? syncedPhase(timbreDiv) : std::fmod(c.timbrePhase + timbreHz * dt, 1.0);
-                const double triangle = 1.0 - 4.0 * std::abs(c.timbrePhase - 0.5);   // -1 .. +1, starts at -1
-                modulatorSteps = juce::roundToInt(static_cast<double>(timbreSteps) * triangle);
+                const double before = c.timbrePhase;
+                c.timbrePhase = synced ? syncedPhase(timbreDiv) : advancePhase(c.timbrePhase, timbreHz * dt, oneShot);
+                if (c.timbrePhase < before) ++c.timbreCycles;
+                const int timbreCycleId = synced ? static_cast<int>(std::floor(beat / beatsForDivision(juce::roundToInt(read(timbreDiv, 0.0f))))) : c.timbreCycles;
+                modulatorSteps = juce::roundToInt(timbreSteps * waveform(timWave, c.timbrePhase, timbreCycleId, c.timbreRandomCycle, c.timbreRandomValue, c.randomSeed));
+            }
+            // Level EG on the carriers: swell in over the attack, then fall to the sustain attenuation
+            if (levelEnvelopeOn) {
+                if (c.time < attackSeconds) carrierSteps += juce::roundToInt(40.0 * (1.0 - c.time / attackSeconds));
+                else if (decaySeconds > 0.0 && c.time < attackSeconds + decaySeconds)
+                    carrierSteps += juce::roundToInt(static_cast<double>(sustainSteps) * ((c.time - attackSeconds) / decaySeconds));
+                else carrierSteps += juce::roundToInt(sustainSteps);
             }
             if (tremoloSteps > 0.0f) {
                 c.tremoloPhase = synced ? syncedPhase(tremoloDiv) : std::fmod(c.tremoloPhase + tremoloHz * dt, 1.0);

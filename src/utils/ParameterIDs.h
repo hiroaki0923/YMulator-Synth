@@ -79,6 +79,12 @@ namespace Motion {
     constexpr const char* VelBright = "motion_vel_bright";      // velocity also darkens the modulators, 0-100
     constexpr const char* ArpMode = "motion_arp_mode";          // Off / Up / Down / UpDown
     constexpr const char* ArpDiv = "motion_arp_div";            // note value per step
+    constexpr const char* LevelAttack = "motion_level_attack";  // ms: carriers swell in from -40 steps
+    constexpr const char* LevelDecay = "motion_level_decay";    // ms: then fall to the sustain attenuation
+    constexpr const char* LevelSustain = "motion_level_sustain";// TL steps held after the decay
+    constexpr const char* VibratoWave = "motion_vib_wave";      // Sine / Triangle / Saw / Square / Random
+    constexpr const char* TimbreWave = "motion_timbre_wave";
+    constexpr const char* LfoOneShot = "motion_lfo_oneshot";    // vibrato and timbre LFO stop after one cycle
 } // namespace Motion
 
 // =============================================================================

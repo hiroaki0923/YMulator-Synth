@@ -31,13 +31,18 @@ using ParamID::Motion::VelBright;
 using ParamID::Motion::PitchTime;
 using ParamID::Motion::PitchEnv2;
 using ParamID::Motion::PitchTime2;
+using ParamID::Motion::LevelAttack;
+using ParamID::Motion::LevelDecay;
+using ParamID::Motion::LevelSustain;
+using ParamID::Motion::VibratoWave;
+using ParamID::Motion::LfoOneShot;
 }
 
 const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
 {
     // Every preset states every motion parameter it touches; "Off" clears them all
     static const std::vector<MotionPreset> list = {
-        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { Sync, 0 }, { EchoLevel, 0 }, { SweepAmount, 0 }, { Mono, 0 }, { PortaTime, 0 }, { ArpMode, 0 }, { VelBright, 0 } } },
+        { "Off",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { PitchEnv2, 0 }, { Sync, 0 }, { EchoLevel, 0 }, { SweepAmount, 0 }, { Mono, 0 }, { PortaTime, 0 }, { ArpMode, 0 }, { VelBright, 0 }, { LevelAttack, 0 }, { LevelSustain, 0 }, { LfoOneShot, 0 }, { VibratoWave, 0 } } },
         { "Glide", { { Mono, 1 }, { PortaTime, 120 }, { ArpMode, 0 }, { VelBright, 40 } } },
         { "Arp",   { { Mono, 1 }, { ArpMode, 1 }, { ArpDiv, 9 }, { PortaTime, 0 } } },
         { "Sweep", { { Wide, 30 }, { WidePan, 1 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { SweepAmount, 32 }, { SweepTime, 1800 }, { EchoLevel, 40 }, { EchoTime, 240 } } },
@@ -47,6 +52,7 @@ const std::vector<MotionPanel::MotionPreset>& MotionPanel::presets()
         { "Growl", { { Wide, 40 }, { WidePan, 0 }, { VibratoDepth, 30 }, { VibratoRate, 6 }, { VibratoDelay, 150 }, { VibratoRise, 300 }, { TimbreDepth, 20 }, { TimbreRate, 0.7f }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, -60 } } },
         { "Pan",   { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 2 }, { PanRate, 3 }, { Sync, 1 }, { PitchEnv, 0 } } },
         { "Trem",  { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 10 }, { TimbreRate, 0.3f }, { TremoloDepth, 16 }, { TremoloRate, 4 }, { PanMode, 0 }, { PitchEnv, 0 } } },
+        { "Swell", { { Wide, 30 }, { WidePan, 1 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 0 }, { LevelAttack, 900 }, { LevelDecay, 0 }, { LevelSustain, 0 }, { SweepAmount, 24 }, { SweepTime, 1200 }, { EchoLevel, 35 }, { EchoTime, 260 } } },
         { "Kick",  { { Wide, 0 }, { VibratoDepth, 0 }, { TimbreDepth, 0 }, { TremoloDepth, 0 }, { PanMode, 0 }, { PitchEnv, 1200 }, { PitchTime, 18 }, { PitchEnv2, -500 }, { PitchTime2, 140 }, { EchoLevel, 0 } } },
     };
     return list;

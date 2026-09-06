@@ -103,6 +103,31 @@ MotionStrip::MotionStrip(YMulatorSynthAudioProcessor& processor)
     arpeggio.boxes.push_back(arpModeBox.get());
     arpeggio.boxes.push_back(arpDivBox.get());
     
+    auto& level = addGroup("Level EG", 1);
+    addKnob(level, LevelAttack, "Atk", UiTheme::green, false, [](double v) { return juce::String(v / 1000.0, 1); });
+    addKnob(level, LevelDecay, "Dec", UiTheme::green, false, [](double v) { return juce::String(v / 1000.0, 1); });
+    addKnob(level, LevelSustain, "Sus", UiTheme::green);
+    
+    auto& shape = addGroup("LFO", 1);
+    const juce::StringArray waves { "Sine", "Tri", "Saw", "Square", "Random" };
+    vibWaveBox = std::make_unique<juce::ComboBox>();
+    vibWaveBox->addItemList(waves, 1);
+    vibWaveBox->setTooltip("Vibrato wave");
+    addAndMakeVisible(*vibWaveBox);
+    vibWaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), VibratoWave, *vibWaveBox);
+    timbreWaveBox = std::make_unique<juce::ComboBox>();
+    timbreWaveBox->addItemList(waves, 1);
+    timbreWaveBox->setTooltip("Timbre LFO wave");
+    addAndMakeVisible(*timbreWaveBox);
+    timbreWaveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), TimbreWave, *timbreWaveBox);
+    shape.boxes.push_back(vibWaveBox.get());
+    shape.boxes.push_back(timbreWaveBox.get());
+    oneShotButton = std::make_unique<juce::ToggleButton>("1shot");
+    oneShotButton->setTooltip("Vibrato and timbre LFO run one cycle and stop");
+    addAndMakeVisible(*oneShotButton);
+    oneShotAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getParameters(), LfoOneShot, *oneShotButton);
+    shape.toggles.push_back(oneShotButton.get());
+    
     syncButton = std::make_unique<juce::ToggleButton>("Sync");
     syncButton->setTooltip("Rates follow the host tempo (note values are chosen in the Quick view)");
     syncButton->onClick = [this]() { updateRateKnobs(); };
@@ -177,16 +202,18 @@ void MotionStrip::resized()
         const int start = x[static_cast<size_t>(row)];
         int& cx = x[static_cast<size_t>(row)];
         for (auto* toggle : group.toggles) {
-            toggle->setBounds(cx, centreY - 10, 78, 20);
-            cx += 78 + kKnobGap;
+            const int width = toggle == monoButton.get() ? 76 : 62;
+            toggle->setBounds(cx, centreY - 10, width, 20);
+            cx += width + kKnobGap;
         }
         for (auto& k : group.knobs) {
             k.knob->setBounds(cx, centreY - knobSize.getHeight() / 2, knobSize.getWidth(), knobSize.getHeight());
             cx += knobSize.getWidth() + kKnobGap;
         }
         for (auto* box : group.boxes) {
-            box->setBounds(cx, centreY - 10, 60, 22);
-            cx += 60 + kKnobGap;
+            const int width = row == 0 ? 60 : 56;
+            box->setBounds(cx, centreY - 10, width, 22);
+            cx += width + kKnobGap;
         }
         group.bounds = juce::Rectangle<int>(start, top + 2, cx - start - kKnobGap, rowHeight - 2);
         cx += kGroupGap;
