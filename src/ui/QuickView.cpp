@@ -6,7 +6,7 @@
 #include "../core/PatchWorkspace.h"
 
 namespace {
-constexpr int kSideWidth = 250;
+constexpr int kSideWidth = 330;   // the right column: algorithm, motion, output
 constexpr int kGap = 14;
 constexpr int kFooterHeight = 30;
 const char* const kHarmonicsNames[] = { "Preset", "Saw", "Square", "Pulse", "Bright", "Bell", "Metal", "Sub", "Oct" };
@@ -18,7 +18,6 @@ juce::String signedText(double v)
     return (i > 0 ? "+" : juce::String(juce::CharPointer_UTF8("\xe2\x88\x92"))) + juce::String(std::abs(i));
 }
 
-juce::String plainText(double v) { return juce::String(juce::roundToInt(v)); }
 
 juce::String harmonicsText(double v) { return juce::String(kHarmonicsNames[juce::jlimit(0, 8, juce::roundToInt(v))]); }
 
@@ -82,7 +81,6 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     
     addMacroKnob(ParamID::Macro::Brightness, "Brightness", "Modulator level", UiTheme::amber, signedText);
     addMacroKnob(ParamID::Macro::Harmonics, "Harmonics", "Ratio template", UiTheme::amber, harmonicsText);
-    addMacroKnob(ParamID::Global::Feedback, "Feedback", "Op1 FB", UiTheme::amber, plainText);
     addMacroKnob(ParamID::Macro::Attack, "Attack", "All AR", UiTheme::green, signedText);
     addMacroKnob(ParamID::Macro::Decay, "Decay", "D1R / D2R", UiTheme::green, signedText);
     addMacroKnob(ParamID::Macro::Release, "Release", "All RR", UiTheme::green, signedText);
@@ -101,6 +99,12 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     algorithmCaption->setFont(UiTheme::mono(9.0f));
     algorithmCaption->setColour(juce::Label::textColourId, UiTheme::dim);
     algorithmCard->addAndMakeVisible(*algorithmCaption);
+    feedbackKnob = std::make_unique<RotaryKnob>("Feedback", RotaryKnob::Style::Small);
+    feedbackKnob->setAccentColour(UiTheme::amber);
+    feedbackKnob->setTooltip("Operator 1 feeds back into itself: 0 clean, 7 buzzy");
+    algorithmCard->addAndMakeVisible(*feedbackKnob);
+    feedbackBinding = KnobBinding::attach(audioProcessor.getParameters(), ParamID::Global::Feedback, *feedbackKnob, *algorithmCard,
+                                          [this]() { if (outputScope) refresh(); });   // the cards below do not exist yet while constructing
     previousAlgorithmButton = std::make_unique<juce::TextButton>(juce::String(juce::CharPointer_UTF8("\xe2\x80\xb9")));
     previousAlgorithmButton->setTooltip("Previous algorithm");
     previousAlgorithmButton->onClick = [this]() { stepAlgorithm(-1); };
@@ -209,7 +213,7 @@ void QuickView::refresh()
     algorithmDisplay->setAlgorithm(displayedAlgorithm);
     algorithmDisplay->setFeedbackLevel(feedback);
     algorithmDescription->setText(info.description, juce::dontSendNotification);
-    algorithmCaption->setText("ALG " + juce::String(displayedAlgorithm) + " / FB " + juce::String(feedback), juce::dontSendNotification);
+    algorithmCaption->setText("ALG " + juce::String(displayedAlgorithm), juce::dontSendNotification);
     updateSummary();
     updateWorkspaceButtons();
     updatePreview();
@@ -338,11 +342,16 @@ void QuickView::resized()
         algorithmDisplay->setBounds(diagram.withHeight(66).withY(body.getY() + 2));
         algorithmCaption->setBounds(diagram.withY(body.getY() + 70).withHeight(14));
         body.removeFromLeft(10);
-        auto buttons = body.removeFromBottom(22);
+        // The description on top; underneath, the previous / next buttons and, at the right, the feedback
+        // knob, which belongs with the algorithm rather than with the TONE macros
+        const auto fbSize = RotaryKnob::preferredSize(RotaryKnob::Style::Small, RotaryKnob::LabelPosition::Below, false, 60);
+        auto bottom = body.removeFromBottom(fbSize.getHeight());
+        feedbackKnob->setBounds(bottom.removeFromRight(fbSize.getWidth()));
+        auto buttons = bottom.withHeight(22).withCentre({ bottom.getCentreX(), bottom.getBottom() - 14 });
         previousAlgorithmButton->setBounds(buttons.removeFromLeft(28));
         buttons.removeFromLeft(4);
         nextAlgorithmButton->setBounds(buttons.removeFromLeft(28));
-        algorithmDescription->setBounds(body.withTrimmedBottom(4));
+        algorithmDescription->setBounds(body.withTrimmedBottom(2));
     }
     
     content.removeFromBottom(kGap);

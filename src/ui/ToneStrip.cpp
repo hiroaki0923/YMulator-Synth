@@ -29,7 +29,6 @@ ToneStrip::ToneStrip(YMulatorSynthAudioProcessor& processor)
     
     addMacroKnob(Macro::Brightness, ParamID::Macro::Brightness, "Bright", UiTheme::amber);
     addMacroKnob(Macro::Harmonics, ParamID::Macro::Harmonics, "Harm", UiTheme::amber);
-    addMacroKnob(std::nullopt, ParamID::Global::Feedback, "FB", UiTheme::amber);
     addMacroKnob(Macro::Attack, ParamID::Macro::Attack, "Atk", UiTheme::green);
     addMacroKnob(Macro::Decay, ParamID::Macro::Decay, "Dec", UiTheme::green);
     addMacroKnob(Macro::Release, ParamID::Macro::Release, "Rel", UiTheme::green);
@@ -49,6 +48,11 @@ ToneStrip::ToneStrip(YMulatorSynthAudioProcessor& processor)
     addAndMakeVisible(*algorithmComboBox);
     algorithmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getParameters(), ParamID::Global::Algorithm, *algorithmComboBox);
+    
+    feedbackKnob = std::make_unique<RotaryKnob>("FB", RotaryKnob::Style::Small);
+    feedbackKnob->setAccentColour(UiTheme::amber);
+    addAndMakeVisible(*feedbackKnob);
+    feedbackBinding = KnobBinding::attach(audioProcessor.getParameters(), ParamID::Global::Feedback, *feedbackKnob, *this);
     
     setAlgorithm(algorithmComboBox->getSelectedId() - 1);
 }
@@ -110,12 +114,14 @@ void ToneStrip::setHighlightedParameters(const std::set<std::string>& parameterI
 {
     for (auto& k : knobs)
         k.knob->setHighlighted(parameterIds.count(k.parameterId) > 0);
+    feedbackKnob->setHighlighted(parameterIds.count(ParamID::Global::Feedback) > 0);
 }
 
 std::vector<std::string> ToneStrip::highlightedParameterIds() const
 {
     std::vector<std::string> ids;
     for (const auto& k : knobs) if (k.knob->isHighlighted()) ids.push_back(k.parameterId);
+    if (feedbackKnob->isHighlighted()) ids.push_back(ParamID::Global::Feedback);
     return ids;
 }
 
@@ -144,8 +150,12 @@ void ToneStrip::resized()
     }
     x += kKnobGap + 1 + kKnobGap;
     
-    // Right cluster: diagram, then the picker with the structure text under it
+    // Right cluster: diagram, the picker, and the feedback knob that belongs with it
     auto right = bounds;
+    const auto fbSize = RotaryKnob::preferredSize(RotaryKnob::Style::Small, RotaryKnob::LabelPosition::Below, false, kKnobWidth);
+    auto fbArea = right.removeFromRight(fbSize.getWidth());
+    feedbackKnob->setBounds(fbArea.withHeight(fbSize.getHeight()).withCentre(fbArea.getCentre()));
+    right.removeFromRight(8);
     auto pickerArea = right.removeFromRight(100);
     algorithmComboBox->setBounds(pickerArea.withHeight(26).withCentre(pickerArea.getCentre()));
     right.removeFromRight(10);

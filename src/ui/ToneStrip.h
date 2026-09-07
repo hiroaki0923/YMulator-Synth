@@ -52,6 +52,8 @@ private:
     std::unique_ptr<juce::Label> hintLabel;
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
     std::unique_ptr<juce::ComboBox> algorithmComboBox;
+    std::unique_ptr<RotaryKnob> feedbackKnob;   // a channel register like the algorithm, so it sits beside it
+    KnobBinding feedbackBinding;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> algorithmAttachment;
     int currentAlgorithm = 0;
     
