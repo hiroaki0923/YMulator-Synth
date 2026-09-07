@@ -172,7 +172,7 @@ TEST_F(ParameterManagerTest, PanIsAMotionParameterOnly) {
     EXPECT_EQ(parameters.getParameter("global_pan"), nullptr) << "the header pan was folded into the MOTION pan mode";
     // Voices are allocated dynamically, so per-hardware-channel pan parameters make no sense and were removed
     for (int ch = 0; ch < 8; ++ch)
-        EXPECT_EQ(parameters.getParameter(ParamID::Channel::pan(ch)), nullptr) << "channel " << ch;
+        EXPECT_EQ(parameters.getParameter("ch" + juce::String(ch) + "_pan"), nullptr) << "channel " << ch;
 }
 
 // ============================================================================

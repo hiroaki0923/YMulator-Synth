@@ -49,12 +49,7 @@ target_sources(YMulator-Synth
         core/PatchWorkspace.cpp
         core/MotionEngine.cpp
         core/PatchPreview.cpp
-        core/AudioProcessor.cpp
         dsp/YmfmWrapper.cpp
-        dsp/RegisterManager.cpp
-        dsp/NoteConverter.cpp
-        dsp/ParameterConverter.cpp
-        dsp/EnvelopeGenerator.cpp
         ui/MainComponent.cpp
         ui/OperatorPanel.cpp
         ui/RotaryKnob.cpp

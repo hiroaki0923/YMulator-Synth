@@ -2,6 +2,15 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
+## Version 0.1.3 (2026-09-07)
+**Motion fix and a documentation rebuild**
+
+**🐛 Fixes:**
+- **Timbre LFO and Sweep, Tremolo and Level EG now add up**: when both were on, the LFO replaced the envelope's offset instead of riding on it, so Sweep stopped working under a timbre LFO and the level EG under tremolo
+
+**🔧 Developer:**
+- Documentation rebuilt around the current code (see `docs/`), CLAUDE.md documentation rules; unused sources removed (`core/AudioProcessor`, `dsp/RegisterManager`, `NoteConverter`, `ParameterConverter`, `EnvelopeGenerator`, `tests/standalone`, the disabled `MidiProcessorTest`) and the legacy MIDI members of `PluginProcessor`
+
 ## Version 0.1.2 (2026-09-07)
 **One pan setting, carrier envelopes, a Wide + Echo fix, JUCE 9**
 

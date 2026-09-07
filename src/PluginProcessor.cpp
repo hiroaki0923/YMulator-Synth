@@ -160,13 +160,6 @@ void YMulatorSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     // The chip may have been reset or recreated; rewrite every parameter on the next block
     if (parameterManager) parameterManager->invalidateRegisterCache();
     
-    // If a preset was set before ymfm was initialized, apply it now
-    if (needsPresetReapply) {
-        loadPreset(getCurrentProgram());
-        needsPresetReapply = false;
-        CS_DBG("Applied deferred preset " + juce::String(getCurrentProgram()));
-    }
-    
     CS_DBG("ymfm initialization complete");
 }
 
@@ -409,25 +402,6 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
     }
 }
 
-
-void YMulatorSynthAudioProcessor::processMidiMessages([[maybe_unused]] juce::MidiBuffer& midiMessages)
-{
-    // DEPRECATED: Now handled by MidiProcessor directly in processBlock
-    // This method is kept for backward compatibility but should not be called
-    CS_DBG("DEPRECATED processMidiMessages called - should use midiProcessor directly");
-}
-
-void YMulatorSynthAudioProcessor::processMidiNoteOn(const juce::MidiMessage& message)
-{
-    // Delegate to MidiProcessor
-    midiProcessor->processMidiNoteOn(message);
-}
-
-void YMulatorSynthAudioProcessor::processMidiNoteOff(const juce::MidiMessage& message)
-{
-    // Delegate to MidiProcessor
-    midiProcessor->processMidiNoteOff(message);
-}
 
 void YMulatorSynthAudioProcessor::generateAudioSamples(juce::AudioBuffer<float>& buffer)
 {

@@ -10,7 +10,7 @@ namespace {
 const std::set<std::string> kExcluded = { ParamID::Global::PitchBendRange, ParamID::Global::Expressive };
 bool isSoundParameter(const juce::String& id)
 {
-    return kExcluded.count(id.toStdString()) == 0 && !id.endsWith(ParamID::Channel::Pan);
+    return kExcluded.count(id.toStdString()) == 0;
 }
 }
 

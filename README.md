@@ -163,7 +163,8 @@ Or from `build/`: `ctest --output-on-failure`, the `bin/YMulatorSynthAU_*Tests` 
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md) (English) / [CHANGELOG_ja.md](CHANGELOG_ja.md) (Japanese)
-- [Quick view design](docs/ymulatorsynth-quick-panel-design.md), [Motion design](docs/ymulatorsynth-motion-design.md), [architecture decisions](docs/ymulatorsynth-adr.md), [technical specification](docs/ymulatorsynth-technical-spec.md), [.opm format](docs/ymulatorsynth-vopm-format-spec.md)
+- [Architecture](docs/ymulatorsynth-architecture.md), [YM2151 register facts](docs/ym2151-register-facts.md), [technical specification](docs/ymulatorsynth-technical-spec.md) (MIDI CC, parameters), [.opm format](docs/ymulatorsynth-vopm-format-spec.md)
+- [Quick view design](docs/ymulatorsynth-quick-panel-design.md), [Motion design](docs/ymulatorsynth-motion-design.md), [architecture decisions](docs/ymulatorsynth-adr.md), [setup and test guide](docs/ymulatorsynth-implementation-guide.md)
 - [Development status](docs/ymulatorsynth-development-status.md)
 
 ## Contributing

@@ -2,52 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⚠️ CRITICAL: ALWAYS READ RELEVANT DOCUMENTATION FIRST
+## Documentation: what to read, and how to keep it true
 
-**BEFORE starting ANY development task, you MUST:**
+Read before changing the area in question. Every document below is kept in step with the code; if you find one that is not, fix the document in the same change.
 
-1. **Read the relevant sections in docs/** - These contain detailed specifications and implementation guides
-2. **Follow the exact procedures** described in the documentation
-3. **Reference the docs/** when making architectural decisions
+| Area | Document |
+|---|---|
+| Architecture (components, threads, data flow, UI map) | `docs/ymulatorsynth-architecture.md` |
+| YM2151 register facts (with manual figure numbers and the tests that pin them) | `docs/ym2151-register-facts.md` |
+| MIDI CC / NRPN, parameter list and ranges, conversion rules, voices, noise | `docs/ymulatorsynth-technical-spec.md` |
+| Quick / Detail UI, TONE macros, generator | `docs/ymulatorsynth-quick-panel-design.md` |
+| MOTION features (vibrato, wide, echo, pan, arpeggiator, ...) | `docs/ymulatorsynth-motion-design.md` |
+| .opm file format, banks, presets | `docs/ymulatorsynth-vopm-format-spec.md` |
+| ymfm usage and OPM sound-design tips | `docs/ymulatorsynth-ymfm-integration-guide.md` |
+| Setup, build, test strategy, auval / AU troubleshooting | `docs/ymulatorsynth-implementation-guide.md` |
+| Decisions and their status (ADR-001 ... ADR-011) | `docs/ymulatorsynth-adr.md` |
+| What shipped when | `CHANGELOG.md` / `CHANGELOG_ja.md`, `docs/ymulatorsynth-development-status.md` |
+| Parameter access lessons (a real crash) | `docs/CRASH_PREVENTION_LESSONS.md` |
 
-**Key documents to consult:**
+**Documentation rules (these exist because a year of drift cost real bugs):**
 
-- **Setup/Development**: `docs/ymulatorsynth-implementation-guide.md` section 1.4 (MANDATORY for any setup work)
-- **Architecture Decisions**: `docs/ymulatorsynth-adr.md` (consult before making design choices)
-- **Technical Specifications**: `docs/ymulatorsynth-technical-spec.md` (for MIDI, parameters, formats)
-- **Overall Design**: `docs/ymulatorsynth-design-main.md` (for system architecture)
-- **JUCE Implementation Details**: `docs/ymulatorsynth-juce-implementation-details.md` (for JUCEパラメータシステム, MIDI CC, Factory Preset実装)
-- **VOPM Format Specification**: `docs/ymulatorsynth-vopm-format-spec.md` (for .opmファイル形式とプリセット管理)
-- **Phase 1 Completion Roadmap**: `docs/ymulatorsynth-phase1-completion-roadmap.md` (for 基盤構築完了への具体的手順)
-
-**❌ DO NOT:**
-- Skip reading documentation before implementation
-- Deviate from documented procedures without justification
-- Make architectural decisions without consulting ADRs
-
-**✅ DO:**
-- Always reference specific document sections when implementing
-- Follow documented naming conventions and structures
-- Consult technical specs for exact parameter ranges and formats
+1. **Facts need a source.** A register layout, a file-format detail, a chip behaviour: cite the manual figure, the ymfm code, or the test that pins it. Do not write a hardware fact from memory. If a fact is not in `docs/ym2151-register-facts.md`, add it there with its source before relying on it. OPM differs from OPN: slot address order (M1, M2, C1, C2) differs from key-on bit order (M1, C1, M2, C2), note codes start at C# with gaps, PMD/AMD share register 0x19, noise is slot 32 only.
+2. **Tables come from code.** CC tables, parameter lists and ranges, test-binary lists are derived from `src/utils/ParameterIDs.h`, `src/core/ParameterManager.cpp` and `tests/CMakeLists.txt`. Never type them by hand.
+3. **Code changes carry their doc changes.** Adding, removing or renaming a parameter, a CC, a component, a UI element or a test binary means updating the document in the table above in the same commit or PR. A PR that changes `src/` without touching the affected doc is incomplete.
+4. **State the status.** A design document says whether each part is planned, implemented (with the version) or removed (with the version), and carries a date. Never describe a plan in the present tense. An ADR that was never implemented gets the status "未実装（保留）".
+5. **"Done" means tested.** Do not record a feature as complete unless a test verifies the behaviour (not merely that a parameter or a control exists). Do not write progress percentages anywhere.
+6. **Do not describe what is not there.** Only the YM2151 (OPM) is implemented. There is no OPNA, SSG, ADPCM, S98 recording, latency mode, per-channel pan or Global Pan. Do not reintroduce these from old text.
+7. **Before a release**, grep the documents for class names, parameter ids and test names and confirm they exist in the tree; fix or delete what does not.
 
 ## Project Overview
 
-YMulator-Synth is a modern FM synthesis Audio Unit plugin for macOS that emulates classic Yamaha sound chips (YM2151/OPM and YM2608/OPNA). It features a VOPM-like interface and is designed for use in Digital Audio Workstations.
+YMulator-Synth is an FM synthesizer plugin that emulates the Yamaha YM2151 (OPM) with ymfm: 8 voices, VOPMex-compatible MIDI CC, .opm presets, a Quick view (relative TONE macros, a patch generator, MOTION effects written as chip registers) and a Detail view (every register). Formats AU, AUv3, VST3 and Standalone on macOS, Windows and Linux. Only the OPM is implemented.
 
 ## Development Prerequisites
 
-- macOS 10.13 or later
-- Xcode Command Line Tools
-- Python 3.8+ (for JUCE build scripts)
-- VSCode with CMake Tools extension (recommended)
-- Git with submodule support
+- macOS: Xcode Command Line Tools (AU, AUv3, VST3, Standalone). Windows: Visual Studio 2022 (VST3, Standalone). Linux: the packages listed in README.md (VST3, Standalone)
+- CMake 3.22+, Git with submodule support (ymfm is a submodule; JUCE is fetched by CMake)
+- Google Test for the test targets
 
 ## Technology Stack
 
 - **Language**: C++17 with Objective-C++ for Audio Unit integration
 - **Framework**: JUCE for UI and audio processing (see [ADR-001](docs/ymulatorsynth-adr.md#adr-001-uiフレームワークの選定))
 - **Build System**: CMake (3.22+)
-- **Audio Format**: Audio Unit v3 (with v2 compatibility) (see [ADR-004](docs/ymulatorsynth-adr.md#adr-004-audio-unitバージョンの選定))
+- **Plugin formats**: AU (v2 + v3), VST3, Standalone (see [ADR-004](docs/ymulatorsynth-adr.md#adr-004-audio-unitバージョンの選定)); JUCE 9.0.1 fetched by CMake (`cmake/JUCEConfig.cmake`)
 - **FM Emulation**: ymfm library by Aaron Giles (see [ADR-002](docs/ymulatorsynth-adr.md#adr-002-fm音源エミュレーションライブラリの選定))
 
 ## Build Commands
@@ -152,84 +150,56 @@ log show --predicate 'subsystem == "com.apple.audio.AudioToolbox"' --last 5m
 # - Test failures → Check: ./scripts/test.sh --verbose
 ```
 
-**⚠️ FOR ANY SETUP/BUILD WORK: FIRST READ [Implementation Guide Section 1.5](docs/ymulatorsynth-implementation-guide.md#15-開発環境セットアップvscode--cmake) - Contains detailed procedures, exact project structure, and VSCode configuration.**
+**For setup and build work, read the setup section of `docs/ymulatorsynth-implementation-guide.md` first.** Building the plugin targets copies the plug-ins into the user plug-in folders unless configured with `-DYMULATOR_COPY_PLUGIN=OFF`; do not build them while a host has the plugin open.
 
 ## Architecture
 
-The project follows a layered architecture with lock-free communication between threads:
+`docs/ymulatorsynth-architecture.md` is the reference. In short: `PluginProcessor` owns the chip wrapper (`YmfmWrapper`, main chip + shadow chip, native 55,930 Hz resampled to the host) and delegates to `MidiProcessor`, `ParameterManager`, `StateManager`, `MacroMapper`, `PatchWorkspace` (generator, undo, preview), `MotionEngine` (64-sample control-rate register writes) and `VoiceManager`; `PresetManager` handles banks and .opm files. The UI is `MainComponent` hosting the Quick view (`QuickView`) and the Detail view (`ToneStrip`, `OperatorPanel` x4, `MotionStrip`, `LfoNoiseStrip`).
 
-1. **Audio Unit Host Interface Layer** - Handles DAW communication
-2. **Plugin Core Controller** - Central coordination and state management
-3. **Voice Management Layer** - Polyphonic voice allocation
-4. **Sound Generation Layer** - ymfm integration for FM synthesis
-5. **UI Components Layer** - JUCE-based parameter controls
-
-Key architectural decisions:
-- Lock-free threading model for real-time audio processing (see [ADR-009](docs/ymulatorsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針))
-- Double-buffering for parameter synchronization
-- Factory pattern for preset management
-- Observer pattern for UI updates
-- Traditional voice allocation (see [ADR-007](docs/ymulatorsynth-adr.md#adr-007-midiチャンネルとチップ割り当て方式の選定))
-
-For complete architectural overview, see [Design Document](docs/ymulatorsynth-design-main.md).
+Rules that follow from it:
+- The audio thread does MIDI, motion ticks, register writes and rendering; no allocation, no file I/O, no locks (see [ADR-009](docs/ymulatorsynth-adr.md)).
+- Voices are allocated dynamically (oldest-note stealing, noise presets prefer channel 7; [ADR-007](docs/ymulatorsynth-adr.md)), so nothing may be keyed to a fixed hardware channel.
+- Everything a MOTION feature does is a register write; no post-processing of the chip output (`docs/ymulatorsynth-motion-design.md`).
+- Macros are relative to an anchor and never overwrite the raw registers wholesale ([ADR-010](docs/ymulatorsynth-adr.md)).
 
 ## Key Implementation Notes
 
-**⚠️ BEFORE implementing any features, READ the relevant documentation sections:**
-
-- **Phase 1 Completion**: **MUST READ** [Phase 1 Roadmap](docs/ymulatorsynth-phase1-completion-roadmap.md) for 残り30%の実装手順
-- **JUCE Implementation**: **MUST READ** [JUCE Details](docs/ymulatorsynth-juce-implementation-details.md) for パラメータシステム、MIDI CC、Factory Preset実装
-- **VOPM Format**: **MUST READ** [VOPM Spec](docs/ymulatorsynth-vopm-format-spec.md) for .opmファイル形式とプリセット管理
-- **Latency Modes**: Ultra Low (64), Balanced (128), Relaxed (256) samples → **MUST READ** [ADR-008](docs/ymulatorsynth-adr.md#adr-008-レイテンシーとcpu使用率のトレードオフ設計)
-- **MIDI CC Mapping**: Full VOPMex compatibility → **MUST READ** [Technical Spec Section 1.5](docs/ymulatorsynth-technical-spec.md#15-midi実装仕様)
-- **Preset Format**: .opm files with VOPM structure → **MUST READ** [Implementation Guide Section 1.7](docs/ymulatorsynth-implementation-guide.md#17-opmファイルフォーマット仕様)
-- **Recording**: S98 format for chiptune player compatibility → **MUST READ** [ADR-003](docs/ymulatorsynth-adr.md#adr-003-音声記録フォーマットの選定)
-- **Voice Count**: YM2151 (8 channels), YM2608 (6 FM + 3 SSG channels)
-- **Threading Model**: Lock-free real-time processing → **MUST READ** [ADR-009](docs/ymulatorsynth-adr.md#adr-009-スレッドモデルとロックフリー通信の実装方針)
+- **MIDI CC**: VOPMex numbering, CC value = register value; Quick macros 102-107, MOTION 110-118, arpeggio 108/109/119, CC 121 recentres the macros. Table and NRPN in `docs/ymulatorsynth-technical-spec.md`; constants in `src/utils/ParameterIDs.h`.
+- **Presets**: .opm holds raw registers only; macros, motion and the macro anchor live in the plugin state (`docs/ymulatorsynth-vopm-format-spec.md`).
+- **Registers**: `src/dsp/YM2151Registers.h` is the only place for register addresses, masks and tables; `docs/ym2151-register-facts.md` explains each with its source.
+- **Voices**: 8 channels, YM2151 only.
 
 ## Performance Targets
 
-- CPU usage: < 15% (Balanced mode, 4-core system)
+- CPU usage: < 15% on a 4-core system at 128-sample blocks
 - Memory footprint: < 50MB
-- Latency: < 3ms for parameter updates
-- Voice stealing: Automatic when exceeding 8 voices
+- Parameter change to chip: within one 64-sample motion tick
+- Voice stealing: automatic beyond 8 voices
 
 ## Testing
 
-**⚠️ BEFORE writing any tests, READ [Implementation Guide Section 1.6](docs/ymulatorsynth-implementation-guide.md#16-テスト戦略とテストコード) for test strategy and examples.**
-
-- Unit tests: Test individual components (operators, envelopes, LFOs)
-- Integration tests: MIDI processing and parameter updates  
-- Performance tests: Verify < 3ms latency requirement
-- Audio Unit validation: Use `auval` before distribution
+Read the test strategy section of `docs/ymulatorsynth-implementation-guide.md` before writing tests. Expectations come from the YM2151 manual, the reference implementation and the format specs, never from the current behaviour of the code. Register facts have their own tests (`RegisterGoldenTest`, `OperatorSlotOrderTest`, `SlotEnableTest`, `LfoWiringTest`, `PitchAccuracyTest`, `VelocityTest`, `ParameterReachTest`); a new register fact gets a new test.
 
 ## Development Status Tracking
 
-**⚠️ ALWAYS UPDATE [Development Status](docs/ymulatorsynth-development-status.md) when completing features or milestones.**
-
-- Release changelog lives in `CHANGELOG.md` (English) and `CHANGELOG_ja.md` (Japanese), not in the READMEs
-- Track progress against the implementation plan in [Design Document](docs/ymulatorsynth-design-main.md#3-実装計画)
-- Update completion percentages for each phase and task
-- Record commit hashes and completion dates
-- Note any changes to the original timeline or scope
-- Update technical achievements and confirmed functionality
-
-**Progress in Commit Messages:**
-- For regular commits: Focus on technical changes only
-- For major milestones: Lightly mention progress (e.g., "Complete Phase 1 basic audio implementation")
-- Phase completions or significant feature completions warrant brief progress notes
-- Avoid detailed progress percentages in commit messages
+- Release changelog lives in `CHANGELOG.md` (English) and `CHANGELOG_ja.md` (Japanese), not in the READMEs. Every user-visible change goes into the Unreleased section of both in the same PR.
+- `docs/ymulatorsynth-development-status.md` records what shipped in each version and what was verified how. No percentages, no "complete" without a test.
+- Commit messages describe the technical change; they do not carry progress claims.
 
 ## Key Project Structure
 
 ```
 src/
-├── PluginProcessor.cpp    # Main audio processing
-├── PluginEditor.cpp       # UI implementation
-├── dsp/                   # FM synthesis and register management
-├── ui/                    # User interface components
-├── core/                  # Voice management and core logic
-└── utils/                 # Utilities and helper functions
+├── PluginProcessor.cpp    # Host contract; delegates to core/
+├── PluginEditor.cpp       # Creates MainComponent
+├── core/                  # MidiProcessor, ParameterManager, StateManager, MacroMapper, PatchWorkspace,
+│                          # PatchGenerator, SnapshotStore, PatchPreview, MotionEngine, VoiceManager, HeldNotes
+├── dsp/                   # YmfmWrapper (+ shadow chip, resampler), YM2151Registers.h, AlgorithmInfo.h
+├── ui/                    # MainComponent, QuickView, ToneStrip, OperatorPanel, MotionStrip, MotionPanel, ...
+└── utils/                 # ParameterIDs.h, PresetManager, VOPMParser, Debug.h
+tests/                     # 9 gtest binaries (tests/CMakeLists.txt); test_main isolates user data
+tools/                     # ui_snapshot (editor to PNG), song_render (MIDI to WAV), gen_algorithm_svg.py
+docs/                      # see the table at the top
 ```
 
 ## 🎯 Coding Rules and Best Practices
@@ -435,143 +405,59 @@ auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED" || echo "auval F
 
 ### **⚠️ CRITICAL LESSON: Always Maintain Test Coverage During Refactoring**
 
-Based on the successful Phase 1 refactoring experience (PanProcessor extraction), the following principles MUST be followed:
-
-#### **The Right Approach for Safe Refactoring:**
+The 2025-06 extraction of `MidiProcessor`, `ParameterManager` and `StateManager` from a 1,400-line `PluginProcessor` worked because each step was small and tested. The 2026-09 work (MotionEngine, MacroMapper, the pan rework) followed the same pattern.
 
 **✅ CORRECT Process:**
-1. **Run full test suite** → Establish baseline (all tests must pass)
-2. **Extract small components** → One responsibility at a time (e.g., PanProcessor)
-3. **Test immediately** → After each extraction, verify no regressions
-4. **Fix issues incrementally** → Address test failures before proceeding
-5. **Commit frequently** → Small, atomic commits with clear descriptions
-6. **Document architectural changes** → Update design documents
+1. **Run the relevant test binaries** → establish a baseline (all passing)
+2. **Extract one responsibility at a time** → e.g. one engine, one manager
+3. **Test immediately** → after each extraction
+4. **Fix issues before proceeding**
+5. **Commit small, atomic changes**
+6. **Update the architecture document and the design document of the area** in the same change
 
 **❌ WRONG Process:**
-1. **Extract multiple components** → Risk of complex, intertwined failures
-2. **Skip intermediate testing** → Difficult to isolate issues
-3. **Large, monolithic commits** → Hard to review and debug
-4. **Ignore test instability** → "It'll work eventually" mentality
+1. Extracting several components at once
+2. Skipping intermediate testing
+3. Large, monolithic commits
+4. Living with flaky tests
 
 #### **Component Extraction Best Practices:**
 
 ```cpp
-// ✅ GOOD - Clear single responsibility
-class PanProcessor {
+// ✅ GOOD - one responsibility, dependencies injected through interfaces
+class MotionEngine {
 public:
-    PanProcessor(YmfmWrapperInterface& ymfm);  // Dependency injection
-    void applyGlobalPan(int channel, float panValue);
-    void setChannelRandomPan(int channel);
+    MotionEngine(YmfmWrapperInterface& ymfm, VoiceManagerInterface& voices);
+    void bindParameters(juce::AudioProcessorValueTreeState& parameters);
+    void tick(int numSamples);
 private:
-    YmfmWrapperInterface& ymfmWrapper;  // Interface, not concrete
-    uint8_t channelRandomPanBits[8];    // Component-specific state
+    YmfmWrapperInterface& ymfm;          // interface, not the concrete wrapper
+    VoiceManagerInterface& voices;
 };
 ```
 
 ```cpp
-// ❌ BAD - Mixed responsibilities
+// ❌ BAD - mixed responsibilities
 class AudioManager {
 public:
-    void handleMIDI(const MidiMessage& msg);     // MIDI responsibility
-    void applyPan(int channel, float pan);       // Pan responsibility  
-    void loadPreset(const Preset& preset);       // Preset responsibility
-    void processAudio(AudioBuffer& buffer);      // Audio responsibility
-    // TOO MANY RESPONSIBILITIES!
+    void handleMIDI(const MidiMessage& msg);
+    void applyPan(int channel, float pan);
+    void loadPreset(const Preset& preset);
+    void processAudio(AudioBuffer& buffer);
 };
 ```
 
 #### **Dependency Injection Patterns:**
 
-**✅ CORRECT - Interface-based injection:**
-```cpp
-// In header
-class ParameterManager {
-public:
-    ParameterManager(YmfmWrapperInterface& ymfm, 
-                    std::shared_ptr<PanProcessor> panProcessor);
-private:
-    std::shared_ptr<PanProcessor> panProcessor;  // Shared ownership
-};
-
-// In implementation
-ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm,
-                                 std::shared_ptr<PanProcessor> panProc)
-    : ymfmWrapper(ymfm), panProcessor(panProc) {}
-```
-
-**❌ WRONG - Concrete dependencies:**
-```cpp
-class ParameterManager {
-public:
-    ParameterManager() {
-        panProcessor = new PanProcessor();  // Hard-coded dependency
-        ymfmWrapper = new YmfmWrapper();    // Not testable
-    }
-};
-```
+Constructors take interfaces (`YmfmWrapperInterface`, `VoiceManagerInterface`, `MidiProcessorInterface`, `PresetManagerInterface`) so tests can substitute mocks; nothing constructs its own concrete collaborators.
 
 #### **Test Stability Guidelines:**
 
-**🎯 Random/Non-Deterministic Tests:**
-When dealing with randomized functionality (like RANDOM pan mode):
+Randomised behaviour (the Random pan mode, the Random arpeggio order, the random LFO wave) uses a deterministic generator seeded per channel or per instance, and the tests assert the properties (a new note never lands where the last one did) rather than exact sequences.
 
-```cpp
-// ✅ GOOD - Ensure variation while maintaining determinism
-void PanProcessor::setChannelRandomPan(int channel) {
-    uint8_t currentValue = channelRandomPanBits[channel];
-    uint8_t newValue;
-    
-    // Force different value 80% of the time to ensure variation
-    do {
-        newValue = generateRandomPanValue();
-    } while (newValue == currentValue && shouldForceChange());
-    
-    channelRandomPanBits[channel] = newValue;
-}
-```
+#### **Split Test Binaries:**
 
-**❌ BAD - Pure randomness without variation guarantee:**
-```cpp
-void setChannelRandomPan(int channel) {
-    // May generate same value repeatedly, causing test flakiness
-    channelRandomPanBits[channel] = Random::getSystemRandom().nextInt(3);
-}
-```
-
-#### **Refactoring Metrics and Success Criteria:**
-
-**Measure refactoring success:**
-- **Line count reduction**: Target 10-20% reduction in main classes
-- **Test coverage**: Must maintain 100% pass rate
-- **Component count**: Each component should have <1000 lines
-- **Dependency depth**: Max 3 levels of injection
-- **Build time**: Should not increase significantly
-
-**Example from Phase 1 success:**
-- ✅ **PluginProcessor.cpp**: 804 → 675 lines (16% reduction)
-- ✅ **Test coverage**: 235/235 tests passing (100%)
-- ✅ **New components**: PanProcessor (122 lines, focused responsibility)
-- ✅ **Build time**: Unchanged (~30 seconds)
-
-#### **Critical Testing Strategy:**
-
-**Split Test Binaries for CI Optimization:**
-```bash
-# ✅ GOOD - Parallel execution, faster CI
-./bin/YMulatorSynthAU_BasicTests --gtest_brief &
-./bin/YMulatorSynthAU_PanTests --gtest_brief &
-./bin/YMulatorSynthAU_ParameterTests --gtest_brief &
-wait  # Total time: ~2.5 seconds
-
-# ❌ BAD - Monolithic, slow CI
-./bin/YMulatorSynthAU_Tests  # Total time: 4+ seconds, timeout risk
-```
-
-**Always test refactoring with:**
-1. **Unit tests** - Individual component functionality
-2. **Integration tests** - Component interaction
-3. **Regression tests** - Ensure no behavioral changes
-4. **Performance tests** - Verify no significant slowdown
+`tests/CMakeLists.txt` builds nine binaries (Basic, Preset, Parameter, Pan, Integration, UI, Quality, Performance and the unified `YMulatorSynthAU_Tests`). Run the binary that covers the area you changed while working; CI runs all of them on macOS and Linux.
 
 ## 🧪 Testing Best Practices and Critical Lessons
 
@@ -716,55 +602,23 @@ EXPECT_EQ(value, 0.75f);  // Will fail due to quantization
 
 ### **🎯 Testing Framework Location:**
 
-**DAW-Independent Testing:** `tests/` directory contains:
-- **MockAudioProcessorHost**: Simulates DAW environment
-- **AudioOutputVerifier**: Validates audio characteristics
-- **MidiSequenceGenerator**: Creates test sequences
-- **Comprehensive parameter testing**: Without requiring Logic Pro/Ableton
+`tests/` contains `MockAudioProcessorHost` (a host without a DAW), unit tests per component (`tests/unit`), UI tests (`tests/ui`, need a display or xvfb), integration, quality and performance tests. `tests/test_main.cpp` redirects user data to a temporary directory so tests never touch the user's banks.
 
 **Running Tests:**
 ```bash
-# Build tests
-cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --target YMulatorSynthAU_Tests
+# Build the test targets only (the plugin targets copy the built plug-ins into ~/Library; do not build them while a host is running)
+cd /Users/hiroaki.kimura/projects/ChipSynth-AU/build && cmake --build . --parallel --target YMulatorSynthAU_Tests YMulatorSynthAU_PanTests YMulatorSynthAU_UITests
 
-# ⚠️ IMPORTANT: Full test suite (480 tests) takes 2+ minutes - use targeted testing
-# Full test suite (avoid in regular development)
-ctest --output-on-failure                               # All tests with output on failure
-ctest --output-on-failure --quiet                       # All tests, minimal output
+# Run the binary for the area you touched
+./bin/YMulatorSynthAU_PanTests --gtest_brief=1                     # pan motion, wide, echo
+./bin/YMulatorSynthAU_UITests --gtest_brief=1                      # editor, envelope display, knobs
+./bin/YMulatorSynthAU_Tests --gtest_filter="MacroMapper*:MotionEngine*"
 
-# ===== TARGETED TESTING (RECOMMENDED) =====
-# Run specific test by name
-ctest -R "PluginBasicTest.PolyphonyTest" --output-on-failure
+# Everything (a few seconds per binary)
+for b in Basic Preset Parameter Pan Integration UI Quality Performance; do ./bin/YMulatorSynthAU_${b}Tests --gtest_brief=1; done
 
-# Run test categories (much faster than full suite)
-ctest -R "PluginBasicTest" --output-on-failure              # Basic plugin tests (~10 tests)
-ctest -R "ParameterManagerTest" --output-on-failure         # Parameter tests (~15 tests)
-ctest -R "PresetManagerTest" --output-on-failure            # Preset tests (~35 tests)
-ctest -R "StateManagerTest" --output-on-failure             # State tests (~25 tests)
-ctest -R "VoiceManagerTest" --output-on-failure             # Voice tests (~20 tests)
-ctest -R "YmfmWrapperTest" --output-on-failure              # DSP tests (~30 tests)
-ctest -R "MainComponentTest" --output-on-failure            # UI tests (~15 tests)
-ctest -R "GlobalPanTest" --output-on-failure                # Pan tests (~15 tests)
-ctest -R "AudioQualityTest" --output-on-failure             # Audio quality tests (~5 tests)
-
-# Run tests by number range (useful for batching)
-ctest --output-on-failure -I 1,50     # Tests 1-50 only
-ctest --output-on-failure -I 51,100   # Tests 51-100 only
-ctest --output-on-failure -I 101,150  # Tests 101-150 only
-
-# List all available tests (480 total)
-ctest -N | grep -E "Test.*#.*|Total Tests:"
-
-# Quick sanity checks (under 30 seconds)
-ctest -R "BasicTest.SanityCheck" --output-on-failure
-ctest -R "PluginBasicTest.InitializationTest" --output-on-failure
-
-# Debug specific failing tests with verbose output
-ctest -R "PluginBasicTest.PolyphonyTest" --output-on-failure --verbose
-
-# Alternative: Direct binary execution for specific test suites
-./bin/YMulatorSynthAU_Tests --gtest_filter="ParameterDebugTest.*"
-./bin/YMulatorSynthAU_Tests --gtest_filter="PluginBasicTest.PolyphonyTest"
+# ctest works too
+ctest -R "PitchAccuracyTest" --output-on-failure
 ```
 
 ### **🔥 Key Takeaway:**

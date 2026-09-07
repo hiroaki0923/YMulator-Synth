@@ -163,7 +163,8 @@ cmake --build . --config Release --parallel
 ## ドキュメント
 
 - [CHANGELOG_ja.md](CHANGELOG_ja.md)（日本語）/ [CHANGELOG.md](CHANGELOG.md)（英語）
-- [Quick 画面の設計](docs/ymulatorsynth-quick-panel-design.md)、[Motion の設計](docs/ymulatorsynth-motion-design.md)、[アーキテクチャ決定記録](docs/ymulatorsynth-adr.md)、[技術仕様](docs/ymulatorsynth-technical-spec.md)、[.opm 形式](docs/ymulatorsynth-vopm-format-spec.md)
+- [構成](docs/ymulatorsynth-architecture.md)、[YM2151 レジスタの事実集](docs/ym2151-register-facts.md)、[技術仕様](docs/ymulatorsynth-technical-spec.md)（MIDI CC、パラメーター）、[.opm 形式](docs/ymulatorsynth-vopm-format-spec.md)
+- [Quick 画面の設計](docs/ymulatorsynth-quick-panel-design.md)、[Motion の設計](docs/ymulatorsynth-motion-design.md)、[アーキテクチャ決定記録](docs/ymulatorsynth-adr.md)、[環境構築とテストの手引き](docs/ymulatorsynth-implementation-guide.md)
 - [開発状況](docs/ymulatorsynth-development-status.md)
 
 ## コントリビューション

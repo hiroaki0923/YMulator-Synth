@@ -113,39 +113,6 @@ namespace Macro {
 // Channel-Specific Parameters
 // =============================================================================
 
-namespace Channel {
-    // Parameter name suffix for channels
-    constexpr const char* Pan = "_pan";
-    constexpr const char* Ams = "_ams";
-    constexpr const char* Pms = "_pms";
-    
-    // Helper function to generate channel parameter IDs (channels 0-7)
-    inline std::string pan(int channelNum) {
-        return "ch" + std::to_string(channelNum) + Pan;
-    }
-    
-    inline std::string ams(int channelNum) {
-        return "ch" + std::to_string(channelNum) + Ams;
-    }
-    
-    inline std::string pms(int channelNum) {
-        return "ch" + std::to_string(channelNum) + Pms;
-    }
-    
-    // Convenience function to get all parameter IDs for a channel
-    struct ChannelParams {
-        std::string pan;
-        std::string ams;
-        std::string pms;
-        
-        ChannelParams(int channelNum) 
-            : pan(Channel::pan(channelNum))
-            , ams(Channel::ams(channelNum))
-            , pms(Channel::pms(channelNum))
-        {}
-    };
-    
-} // namespace Channel
 
 // =============================================================================
 // Operator-Specific Parameters
@@ -405,13 +372,6 @@ namespace Validation {
             paramID == Global::CurrentPresetInBank ||
             paramID == Global::PitchBendRange) {
             return true;
-        }
-        
-        // Check channel parameters (ch0-ch7)
-        for (int ch = 0; ch < 8; ++ch) {
-            if (paramID == Channel::pan(ch)) {
-                return true;
-            }
         }
         
         // Check operator parameters (op1-op4)
