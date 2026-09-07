@@ -31,6 +31,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
     motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
+    motionEngine->onLatchOff = [this]() { if (midiProcessor) midiProcessor->releaseLatchedNotes(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });
@@ -76,6 +77,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
     motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
+    motionEngine->onLatchOff = [this]() { if (midiProcessor) midiProcessor->releaseLatchedNotes(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
                                                   [this](bool edited) { setCustomMode(edited, edited ? "Generated" : juce::String()); } });

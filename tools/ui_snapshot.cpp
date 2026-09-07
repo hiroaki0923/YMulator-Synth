@@ -16,6 +16,7 @@
 #include "ui/MainComponent.h"
 #include "ui/OutputScope.h"
 #include "core/PatchPreview.h"
+#include "ui/ArpSettingsPanel.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -35,6 +36,7 @@ struct Options {
     double scopeTime = -1.0; // --scope-time: seconds into the OUTPUT render (its timer needs a desktop window)
     std::vector<std::pair<juce::String, float>> params; // --param id=value (plain value, e.g. motion_sync=1)
     bool previewDebug = false; // --preview-debug: print the extracted preset and the preview's peak
+    bool arpPanel = false;     // --arp-panel: render the arpeggio settings callout instead of the editor
     juce::String stateFile;  // --state-file: raw plugin state blob (as saved by a host) restored before the editor opens
     int note = -1;         // MIDI note to hold while capturing (fills the output scope)
     juce::String view;     // "quick" or "detail"
@@ -54,6 +56,7 @@ Options parseArgs(int argc, char** argv)
         else if (std::strcmp(argv[i], "--scope-time") == 0) o.scopeTime = std::atof(next());
         else if (std::strcmp(argv[i], "--state-file") == 0) o.stateFile = next();
         else if (std::strcmp(argv[i], "--preview-debug") == 0) o.previewDebug = true;
+        else if (std::strcmp(argv[i], "--arp-panel") == 0) o.arpPanel = true;
         else if (std::strcmp(argv[i], "--param") == 0) {
             juce::String spec(next());
             o.params.emplace_back(spec.upToFirstOccurrenceOf("=", false, false), spec.fromFirstOccurrenceOf("=", false, false).getFloatValue());
@@ -203,7 +206,10 @@ int main(int argc, char** argv)
         dumpControls(*editor);
     }
 
-    auto image = editor->createComponentSnapshot(editor->getLocalBounds(), false, options.scale);
+    std::unique_ptr<ArpSettingsPanel> arpPanel;
+    if (options.arpPanel) { arpPanel = std::make_unique<ArpSettingsPanel>(processor); pumpMessages(options.settleMs); }
+    juce::Component& subject = options.arpPanel ? static_cast<juce::Component&>(*arpPanel) : static_cast<juce::Component&>(*editor);
+    auto image = subject.createComponentSnapshot(subject.getLocalBounds(), false, options.scale);
     juce::File file = juce::File::getCurrentWorkingDirectory().getChildFile(options.outputPath);
     file.deleteFile();
     juce::FileOutputStream stream(file);

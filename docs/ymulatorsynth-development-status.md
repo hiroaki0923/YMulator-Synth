@@ -44,6 +44,7 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **アルペジエーターの拡張** - `MotionEngine::runArpeggio` に分離。順序 Up / Down / UpDown（端を繰り返さない）/ Random / 押した順、オクターブ 1〜4、リトリガー＋ゲート（OFF ならチップ式の音程切替のみ）、コード表（単音のときだけ適用。2 音以上は押さえた音を優先）、Latch（`MidiProcessor` が物理的に押されている鍵数を数え、離しても保持。Latch OFF で `onLatchOff` 経由で解放）、アクセント（拍または n ステップごと。非アクセントはキャリア TL を depth だけ下げる）。和音の変更は `HeldNotes::version` で検知し、ステップに量子化した起点から再開（ホストは小節頭の音を少し早いブロックで渡すため）。CC 108 / 109 / 119。Detail の PLAY カードの「…」で `ArpSettingsPanel` を CallOutBox に表示。`tests/unit/MonoArpTest.cpp` に 12 件追加（トランスポート同期の起点テストを含む）。デモの Glass Arp は和音打ち込み版（`compose_speedrun.py --arp-chords`）で前半 8 ステップが 16 分打ち込み版と一致、後半はルートから再開する点だけ異なる
 - ✅ **エンベロープ表示の修正** - `EnvelopeDisplay` を YM2151 の動作に合わせて書き直し。サステインは TL + 4×D1L（D1L 15 は無音まで）、D1R 0 はピーク保持で D2 は始まらない、D2 は保持中に傾き無音に届きうる、RR はチップレート 2×RR+1。時間は `2^((31−R)/4)` で対数軸に描画。`tests/ui/EnvelopeDisplayTest.cpp` で形を検証
 
 ## 🔧 Version 0.1.1 (2026-09-07)

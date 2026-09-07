@@ -69,8 +69,14 @@ public:
     
 private:
     ymulatorsynth::HeldNotes held;
+    int keysDown = 0;            // keys physically held, as opposed to notes latched into the arpeggio
     bool monoModeOn() const;
     bool arpeggioOn() const;
+    bool arpLatchOn() const;
+public:
+    /** Latch was switched off: let go of a chord nobody is holding any more. */
+    void releaseLatchedNotes();
+private:
     // Dependencies (interfaces for testability)
     VoiceManagerInterface& voiceManager;
     YmfmWrapperInterface& ymfmWrapper;

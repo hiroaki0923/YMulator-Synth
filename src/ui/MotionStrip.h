@@ -35,6 +35,7 @@ private:
         std::vector<Knob> knobs;
         std::vector<juce::ComboBox*> boxes;
         std::vector<juce::ToggleButton*> toggles;
+        std::vector<juce::Button*> buttons;   // small plain buttons, e.g. the arpeggio settings
         int theme = 0;
         int row = 0;
         juce::Rectangle<int> bounds;
@@ -52,6 +53,7 @@ private:
     std::unique_ptr<juce::ComboBox> widePanBox, panModeBox, panRateBox, arpModeBox, arpDivBox, vibWaveBox, timbreWaveBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> widePanAttachment, panModeAttachment, panRateAttachment, arpModeAttachment, arpDivAttachment, vibWaveAttachment, timbreWaveAttachment;
     std::unique_ptr<juce::ToggleButton> syncButton, monoButton, oneShotButton;
+    std::unique_ptr<juce::TextButton> arpSettingsButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment, monoAttachment, oneShotAttachment;
     
     int addTheme(const juce::String& title, const juce::String& subtitle);

@@ -1,4 +1,5 @@
 #include "MotionStrip.h"
+#include "ArpSettingsPanel.h"
 #include <array>
 #include "UiTheme.h"
 #include "../PluginProcessor.h"
@@ -14,6 +15,7 @@ constexpr int kBoxWidth = 56;
 constexpr int kWaveBoxWidth = 48;
 constexpr int kLegatoWidth = 70;
 constexpr int kOneShotWidth = 68;
+constexpr int kSmallButtonWidth = 28;
 juce::String oneDecimal(double v) { return juce::String(v, 1); }
 juce::String milliseconds(double v) { return juce::String(juce::roundToInt(v)); }
 juce::String signedInt(double v)
@@ -117,8 +119,17 @@ void MotionStrip::buildLayout()
     };
     auto arp = [&](int theme, int row) {
         auto& g = addGroup(theme, row);
-        addBox(g, arpModeBox, arpModeAttachment, ArpMode, { "Off", "Up", "Down", "UpDn" }, "Held notes take turns on one channel");
+        addBox(g, arpModeBox, arpModeAttachment, ArpMode, { "Off", "Up", "Down", "UpDn", "Rnd", "Order" }, "Held notes take turns on one channel");
         addBox(g, arpDivBox, arpDivAttachment, ArpDiv, kDivisions, "Step length");
+        arpSettingsButton = std::make_unique<juce::TextButton>(juce::String(juce::CharPointer_UTF8("\xe2\x80\xa6")));
+        arpSettingsButton->setTooltip("Chord table, octaves, retrigger and gate, latch, accent");
+        arpSettingsButton->onClick = [this]() {
+            auto panel = std::make_unique<ArpSettingsPanel>(audioProcessor);
+            panel->setLookAndFeel(&getLookAndFeel());   // the callout is a top-level window and would fall back to the default look
+            juce::CallOutBox::launchAsynchronously(std::move(panel), arpSettingsButton->getScreenBounds(), nullptr);
+        };
+        addAndMakeVisible(*arpSettingsButton);
+        g.buttons.push_back(arpSettingsButton.get());
     };
     
     // By how it moves: the LFOs (which Sync turns into note values) on top, the per-note envelopes below,
@@ -223,6 +234,7 @@ int MotionStrip::widthOf(const Group& group) const
     for (auto* toggle : group.toggles) width += (toggle == monoButton.get() ? kLegatoWidth : kOneShotWidth) + kKnobGap;
     for (const auto& k : group.knobs) width += knobSlot(k) + kKnobGap;
     for (auto* box : group.boxes) width += (box == vibWaveBox.get() || box == timbreWaveBox.get() ? kWaveBoxWidth : kBoxWidth) + kKnobGap;
+    for (size_t i = 0; i < group.buttons.size(); ++i) width += kSmallButtonWidth + kKnobGap;
     return juce::jmax(0, width - kKnobGap);
 }
 
@@ -297,6 +309,10 @@ void MotionStrip::resized()
                 const int width = box == vibWaveBox.get() || box == timbreWaveBox.get() ? kWaveBoxWidth : kBoxWidth;
                 box->setBounds(gx, centreY - 11, width, 22);
                 gx += width + kKnobGap;
+            }
+            for (auto* button : g.buttons) {
+                button->setBounds(gx, centreY - 11, kSmallButtonWidth, 22);
+                gx += kSmallButtonWidth + kKnobGap;
             }
             g.bounds = juce::Rectangle<int>(start, rowTop, gx - start - kKnobGap, rowHeight);
             gx += kGroupGap - kKnobGap;
