@@ -15,6 +15,12 @@ YM2151（OPM）1 チップ、8 音ポリの FM 音源プラグイン。形式は
 - **`tools/gen_algorithm_svg.py`**: アルゴリズム図の SVG を `AlgorithmInfo.h` から生成
 - **`auval -v aumu YMul Hrki`**: AU の検証。CI は `pr-tests.yml`（macOS のビルド＋全テスト、Linux は xvfb）と `build-cross-platform.yml`（タグでの 3 OS リリースビルド）
 
+## Version 0.1.3 (2026-09-07)
+
+- **Motion の加算修正** - `MotionEngine::tick` で音色 LFO が Sweep のオフセットを、トレモロが Level EG の値を置き換えていた（`=`）。加算（`+=`）に修正し、`MotionEngineTest.SweepAndTimbreLfoAddUp` / `LevelEgAndTremoloAddUp` で固定。文書の総ざらいで設計（加算）と実装の食い違いとして見つかった
+- **文書の組み直し** - 16 本のうち 7 本を削除、2 本を新規（構成、YM2151 レジスタの事実集）、残りを現行コードに合わせて書き直し。CLAUDE.md に文書ルール。経緯は `docs/local/retrospective-v0.0.6.md`（git 管理外）
+- **未使用ソースの削除** - `core/AudioProcessor`、`dsp/RegisterManager` / `NoteConverter` / `ParameterConverter` / `EnvelopeGenerator`、`tests/standalone`、`MidiProcessorTest`、`PluginProcessor` の旧 MIDI メンバー、`ParamID::Channel`、`BUILD_STANDALONE`
+
 ## Version 0.1.2 (2026-09-07)
 
 0.1.1 の後の変更をまとめて 0.1.2 としてリリース。内容は [CHANGELOG_ja.md](../CHANGELOG_ja.md) と下の各項目。
@@ -413,6 +419,8 @@ Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容�
 - [x] DAW統合テスト
 
 ## 更新履歴
+
+- 2026-09-07: 0.1.3（Motion の加算修正、文書の組み直し、未使用ソース削除）
 
 - **2026-09-07**: Version 0.1.2（パン設定の `motion_pan_mode` への統合、キャリア限定のエンベロープマクロ、アルペジエーター拡張、ノブの数値入力、Wide + Echo の修正、JUCE 9.0.1）。この文書を再構成
 - **2026-09-07**: Version 0.1.1（Detail の MOTION カード、Linux のフォント修正、テストの隔離、Linux CI）

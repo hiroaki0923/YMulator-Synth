@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(YMulatorSynthAU VERSION 0.1.2)
+project(YMulatorSynthAU VERSION 0.1.3)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)

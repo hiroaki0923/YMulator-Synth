@@ -2,7 +2,8 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
-## Unreleased
+## Version 0.1.3 (2026-09-07)
+**Motion fix and a documentation rebuild**
 
 **🐛 Fixes:**
 - **Timbre LFO and Sweep, Tremolo and Level EG now add up**: when both were on, the LFO replaced the envelope's offset instead of riding on it, so Sweep stopped working under a timbre LFO and the level EG under tremolo

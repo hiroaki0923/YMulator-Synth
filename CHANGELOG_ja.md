@@ -2,7 +2,8 @@
 
 YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
-## 未リリース
+## バージョン 0.1.3 (2026-09-07)
+**Motion の修正と文書の組み直し**
 
 **🐛 修正:**
 - **音色 LFO と Sweep、トレモロと Level EG が加算されるように**: 両方 ON のとき LFO がエンベロープのオフセットを置き換えていて、音色 LFO 中は Sweep が、トレモロ中は Level EG が効かなかった
