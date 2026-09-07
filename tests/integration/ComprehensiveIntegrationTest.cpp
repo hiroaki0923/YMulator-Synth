@@ -201,7 +201,7 @@ TEST_F(ComprehensiveIntegrationTest, PresetParameterPersistence) {
     processor->setCurrentProgram(3);
     
     // Get initial parameter value
-    auto initialValue = processor->getParameter(0); // Algorithm parameter
+    auto initialValue = processor->juce::AudioProcessor::getParameters()[0]->getValue(); // Algorithm parameter
     
     // Perform audio processing
     host->sendMidiNoteOn(*processor, 1, 60, 100);
@@ -211,7 +211,7 @@ TEST_F(ComprehensiveIntegrationTest, PresetParameterPersistence) {
     host->sendMidiNoteOff(*processor, 1, 60);
     
     // Verify parameter is unchanged
-    auto finalValue = processor->getParameter(0);
+    auto finalValue = processor->juce::AudioProcessor::getParameters()[0]->getValue();
     EXPECT_FLOAT_EQ(initialValue, finalValue);
     
     // Switch preset and back
@@ -219,7 +219,7 @@ TEST_F(ComprehensiveIntegrationTest, PresetParameterPersistence) {
     processor->setCurrentProgram(3);
     
     // Verify parameter restoration
-    auto restoredValue = processor->getParameter(0);
+    auto restoredValue = processor->juce::AudioProcessor::getParameters()[0]->getValue();
     EXPECT_FLOAT_EQ(initialValue, restoredValue);
 }
 
@@ -235,13 +235,13 @@ TEST_F(ComprehensiveIntegrationTest, LiveParameterAutomationIntegration) {
     // Gradually change algorithm parameter while playing
     for (int step = 0; step < 20; ++step) {
         float paramValue = static_cast<float>(step) / 19.0f; // 0.0 to 1.0
-        processor->setParameterNotifyingHost(0, paramValue); // Algorithm parameter
+        processor->juce::AudioProcessor::getParameters()[0]->setValueNotifyingHost(paramValue); // Algorithm parameter
         
         host->processBlock(*processor, 512);
         EXPECT_TRUE(host->hasNonSilentOutput());
         
         // Verify parameter took effect
-        EXPECT_NEAR(processor->getParameter(0), paramValue, 0.01f);
+        EXPECT_NEAR(processor->juce::AudioProcessor::getParameters()[0]->getValue(), paramValue, 0.01f);
     }
     
     host->sendMidiNoteOff(*processor, 1, 60);
@@ -257,9 +257,9 @@ TEST_F(ComprehensiveIntegrationTest, MultiParameterAutomationStress) {
         float t = static_cast<float>(step) / 14.0f;
         
         // Automate multiple parameters simultaneously
-        processor->setParameterNotifyingHost(0, t);           // Algorithm
-        processor->setParameterNotifyingHost(1, 1.0f - t);    // Feedback  
-        processor->setParameterNotifyingHost(2, t * 0.5f);    // Op1 Total Level
+        processor->juce::AudioProcessor::getParameters()[0]->setValueNotifyingHost(t);           // Algorithm
+        processor->juce::AudioProcessor::getParameters()[1]->setValueNotifyingHost(1.0f - t);    // Feedback  
+        processor->juce::AudioProcessor::getParameters()[2]->setValueNotifyingHost(t * 0.5f);    // Op1 Total Level
         
         host->processBlock(*processor, 512);
         EXPECT_TRUE(host->hasNonSilentOutput());

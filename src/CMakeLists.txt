@@ -24,11 +24,11 @@ juce_add_plugin(YMulator-Synth
     PLUGIN_AU_EXPORT_PREFIX YMulatorSynth
     
     # Other settings
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    COPY_PLUGIN_AFTER_BUILD ${YMULATOR_COPY_PLUGIN}
     PLUGIN_NAME "YMulator-Synth"
     
     # Install only AU to user directory
-    AU_COPY_PLUGIN_AFTER_BUILD TRUE
+    AU_COPY_PLUGIN_AFTER_BUILD ${YMULATOR_COPY_PLUGIN}
     
     # Bundle identifier
     BUNDLE_ID "jp.hiroaki.ymulatorsynth"

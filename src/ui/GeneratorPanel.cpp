@@ -90,7 +90,7 @@ void GeneratorPanel::resized()
     auto bounds = getLocalBounds();
     auto chipRow = bounds.removeFromTop(24);
     for (auto& chip : chips) {
-        const int width = juce::roundToInt(UiTheme::sans(12.0f).getStringWidthFloat(chip->getButtonText())) + 26;
+        const int width = juce::roundToInt(juce::GlyphArrangement::getStringWidth(UiTheme::sans(12.0f), chip->getButtonText())) + 26;
         chip->setBounds(chipRow.removeFromLeft(width));
         chipRow.removeFromLeft(6);
     }

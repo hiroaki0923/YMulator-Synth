@@ -127,7 +127,7 @@ macOS で Audio Unit がすぐに出てこないときは `killall -9 AudioCompo
 - CMake 3.22 以降と Git。
 - **macOS**: Xcode Command Line Tools（`xcode-select --install`）。テストを動かすなら `brew install googletest`。
 - **Windows**: Visual Studio 2022 以降と C++ ワークロード。
-- **Linux**（Ubuntu / Debian）: `cmake build-essential git libgtest-dev libasound2-dev libjack-jackd2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxinerama-dev libxrandr-dev libxrender-dev libglu1-mesa-dev`。
+- **Linux**（Ubuntu / Debian）: `cmake build-essential git libgtest-dev libasound2-dev libjack-jackd2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxinerama-dev libxrandr-dev libxrender-dev libxi-dev libglu1-mesa-dev`。
 
 JUCE は CMake が取得します。ymfm はサブモジュールです。
 

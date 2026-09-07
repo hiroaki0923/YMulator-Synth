@@ -63,7 +63,7 @@ private:
     bool arpLatchOn() const;
 public:
     /** Latch was switched off: let go of a chord nobody is holding any more. */
-    void releaseLatchedNotes();
+    void releaseLatchedNotes() override;
 private:
     // Dependencies (interfaces for testability)
     VoiceManagerInterface& voiceManager;

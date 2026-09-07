@@ -270,7 +270,7 @@ void MotionStrip::paint(juce::Graphics& g)
         const int y = group.row == 0 ? theme.bounds.getY() : lowerCaptionTop;
         const int left = group.row == 0 ? theme.bounds.getX() + theme.titleWidth : theme.bounds.getX();
         // A caption wider than its group (velocity over one knob) slides left so it still ends inside the card
-        const int width = juce::roundToInt(g.getCurrentFont().getStringWidthFloat(group.caption)) + 2;
+        const int width = juce::roundToInt(juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), group.caption)) + 2;
         const int x = juce::jmax(left, juce::jmin(group.bounds.getX(), theme.bounds.getRight() - width));
         g.drawText(group.caption, x, y, theme.bounds.getRight() - x, kTitleHeight, juce::Justification::centredLeft, true);
     }
@@ -327,7 +327,7 @@ void MotionStrip::resized()
             gx += kGroupGap - kKnobGap;
         }
         themes[t].bounds = juce::Rectangle<int>(x, bounds.getY() + 4, themeWidth, getHeight() - 8);
-        themes[t].titleWidth = juce::roundToInt(UiTheme::mono(9.0f, true).getStringWidthFloat(themes[t].title)) + 6;
+        themes[t].titleWidth = juce::roundToInt(juce::GlyphArrangement::getStringWidth(UiTheme::mono(9.0f, true), themes[t].title)) + 6;
         x += themeWidth + kThemeGap;
     }
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(YMulatorSynthAU VERSION 0.1.1)
+project(YMulatorSynthAU VERSION 0.1.2)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
@@ -14,6 +14,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # Options
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_STANDALONE "Build standalone application" OFF)
+option(YMULATOR_COPY_PLUGIN "Copy the built plugins into the user plug-in folders" ON)
 
 # Prevent system-wide installation by default
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
