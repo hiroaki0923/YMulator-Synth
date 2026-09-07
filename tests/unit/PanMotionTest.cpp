@@ -87,7 +87,7 @@ TEST_F(PanMotionTest, StepFollowsTheHostBeat)
     EXPECT_EQ(seen, expected);
 }
 
-TEST_F(PanMotionTest, OffPutsTheGlobalPanBack)
+TEST_F(PanMotionTest, OffPutsTheVoiceBackInTheCentre)
 {
     set(ParamID::Motion::PanMode, 1.0f);
     const int ch = noteOn(60);
@@ -95,6 +95,52 @@ TEST_F(PanMotionTest, OffPutsTheGlobalPanBack)
     set(ParamID::Motion::PanMode, 0.0f);
     runBlocks(1);
     EXPECT_EQ(panBits(ch), YM2151Regs::PAN_CENTER);
+}
+
+TEST_F(PanMotionTest, LeftAndRightPlaceEveryVoice)
+{
+    set(ParamID::Motion::PanMode, 3.0f);
+    const int a = noteOn(60), b = noteOn(64);
+    EXPECT_EQ(panBits(a), YM2151Regs::PAN_LEFT_ONLY);
+    EXPECT_EQ(panBits(b), YM2151Regs::PAN_LEFT_ONLY);
+    set(ParamID::Motion::PanMode, 4.0f);
+    runBlocks(1);
+    EXPECT_EQ(panBits(a), YM2151Regs::PAN_RIGHT_ONLY) << "a sounding voice moves with the mode";
+    EXPECT_EQ(panBits(b), YM2151Regs::PAN_RIGHT_ONLY);
+    for (int ch = 0; ch < 8; ++ch) EXPECT_EQ(panBits(ch), YM2151Regs::PAN_RIGHT_ONLY) << "idle channel " << ch;
+}
+
+TEST_F(PanMotionTest, RandomLandsEachNoteSomewhereElse)
+{
+    set(ParamID::Motion::PanMode, 5.0f);
+    std::vector<int> seen;
+    for (int note = 60; note < 72; ++note) {
+        const int ch = noteOn(note);
+        seen.push_back(panBits(ch));
+        juce::MidiBuffer off;
+        off.addEvent(juce::MidiMessage::noteOff(1, note), 0);
+        runBlocks(1, &off);
+    }
+    int left = 0, right = 0, centre = 0;
+    for (size_t i = 0; i < seen.size(); ++i) {
+        if (i > 0) EXPECT_NE(seen[i], seen[i - 1]) << "note " << i << " stayed where the last one was";
+        if (seen[i] == YM2151Regs::PAN_LEFT_ONLY) ++left;
+        else if (seen[i] == YM2151Regs::PAN_RIGHT_ONLY) ++right;
+        else if (seen[i] == YM2151Regs::PAN_CENTER) ++centre;
+    }
+    EXPECT_EQ(left + right + centre, static_cast<int>(seen.size()));
+    EXPECT_GT(left, 0);
+    EXPECT_GT(right, 0);
+}
+
+TEST_F(PanMotionTest, PresetChangeKeepsThePlacement)
+{
+    set(ParamID::Motion::PanMode, 3.0f);
+    runBlocks(1);
+    processor.setCurrentProgram(3);
+    runBlocks(1);
+    const int ch = noteOn(60);
+    EXPECT_EQ(panBits(ch), YM2151Regs::PAN_LEFT_ONLY);
 }
 
 TEST_F(PanMotionTest, WideLeftRightWinsOverPanMotion)

@@ -58,8 +58,6 @@ private:
     std::unique_ptr<juce::TextButton> detailModeButton;
     std::unique_ptr<PresetUIManager> presetUIManager;
     juce::TooltipWindow tooltipWindow { this, 600 };   // tooltips need one window in the editor to show at all
-    std::unique_ptr<juce::ComboBox> globalPanComboBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> globalPanAttachment;
     
     std::unique_ptr<QuickView> quickView;
     std::unique_ptr<ToneStrip> toneStrip;

@@ -207,7 +207,7 @@ TEST_F(YmfmWrapperTest, StereoAudioGeneration) {
     
     // Note: Stereo audio balance verification is thoroughly covered by:
     // - PluginBasicTest.StereoOutputTest  
-    // - GlobalPanTest suite (Left/Center/Right pan verification)
+    // - PanMotionTest suite (Left/Right/Random placement and pan motion)
     // - AudioQualityTest.PanPositionsHaveCorrectStereoBalance
     // Focus here on ensuring stereo generation doesn't crash
 }

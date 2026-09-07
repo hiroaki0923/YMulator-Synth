@@ -59,9 +59,9 @@ Layer 2 は Layer 1 への写像で、音源側（ymfm、ParameterManager の更
 | Brightness | モジュレータの TL | TL' = clamp(TL_a − round(m·40), 0, 127) | 40 ステップ = 約 30 dB。ALG 7（モジュレータなし）では FB' = clamp(FB_a + round(m·7), 0, 7) に代替 |
 | Harmonics | モジュレータの MUL（Sub/Octave は全 op） | 2.2.1 のテンプレート | 選択式 9 段。Preset = アンカー値に戻す |
 | Feedback | FB | FB そのもの | Detail の FB と同一パラメータ |
-| Attack | 全 op の AR | AR' = clamp(AR_a − round(m·12), 0, 31) | m > 0 で遅く（ADSR の「Attack time」と同じ向き） |
-| Decay | 全 op の D1R, D2R | キャリア: D1R' = clamp(D1R_a − round(m·10)), D2R' = clamp(D2R_a − round(m·6)) / モジュレータ: 変化量を半分 | D1L は変えない |
-| Release | 全 op の RR | RR' = clamp(RR_a − round(m·6), 0, 15) | |
+| Attack | キャリアの AR | AR' = clamp(AR_a − round(m·12), 0, 31) | m > 0 で遅く（ADSR の「Attack time」と同じ向き）。音量エンベロープだけを動かし、モジュレータ（音色エンベロープ）はパッチのまま |
+| Decay | キャリアの D1R, D2R | D1R' = clamp(D1R_a − round(m·10)), D2R' = clamp(D2R_a − round(m·6)) | D1L は変えない。以前はモジュレータも半分動かしていたが、伸ばした尾が本来より明るく残るので廃止 |
+| Release | キャリアの RR | RR' = clamp(RR_a − round(m·6), 0, 15) | |
 | Spread | Op1〜3 の DT1 | \|dt\|' = clamp(\|dt_a\| + round(m·3), 0, 3)、符号はアンカーの符号。アンカーが 0 なら Op1: +, Op2: −, Op3: + | Op4 (C2) は音程の基準として固定。DT1 の符号化は 0〜3 = 0,+1,+2,+3、4〜7 = 0,−1,−2,−3 |
 
 #### 2.2.1 Harmonics テンプレート
@@ -163,7 +163,7 @@ MUL' = clamp(round(MUL_target × r), 0, 15)。MUL_target が 0（×0.5）のと�
 
 | コンポーネント | 内容 |
 |---|---|
-| `MainComponent` | ヘッダ（モード切替、バンク/プリセット、EDITED、Save、Pan）、Quick / Detail の切替、ステータス行。1000×640 |
+| `MainComponent` | ヘッダ（モード切替、バンク/プリセット、EDITED、Save）、Quick / Detail の切替、ステータス行。1000×640 |
 | `QuickView` | `TonePanel`（マクロ 7 ノブ）、`AlgorithmCard`（図＋説明＋前後）、`GeneratorPanel`（RECIPE カード: カテゴリ、6 スライダー。右下に Undo / A / B / Generate）、`OutputScope` |
 | `DetailView` | `ToneStrip`（マクロの小ノブ＋アルゴリズム）、`OperatorRow` × 4（役割タグ、Level/Ratio/Detune の主ノブ、EnvelopeDisplay、EG 5 ノブ、KS/DT2/AMS）、`LfoNoiseStrip` |
 | 共有 | `RotaryKnob`（サイズ 3 種、ハイライト輪、人間向け表示＋生値の副表示）、`RoleTag`、`AlgorithmDisplay`（AlgorithmInfo から描画、役割色）、`EnvelopeDisplay`（既存） |

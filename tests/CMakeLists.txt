@@ -35,7 +35,6 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/PluginEditor.cpp
         ${CMAKE_SOURCE_DIR}/src/dsp/YmfmWrapper.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MidiProcessor.cpp
-        ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
         ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MacroMapper.cpp
@@ -107,10 +106,9 @@ if(GTest_FOUND)
     # ============ Test Group 4: Pan Tests ============
     add_executable(YMulatorSynthAU_PanTests
         test_main.cpp
-        unit/GlobalPanTest.cpp
-        RandomPanDebugTest.cpp
-        RandomPanOutputTest.cpp
-        PanModeRegressionTest.cpp
+        unit/PanMotionTest.cpp
+        unit/WideTest.cpp
+        unit/EchoTest.cpp
         ${COMMON_SOURCES}
     )
     
@@ -146,9 +144,6 @@ if(GTest_FOUND)
         unit/VelocityTest.cpp
         unit/PatchPreviewTest.cpp
         unit/MotionEngineTest.cpp
-        unit/WideTest.cpp
-        unit/PanMotionTest.cpp
-        unit/EchoTest.cpp
         unit/MonoArpTest.cpp
         ${COMMON_SOURCES}
     )
@@ -187,13 +182,9 @@ if(GTest_FOUND)
         unit/YmfmWrapperTest.cpp
         unit/PresetManagerTest.cpp
         unit/VOPMParserTest.cpp
-        unit/GlobalPanTest.cpp
         unit/ParameterManagerTest.cpp
         unit/StateManagerTest.cpp
         unit/ParameterStateIntegrationTest.cpp
-        RandomPanDebugTest.cpp
-        RandomPanOutputTest.cpp
-        PanModeRegressionTest.cpp
         AudioQualityTest.cpp
         unit/PitchAccuracyTest.cpp
         unit/OperatorSlotOrderTest.cpp
@@ -353,7 +344,7 @@ if(GTest_FOUND)
     message(STATUS "  - YMulatorSynthAU_BasicTests (basic functionality)")
     message(STATUS "  - YMulatorSynthAU_PresetTests (preset management)")
     message(STATUS "  - YMulatorSynthAU_ParameterTests (parameter system)")
-    message(STATUS "  - YMulatorSynthAU_PanTests (pan functionality)")
+    message(STATUS "  - YMulatorSynthAU_PanTests (pan, wide and echo)")
     message(STATUS "  - YMulatorSynthAU_IntegrationTests (component integration)")
     message(STATUS "  - YMulatorSynthAU_QualityTests (audio quality)")
     message(STATUS "  - YMulatorSynthAU_Tests (unified, for backward compatibility)")

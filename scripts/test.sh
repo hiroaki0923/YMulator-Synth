@@ -142,7 +142,7 @@ list_tests() {
     
     echo ""
     echo "=== Regression Tests ==="
-    ./bin/YMulatorSynthAU_Tests --gtest_list_tests | grep -E "^[A-Z].*Test\." | grep -E "(Regression|Pan.*Test|RandomPan)" | sort
+    ./bin/YMulatorSynthAU_Tests --gtest_list_tests | grep -E "^[A-Z].*Test\." | grep -E "(Regression|Pan.*Test)" | sort
     
     echo ""
     echo "=== Performance/Quality Tests ==="
@@ -161,7 +161,7 @@ run_unit_tests() {
     
     local filter="*Test.*"
     # Exclude integration and regression tests
-    local exclude="--gtest_filter=${filter}:-*Integration*:*Comprehensive*:*Regression*:*Quality*:*Performance*:*RandomPan*:*AudioQuality*"
+    local exclude="--gtest_filter=${filter}:-*Integration*:*Comprehensive*:*Regression*:*Quality*:*Performance*:*AudioQuality*"
     
     # Set environment for GTEST_ONLY mode
     local env_vars=""
@@ -211,7 +211,7 @@ run_regression_tests() {
     log_info "Running regression tests..."
     cd "$BUILD_DIR"
     
-    local filter="--gtest_filter=*Regression*:*RandomPan*"
+    local filter="--gtest_filter=*Regression*"
     
     # Set environment for GTEST_ONLY mode
     local env_vars=""

@@ -125,14 +125,14 @@ RawPatch MacroMapper::apply(const RawPatch& anchor, const MacroValues& macros, i
         }
     }
     
-    // Envelope macros: positive = slower, like an ADSR time control
+    // Envelope macros: the loudness envelope, so carriers only; positive = slower, like an ADSR time
+    // control. Modulator envelopes are the timbre envelope and stay as the patch has them
     for (int op = 0; op < 4; ++op) {
+        if (!info.isCarrier(op)) continue;
         const auto i = static_cast<size_t>(op);
         out.ar[i] = juce::jlimit(0, kRateMax, anchor.ar[i] - scaled(macros.attack, kAttackSteps));
-        const int d1rSteps = info.isCarrier(op) ? kDecayD1rSteps : kDecayD1rSteps / 2;
-        const int d2rSteps = info.isCarrier(op) ? kDecayD2rSteps : kDecayD2rSteps / 2;
-        out.d1r[i] = juce::jlimit(0, kRateMax, anchor.d1r[i] - scaled(macros.decay, d1rSteps));
-        out.d2r[i] = juce::jlimit(0, kRateMax, anchor.d2r[i] - scaled(macros.decay, d2rSteps));
+        out.d1r[i] = juce::jlimit(0, kRateMax, anchor.d1r[i] - scaled(macros.decay, kDecayD1rSteps));
+        out.d2r[i] = juce::jlimit(0, kRateMax, anchor.d2r[i] - scaled(macros.decay, kDecayD2rSteps));
         out.rr[i] = juce::jlimit(0, kRrMax, anchor.rr[i] - scaled(macros.release, kReleaseSteps));
     }
     
@@ -164,13 +164,13 @@ std::vector<std::string> MacroMapper::targetsOf(Macro macro, int algorithm)
             for (int op = 1; op <= 4; ++op) if (noModulators || info.isModulator(op - 1)) ids.push_back(ParamID::Op::mul(op));
             break;
         case Macro::Attack:
-            for (int op = 1; op <= 4; ++op) ids.push_back(ParamID::Op::ar(op));
+            for (int op = 1; op <= 4; ++op) if (info.isCarrier(op - 1)) ids.push_back(ParamID::Op::ar(op));
             break;
         case Macro::Decay:
-            for (int op = 1; op <= 4; ++op) { ids.push_back(ParamID::Op::d1r(op)); ids.push_back(ParamID::Op::d2r(op)); }
+            for (int op = 1; op <= 4; ++op) if (info.isCarrier(op - 1)) { ids.push_back(ParamID::Op::d1r(op)); ids.push_back(ParamID::Op::d2r(op)); }
             break;
         case Macro::Release:
-            for (int op = 1; op <= 4; ++op) ids.push_back(ParamID::Op::rr(op));
+            for (int op = 1; op <= 4; ++op) if (info.isCarrier(op - 1)) ids.push_back(ParamID::Op::rr(op));
             break;
         case Macro::Spread:
             for (int op = 1; op <= 3; ++op) ids.push_back(ParamID::Op::dt1(op));

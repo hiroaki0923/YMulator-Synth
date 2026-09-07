@@ -81,9 +81,9 @@ QuickView::QuickView(YMulatorSynthAudioProcessor& processor)
     
     addMacroKnob(ParamID::Macro::Brightness, "Brightness", "Modulator level", UiTheme::amber, signedText);
     addMacroKnob(ParamID::Macro::Harmonics, "Harmonics", "Ratio template", UiTheme::amber, harmonicsText);
-    addMacroKnob(ParamID::Macro::Attack, "Attack", "All AR", UiTheme::green, signedText);
-    addMacroKnob(ParamID::Macro::Decay, "Decay", "D1R / D2R", UiTheme::green, signedText);
-    addMacroKnob(ParamID::Macro::Release, "Release", "All RR", UiTheme::green, signedText);
+    addMacroKnob(ParamID::Macro::Attack, "Attack", "Carrier AR", UiTheme::green, signedText);
+    addMacroKnob(ParamID::Macro::Decay, "Decay", "Carrier D1R / D2R", UiTheme::green, signedText);
+    addMacroKnob(ParamID::Macro::Release, "Release", "Carrier RR", UiTheme::green, signedText);
     addMacroKnob(ParamID::Macro::Spread, "Spread", "DT1 spread", UiTheme::carrier, signedText);
     
     algorithmCard = std::make_unique<Card>("ALGORITHM", "");

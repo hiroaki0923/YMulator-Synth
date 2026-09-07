@@ -11,7 +11,7 @@ namespace ymulatorsynth {
 
 /**
  * Time-variant expression written straight to the chip at control rate:
- * per-voice delayed vibrato now, wide / timbre LFO / pan motion later.
+ * per-voice delayed vibrato, wide, timbre LFO, pan placement and motion.
  * Runs on the audio thread between chunks of kChunk samples; reads its
  * parameters through cached handles and never touches the parameter tree.
  * Design: docs/ymulatorsynth-motion-design.md
@@ -31,8 +31,6 @@ public:
     void setTransport(double bpm, double ppqAtBlockStart, bool playing, bool known);
     void tick(int numSamples);
     
-    /** Called when pan motion switches off so the global pan can be put back. */
-    std::function<void()> onPanMotionOff;
     /** Called when the arpeggio latch parameter goes off, so a latched chord can be let go. */
     std::function<void()> onLatchOff;
     /** Where the MIDI processor keeps the notes held in mono / arpeggio mode. */
@@ -58,7 +56,7 @@ private:
         float offset = 0.0f;    // semitones written to the chip
         int carrierSteps = 0;   // tremolo written to the chip
         int modulatorSteps = 0; // timbre LFO written to the chip
-        int pan = -1;           // 0 left, 1 centre, 2 right as written by pan motion; -1 untouched
+        int pan = -1;           // 0 left, 1 centre, 2 right as last written; -1 unknown, write again
         uint32_t noteOnCount = 0;
         float glideFrom = 0.0f; // portamento start offset, semitones
         double glideTime = 0.0; // seconds since the glide started
@@ -145,10 +143,13 @@ private:
     double samplesIntoBlock = 0.0;
     bool transportPlaying = false;
     bool transportKnown = false;
-    int lastPanMode = 0;
     bool nextAlternateRight = false;
+    int lastRandomPan = 1;
+    uint32_t panRandomState = 0x9E3779B9u;
     
     void writePan(int channel, int pan);
+    /** Left or right, never the side the last random note took. */
+    int nextRandomPan();
     /** -1..+1 for the wave at the phase; random holds one value per cycle. */
     static float waveform(int wave, double phase, int cycleId, int& cycle, float& held, uint32_t& seed);
     /** Advances a phase; one-shot phases stop at the end of the first cycle. */

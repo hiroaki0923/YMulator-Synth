@@ -83,7 +83,7 @@ TEST_F(PluginProcessorComprehensiveTest, AllParametersExist) {
     // Test global parameters
     EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Global::Algorithm) >= 0.0f);
     EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Global::Feedback) >= 0.0f);
-    EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Global::GlobalPan) >= 0.0f);
+    EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Motion::PanMode) >= 0.0f);
     EXPECT_TRUE(host->getParameterValue(*processor, ParamID::Global::PitchBendRange) >= 0.0f);
     
     // Test operator parameters (Op1-Op4)

@@ -63,8 +63,8 @@ MotionPanel::MotionPanel(YMulatorSynthAudioProcessor& processor)
     makeKnob(bright, VelBright, "Bright", UiTheme::amber);
     
     panModeBox = std::make_unique<juce::ComboBox>();
-    panModeBox->addItemList({ "Pan off", "Alternate", "Step" }, 1);
-    panModeBox->setTooltip("Pan motion: alternate notes left/right, or step L-C-R on the beat");
+    panModeBox->addItemList({ "Pan off", "Alternate", "Step", "Left", "Right", "Random" }, 1);
+    panModeBox->setTooltip("Where the voices sit: centre, alternating left/right per note, stepping L-C-R on the beat, left, right, or a random side per note");
     addAndMakeVisible(*panModeBox);
     panModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getParameters(), PanMode, *panModeBox);
     arpModeBox = std::make_unique<juce::ComboBox>();

@@ -24,12 +24,14 @@ protected:
         processor.reset();
     }
     
-    void setGlobalPanMode(ymulatorsynth::GlobalPanPosition mode) {
-        auto* globalPanParam = dynamic_cast<juce::AudioParameterChoice*>(
-            processor->getParameters().getParameter(ParamID::Global::GlobalPan));
-        ASSERT_NE(globalPanParam, nullptr);
-        float value = globalPanParam->convertTo0to1(static_cast<int>(mode));
-        globalPanParam->setValueNotifyingHost(value);
+    // MOTION pan mode indices
+    static constexpr int kPanOff = 0, kPanLeft = 3, kPanRight = 4, kPanRandom = 5;
+    
+    void setPanMode(int mode) {
+        auto* panMode = dynamic_cast<juce::AudioParameterChoice*>(
+            processor->getParameters().getParameter(ParamID::Motion::PanMode));
+        ASSERT_NE(panMode, nullptr);
+        panMode->setValueNotifyingHost(panMode->convertTo0to1(static_cast<float>(mode)));
     }
     
     struct AudioMetrics {
@@ -129,52 +131,47 @@ protected:
 };
 
 TEST_F(AudioQualityTest, AllPanModesProduceCleanAudio) {
-    ymulatorsynth::GlobalPanPosition modes[] = {
-        ymulatorsynth::GlobalPanPosition::LEFT,
-        ymulatorsynth::GlobalPanPosition::CENTER,
-        ymulatorsynth::GlobalPanPosition::RIGHT,
-        ymulatorsynth::GlobalPanPosition::RANDOM
-    };
+    const int modes[] = { kPanLeft, kPanOff, kPanRight, kPanRandom };
     
     for (auto mode : modes) {
-        setGlobalPanMode(mode);
+        setPanMode(mode);
         
         auto metrics = playNoteAndGetMetrics(60, 100);
         
         // Audio quality checks
         EXPECT_FALSE(metrics.hasSilence) 
-            << "Pan mode " << static_cast<int>(mode) << " should produce audio";
+            << "Pan mode " << mode << " should produce audio";
         
         // Note: Some clipping may be expected with FM synthesis at full velocity
         // This test mainly ensures pan modes don't make clipping significantly worse
         
         EXPECT_LT(metrics.dcOffset, 0.05f) 
-            << "Pan mode " << static_cast<int>(mode) << " should have reasonable DC offset. Got: " << metrics.dcOffset;
+            << "Pan mode " << mode << " should have reasonable DC offset. Got: " << metrics.dcOffset;
         
         EXPECT_GT(metrics.rmsLevel, 0.01f) 
-            << "Pan mode " << static_cast<int>(mode) << " should have reasonable signal level. Got: " << metrics.rmsLevel;
+            << "Pan mode " << mode << " should have reasonable signal level. Got: " << metrics.rmsLevel;
         
         EXPECT_LT(metrics.rmsLevel, 2.0f) 
-            << "Pan mode " << static_cast<int>(mode) << " should not have excessive signal level. Got: " << metrics.rmsLevel;
+            << "Pan mode " << mode << " should not have excessive signal level. Got: " << metrics.rmsLevel;
     }
 }
 
 TEST_F(AudioQualityTest, PanPositionsHaveCorrectStereoBalance) {
     struct TestCase {
-        ymulatorsynth::GlobalPanPosition mode;
+        int mode;
         float expectedBalance;
         float tolerance;
         std::string name;
     };
     
     std::vector<TestCase> testCases = {
-        {ymulatorsynth::GlobalPanPosition::LEFT, -0.8f, 0.3f, "LEFT"},      // Should be mostly left
-        {ymulatorsynth::GlobalPanPosition::CENTER, 0.0f, 0.3f, "CENTER"},   // Should be balanced
-        {ymulatorsynth::GlobalPanPosition::RIGHT, 0.8f, 0.3f, "RIGHT"}      // Should be mostly right
+        {kPanLeft, -0.8f, 0.3f, "Left"},      // Should be mostly left
+        {kPanOff, 0.0f, 0.3f, "Off"},         // Should be balanced
+        {kPanRight, 0.8f, 0.3f, "Right"}      // Should be mostly right
     };
     
     for (const auto& testCase : testCases) {
-        setGlobalPanMode(testCase.mode);
+        setPanMode(testCase.mode);
         
         auto metrics = playNoteAndGetMetrics(60, 100);
         
@@ -186,7 +183,7 @@ TEST_F(AudioQualityTest, PanPositionsHaveCorrectStereoBalance) {
 }
 
 TEST_F(AudioQualityTest, RandomModeShowsVariedStereoBalance) {
-    setGlobalPanMode(ymulatorsynth::GlobalPanPosition::RANDOM);
+    setPanMode(kPanRandom);
     
     std::vector<float> balanceValues;
     
@@ -230,17 +227,12 @@ TEST_F(AudioQualityTest, RandomModeShowsVariedStereoBalance) {
 }
 
 TEST_F(AudioQualityTest, ConsistentAudioLevelAcrossPanModes) {
-    ymulatorsynth::GlobalPanPosition modes[] = {
-        ymulatorsynth::GlobalPanPosition::LEFT,
-        ymulatorsynth::GlobalPanPosition::CENTER,
-        ymulatorsynth::GlobalPanPosition::RIGHT,
-        ymulatorsynth::GlobalPanPosition::RANDOM
-    };
+    const int modes[] = { kPanLeft, kPanOff, kPanRight, kPanRandom };
     
     std::vector<float> rmsLevels;
     
     for (auto mode : modes) {
-        setGlobalPanMode(mode);
+        setPanMode(mode);
         
         auto metrics = playNoteAndGetMetrics(60, 100);
         if (!metrics.hasSilence) {

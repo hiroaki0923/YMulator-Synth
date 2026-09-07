@@ -32,13 +32,6 @@ MainComponent::MainComponent(YMulatorSynthAudioProcessor& processor)
     presetUIManager = std::make_unique<PresetUIManager>(processor);
     addAndMakeVisible(*presetUIManager);
     
-    globalPanComboBox = std::make_unique<juce::ComboBox>();
-    globalPanComboBox->addItemList({ "Left", "Center", "Right", "Random" }, 1);
-    globalPanComboBox->setTooltip("Stereo position of every voice");
-    addAndMakeVisible(*globalPanComboBox);
-    globalPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.getParameters(), ParamID::Global::GlobalPan, *globalPanComboBox);
-    
     quickView = std::make_unique<QuickView>(processor);
     quickView->onShowDetail = [this]() { setViewMode(ViewMode::Detail); };
     addAndMakeVisible(*quickView);
@@ -81,8 +74,6 @@ MainComponent::~MainComponent()
     toneStrip.reset();
     quickView.reset();
     presetUIManager.reset();
-    globalPanAttachment.reset();
-    globalPanComboBox.reset();
     quickModeButton.reset();
     detailModeButton.reset();
     setLookAndFeel(nullptr);
@@ -110,8 +101,6 @@ void MainComponent::resized()
     quickModeButton->setBounds(modeArea.removeFromLeft(60).withHeight(26).withCentre({ modeArea.getX() - 30, header.getCentreY() }));
     detailModeButton->setBounds(modeArea.removeFromLeft(60).withHeight(26).withCentre({ modeArea.getX() - 30, header.getCentreY() }));
     header.removeFromRight(16);
-    globalPanComboBox->setBounds(header.removeFromRight(92).withHeight(30).withCentre({ header.getRight() + 46, header.getCentreY() }));
-    header.removeFromRight(12);
     header.removeFromLeft(12);
     presetUIManager->setBounds(header);
     

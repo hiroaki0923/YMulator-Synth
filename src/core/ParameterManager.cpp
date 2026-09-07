@@ -23,11 +23,9 @@ static thread_local bool s_isProcessingParameterChange = false;
 // Constructor and Destructor
 // ============================================================================
 
-ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor, 
-                                 std::shared_ptr<PanProcessor> panProc)
-    : ymfmWrapper(ymfm), audioProcessor(processor), panProcessor(panProc)
+ParameterManager::ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor)
+    : ymfmWrapper(ymfm), audioProcessor(processor)
 {
-    CS_DBG("ParameterManager created with PanProcessor delegation");
 }
 
 ParameterManager::~ParameterManager()
@@ -117,11 +115,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
     layout.add(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::Feedback, "Feedback", 0, 7, 0));
         
-    // Global Pan (LEFT/CENTER/RIGHT/RANDOM)
-    juce::StringArray panChoices = {"LEFT", "CENTER", "RIGHT", "RANDOM"};
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        ParamID::Global::GlobalPan, "Global Pan", panChoices, 1)); // Default: CENTER
-        
     // LFO Parameters
     layout.add(std::make_unique<juce::AudioParameterInt>(
         ParamID::Global::LfoRate, "LFO Rate", 0, 255, 0));
@@ -190,7 +183,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterManager::createPara
         ParamID::Motion::TremoloRate, "Tremolo Rate", juce::NormalisableRange<float>(0.5f, 12.0f, 0.1f, 0.6f), 5.0f));
     const juce::StringArray divisions { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T", "1/32", "1/64", "1/16T" };
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        ParamID::Motion::PanMode, "Pan Motion", juce::StringArray{ "Off", "Alternate", "Step" }, 0));
+        ParamID::Motion::PanMode, "Pan", juce::StringArray{ "Off", "Alternate", "Step", "Left", "Right", "Random" }, 0));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::PanRate, "Pan Step", divisions, 2));
     layout.add(std::make_unique<juce::AudioParameterBool>(ParamID::Motion::Sync, "Motion Sync", false));
     layout.add(std::make_unique<juce::AudioParameterChoice>(ParamID::Motion::VibratoDiv, "Vibrato Sync Rate", divisions, 3));
@@ -396,19 +389,6 @@ void ParameterManager::parameterValueChanged(int parameterIndex, float newValue)
     
     s_isProcessingParameterChange = true;
     
-    // Check if this is the GlobalPan parameter change (always apply regardless of gesture state)
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::GlobalPan));
-    
-    if (globalPanParam && audioProcessor.getParameters()[parameterIndex] == globalPanParam) {
-        int panIndex = globalPanParam->getIndex();
-        CS_FILE_DBG("parameterValueChanged - GlobalPan changed to index " + juce::String(panIndex) + 
-                   " (value=" + juce::String(newValue) + ")");
-        applyGlobalPanToAllChannels();
-        s_isProcessingParameterChange = false; // Reset guard
-        return; // GlobalPan changes don't affect custom preset mode
-    }
-    
     // Custom preset detection logic
     if (!userGestureInProgress) {
         s_isProcessingParameterChange = false; // Reset guard before early return
@@ -436,7 +416,7 @@ void ParameterManager::parameterGestureChanged(int parameterIndex, bool gestureI
 // Preset Parameter Management  
 // ============================================================================
 
-void ParameterManager::loadPresetParameters(const Preset* preset, float& preservedGlobalPan)
+void ParameterManager::loadPresetParameters(const Preset* preset)
 {
     if (!preset || !parametersPtr) {
         CS_DBG("Cannot load preset parameters - invalid preset or parameters not initialized");
@@ -447,15 +427,6 @@ void ParameterManager::loadPresetParameters(const Preset* preset, float& preserv
     setupParameterListeners(false);
     
     CS_FILE_DBG("loadPresetParameters - Loading preset: " + preset->name);
-    
-    // Preserve global pan setting
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::GlobalPan));
-    if (globalPanParam) {
-        preservedGlobalPan = globalPanParam->getCurrentChoiceName() == "LEFT" ? 0.0f :
-                           globalPanParam->getCurrentChoiceName() == "CENTER" ? 0.33f :
-                           globalPanParam->getCurrentChoiceName() == "RIGHT" ? 0.66f : 1.0f;
-    }
     
     CS_DBG("Loading preset parameters: " + preset->name);
     
@@ -626,103 +597,6 @@ void ParameterManager::extractCurrentParameterValues(Preset& preset) const
 }
 
 // ============================================================================
-// Global Pan Management
-// ============================================================================
-
-void ParameterManager::applyGlobalPan(int channel)
-{
-    if (!parametersPtr || !panProcessor) {
-        return;
-    }
-    
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::GlobalPan));
-    
-    if (!globalPanParam) {
-        CS_DBG("GlobalPan parameter not found");
-        return;
-    }
-    
-    float panValue = globalPanParam->getIndex() / 3.0f;  // Convert index 0-3 to 0.0-1.0
-    panProcessor->applyGlobalPan(channel, panValue);
-}
-
-void ParameterManager::applyGlobalPanToAllChannels()
-{
-    if (!parametersPtr) {
-        CS_DBG("ParameterManager::applyGlobalPanToAllChannels - Missing parametersPtr");
-        return;
-    }
-    
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(
-        parametersPtr->getParameter(ParamID::Global::GlobalPan));
-    
-    if (!globalPanParam) {
-        CS_DBG("GlobalPan parameter not found");
-        return;
-    }
-    
-    int panIndex = globalPanParam->getIndex();
-    CS_FILE_DBG("ParameterManager::applyGlobalPanToAllChannels - Pan index: " + juce::String(panIndex));
-    
-    // Apply to all 8 YM2151 channels directly (restore working logic)
-    for (int channel = 0; channel < 8; ++channel) {
-        // Read current register value to preserve algorithm/feedback bits
-        uint8_t currentReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
-        uint8_t otherBits = currentReg & YM2151Regs::PRESERVE_ALG_FB;  // Preserve non-pan bits
-        
-        uint8_t panBits;
-        switch(panIndex) {
-            case 0: // LEFT
-                panBits = YM2151Regs::PAN_LEFT_ONLY;
-                break;
-            case 1: // CENTER
-                panBits = YM2151Regs::PAN_CENTER;
-                break;
-            case 2: // RIGHT
-                panBits = YM2151Regs::PAN_RIGHT_ONLY;
-                break;
-            case 3: // RANDOM
-                // Use PanProcessor for random logic
-                if (panProcessor) {
-                    panProcessor->setChannelRandomPan(channel);
-                    panBits = panProcessor->getChannelRandomPanBits(channel);
-                } else {
-                    panBits = YM2151Regs::PAN_CENTER; // Fallback
-                }
-                break;
-            default:
-                panBits = YM2151Regs::PAN_CENTER;
-        }
-        
-        uint8_t finalRegValue = otherBits | panBits;
-        CS_FILE_DBG("Channel " + juce::String(channel) + " - Current reg: 0x" + juce::String::toHexString(currentReg) + 
-                   ", Other bits: 0x" + juce::String::toHexString(otherBits) +
-                   ", Pan bits: 0x" + juce::String::toHexString(panBits) + 
-                   ", Final reg: 0x" + juce::String::toHexString(finalRegValue));
-        
-        // Write directly to YM2151 register (restore working logic)
-        ymfmWrapper.writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, finalRegValue);
-        
-        // Verify the write was successful
-        uint8_t verifyReg = ymfmWrapper.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel);
-        CS_FILE_DBG("VERIFY Channel " + juce::String(channel) + " - Written: 0x" + juce::String::toHexString(finalRegValue) + 
-                   ", Read back: 0x" + juce::String::toHexString(verifyReg));
-    }
-    
-    CS_FILE_DBG("ParameterManager::applyGlobalPanToAllChannels - Applied pan index " + juce::String(panIndex) + " to all channels");
-}
-
-void ParameterManager::setChannelRandomPan(int channel)
-{
-    if (!panProcessor) {
-        return;
-    }
-    
-    panProcessor->setChannelRandomPan(channel);
-}
-
-// ============================================================================
 // Custom Preset State Management
 // ============================================================================
 
@@ -787,7 +661,6 @@ void ParameterManager::validateParameterRange(float value, float min, float max,
     }
 }
 
-// getChannelRandomPanBits method removed - functionality moved to PanProcessor
 
 void ParameterManager::resetStaticState()
 {
