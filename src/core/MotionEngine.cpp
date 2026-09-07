@@ -316,7 +316,7 @@ void MotionEngine::tick(int numSamples)
                 c.timbrePhase = synced ? syncedPhase(timbreDiv) : advancePhase(c.timbrePhase, timbreHz * dt, oneShot);
                 if (c.timbrePhase < before) ++c.timbreCycles;
                 const int timbreCycleId = synced ? static_cast<int>(std::floor(beat / beatsForDivision(juce::roundToInt(read(timbreDiv, 0.0f))))) : c.timbreCycles;
-                modulatorSteps = juce::roundToInt(timbreSteps * waveform(timWave, c.timbrePhase, timbreCycleId, c.timbreRandomCycle, c.timbreRandomValue, c.randomSeed));
+                modulatorSteps += juce::roundToInt(timbreSteps * waveform(timWave, c.timbrePhase, timbreCycleId, c.timbreRandomCycle, c.timbreRandomValue, c.randomSeed));
             }
             // Level EG on the carriers: swell in over the attack, then fall to the sustain attenuation
             if (levelEnvelopeOn) {
@@ -328,7 +328,7 @@ void MotionEngine::tick(int numSamples)
             if (tremoloSteps > 0.0f) {
                 c.tremoloPhase = synced ? syncedPhase(tremoloDiv) : std::fmod(c.tremoloPhase + tremoloHz * dt, 1.0);
                 const double dip = 0.5 - 0.5 * std::cos(juce::MathConstants<double>::twoPi * c.tremoloPhase);   // 0 .. 1, starts loud
-                carrierSteps = juce::roundToInt(static_cast<double>(tremoloSteps) * dip);
+                carrierSteps += juce::roundToInt(static_cast<double>(tremoloSteps) * dip);
             }
             if (ch == arpChannel) carrierSteps += arpAccentSteps;   // unaccented arpeggio steps sit a little back
         }

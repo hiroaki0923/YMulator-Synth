@@ -287,3 +287,30 @@ TEST_F(MotionEngineTest, RandomVibratoHoldsOneValuePerCycle)
     EXPECT_NE(a, b);
     EXPECT_LE(std::abs(b), 0.5f);
 }
+
+TEST_F(MotionEngineTest, SweepAndTimbreLfoAddUp)
+{
+    // Sweep starts the modulators 40 steps back; a square timbre LFO adds its 20 on top during its high half
+    set(ParamID::Motion::SweepAmount, 40.0f);
+    set(ParamID::Motion::SweepTime, 4000.0f);
+    set(ParamID::Motion::TimbreDepth, 20.0f);
+    set(ParamID::Motion::TimbreRate, 0.1f);
+    set(ParamID::Motion::TimbreWave, 3.0f);         // square: +1 for the first half cycle
+    runBlocks(1);
+    const int ch = noteOn();
+    EXPECT_GE(processor.getMotionEngine().currentModulatorSteps(ch), 55) << "sweep (about 40) plus timbre LFO (20)";
+}
+
+TEST_F(MotionEngineTest, LevelEgAndTremoloAddUp)
+{
+    // A sustain-only level EG holds the carriers 20 steps back; the tremolo dip adds up to 24 more
+    set(ParamID::Motion::LevelSustain, 20.0f);
+    set(ParamID::Motion::TremoloDepth, 24.0f);
+    set(ParamID::Motion::TremoloRate, 0.5f);         // dip peaks after one second
+    runBlocks(1);
+    const int ch = noteOn();
+    int peak = 0;
+    for (int i = 0; i < 100; ++i) { runBlocks(1); peak = std::max(peak, processor.getMotionEngine().currentCarrierSteps(ch)); }
+    EXPECT_GE(peak, 40) << "level EG (20) plus the tremolo dip (24)";
+    EXPECT_LE(peak, 44);
+}
