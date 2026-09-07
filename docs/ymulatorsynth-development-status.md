@@ -44,6 +44,10 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **ノブのダブルクリック数値入力** - `RotaryKnob::beginTextEntry`。ダイヤル中央に `TextEditor` を重ね、Return / フォーカス喪失で `applyTypedValue`（生の値をジェスチャ 1 回で適用、範囲とステップに丸め）、Escape で破棄。エディタは自身のキー処理から呼ばれるので `callAsync` で遅延削除。`tests/ui/RotaryKnobTest.cpp`
+- ✅ **オペレーターの役割タグ** - `OperatorPanel` のタグ幅を OP ラベル左端からトグル右端まで（76 px）にして文字を中央揃え。MOD → MODULATOR
+- ✅ **MOTION カードのキャプション位置** - テーマ単位の上下キャプションをやめ、`Group::caption` としてグループごとにその真上へ（上段はタイトル行、下段は行間 `lowerCaptionTop`）。グループより長いキャプション（velocity）はカード内に収まるよう左へずらす。高さは変えない
+- ✅ **エンベロープマクロをキャリア限定に** - Attack / Decay / Release は音量エンベロープとしてキャリアの AR / D1R / D2R / RR だけを動かし、モジュレーター（音色エンベロープ）はアンカーのまま。`targetsOf` も同様で Detail のハイライトはキャリア行だけ
 - ✅ **グローバルパンの廃止** - ヘッダーの Global Pan（LEFT / CENTER / RIGHT / RANDOM、`global_pan`）と `PanProcessor`、`GlobalPanPosition` を削除し、`motion_pan_mode` を Off / Alternate / Step / Left / Right / Random の 6 択に。配置も動きも `MotionEngine` の tick でチャンネルごとの目標パンを決めて書く（Random は直前と違う側、決定的な xorshift）。ノートオンでのパン書き込み、プリセット読込時のパン保持、`parameterValueChanged` の特別扱いも不要になり削除。テストは `PanMotionTest` に配置モードを追加し、`YMulatorSynthAU_PanTests` は PanMotion / Wide / Echo のバイナリに
 - ✅ **Feedback の置き場所** - TONE 行の FB は他の 6 つ（相対マクロ）と性格が違い、Detail の OP1 行にも無かった。両画面ともアルゴリズムの横（Detail: TONE 行右端の ALG の隣、Quick: ALGORITHM カードの右下）へ。`ToneStrip` のハイライトは feedback を対象にするマクロ（ALG 7 の Brightness）で FB ノブも光らせる。Quick の右列 `kSideWidth` を 250 → 330 に
 - ✅ **アルペジエーターの拡張** - `MotionEngine::runArpeggio` に分離。順序 Up / Down / UpDown（端を繰り返さない）/ Random / 押した順、オクターブ 1〜4、リトリガー＋ゲート（OFF ならチップ式の音程切替のみ）、コード表（単音のときだけ適用。2 音以上は押さえた音を優先）、Latch（`MidiProcessor` が物理的に押されている鍵数を数え、離しても保持。Latch OFF で `onLatchOff` 経由で解放）、アクセント（拍または n ステップごと。非アクセントはキャリア TL を depth だけ下げる）。和音の変更は `HeldNotes::version` で検知し、ステップに量子化した起点から再開（ホストは小節頭の音を少し早いブロックで渡すため）。CC 108 / 109 / 119。Detail の PLAY カードの「…」で `ArpSettingsPanel` を CallOutBox に表示。`tests/unit/MonoArpTest.cpp` に 12 件追加（トランスポート同期の起点テストを含む）。デモの Glass Arp は和音打ち込み版（`compose_speedrun.py --arp-chords`）で前半 8 ステップが 16 分打ち込み版と一致、後半はルートから再開する点だけ異なる

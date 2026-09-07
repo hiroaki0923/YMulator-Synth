@@ -23,6 +23,7 @@ public:
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent& event) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
     void mouseEnter(const juce::MouseEvent& event) override;
     void mouseExit(const juce::MouseEvent& event) override;
     
@@ -40,6 +41,12 @@ public:
     void setInverted(bool shouldInvert);
     void setHighlighted(bool shouldHighlight);
     bool isHighlighted() const { return highlighted; }
+    
+    /** Double-click: a box over the dial takes the raw value typed in; Return applies it, Escape drops it. */
+    void beginTextEntry();
+    bool isTextEntryOpen() const { return valueEditor != nullptr; }
+    /** What the text box would apply: the raw value, snapped to the range. Empty or non-numeric text changes nothing. */
+    void applyTypedValue(const juce::String& text);
     
     static int dialDiameter(Style style);
     /** Size that fits the dial, label and optional sub-label. */
@@ -61,6 +68,8 @@ private:
     bool highlighted = false;
     bool isDragging = false;
     juce::Point<int> lastMousePos;
+    std::unique_ptr<juce::TextEditor> valueEditor;
+    void closeTextEntry();
     
     static constexpr double rotationRange = juce::MathConstants<double>::pi * 1.5;
     static constexpr double startAngle = juce::MathConstants<double>::pi * 1.25;

@@ -127,6 +127,7 @@ if(GTest_FOUND)
         test_main.cpp
         ui/MainComponentTest.cpp
         ui/EnvelopeDisplayTest.cpp
+        ui/RotaryKnobTest.cpp
         ${COMMON_SOURCES}
     )
     

@@ -140,11 +140,11 @@ void OperatorPanel::paint(juce::Graphics& g)
     g.setFont(UiTheme::mono(13.0f, true));
     g.drawText("OP " + juce::String(operatorNum), header.withY(top).withHeight(20.0f).withWidth(40.0f), juce::Justification::centredLeft);
     
-    const juce::String tagText = role == Role::Modulator ? "MOD" : (role == Role::Carrier ? "CARRIER" : "NOISE");
+    // The role tag spans from the OP label to the right edge of the on/off toggle above it
+    const juce::String tagText = role == Role::Modulator ? "MODULATOR" : (role == Role::Carrier ? "CARRIER" : "NOISE");
     const auto tagColour = role == Role::Noise ? UiTheme::amber : roleColour();
     g.setFont(UiTheme::mono(9.0f, true));
-    const float tagWidth = g.getCurrentFont().getStringWidthFloat(tagText) + 12.0f;
-    auto tag = juce::Rectangle<float>(header.getX(), top + 24.0f, tagWidth, 13.0f);
+    auto tag = juce::Rectangle<float>(header.getX(), top + 24.0f, static_cast<float>(slotEnableButton->getRight()) - header.getX(), 13.0f);
     g.setColour(tagColour);
     g.fillRoundedRectangle(tag, 2.0f);
     g.setColour(UiTheme::dark);

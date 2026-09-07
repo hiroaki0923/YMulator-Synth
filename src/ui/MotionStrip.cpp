@@ -50,7 +50,7 @@ void MotionStrip::buildLayout()
     using namespace ParamID::Motion;
     // The building blocks; each layout below places them in themes and rows
     auto vibrato = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "vibrato");
         addKnob(g, VibratoDepth, "Depth", UiTheme::green);
         addKnob(g, VibratoRate, "Rate", UiTheme::green, true, oneDecimal, VibratoDiv);
         addKnob(g, VibratoDelay, "Delay", UiTheme::green, false, milliseconds);
@@ -65,60 +65,60 @@ void MotionStrip::buildLayout()
         addToggle(g, oneShotButton, oneShotAttachment, LfoOneShot, "1shot", "Vibrato and timbre LFO run one cycle and stop");
     };
     auto pitchEnv = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "pitch");
         addKnob(g, PitchEnv, "Env", UiTheme::carrier, false, signedInt);
         addKnob(g, PitchTime, "Time", UiTheme::carrier, false, milliseconds);
         addKnob(g, PitchEnv2, "Env2", UiTheme::carrier, false, signedInt);
         addKnob(g, PitchTime2, "Time2", UiTheme::carrier, false, milliseconds);
     };
     auto timbre = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "timbre");
         addKnob(g, TimbreDepth, "Timbre", UiTheme::amber);
         addKnob(g, TimbreRate, "Rate", UiTheme::amber, true, oneDecimal, TimbreDiv);
         addBox(g, timbreWaveBox, timbreWaveAttachment, TimbreWave, kWaves, "Timbre LFO wave");
     };
     auto sweep = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "sweep");
         addKnob(g, SweepAmount, "Sweep", UiTheme::amber, false, signedInt);
         addKnob(g, SweepTime, "Time", UiTheme::amber, false, UiTheme::formatTime);
     };
     auto velBright = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "velocity");
         addKnob(g, VelBright, "Vel", UiTheme::amber);
     };
     auto tremolo = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "tremolo");
         addKnob(g, TremoloDepth, "Trem", UiTheme::carrier);
         addKnob(g, TremoloRate, "Rate", UiTheme::carrier, true, oneDecimal, TremoloDiv);
     };
     auto levelEg = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "level");
         addKnob(g, LevelAttack, "Atk", UiTheme::green, false, UiTheme::formatTime);
         addKnob(g, LevelDecay, "Dec", UiTheme::green, false, UiTheme::formatTime);
         addKnob(g, LevelSustain, "Sus", UiTheme::green);
     };
     auto wide = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "wide");
         addKnob(g, Wide, "Wide", UiTheme::carrier);
         addBox(g, widePanBox, widePanAttachment, WidePan, { "L / R", "Center" }, "Where the two chips sit");
     };
     auto echo = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "echo");
         addKnob(g, EchoLevel, "Echo", UiTheme::carrier);
         addKnob(g, EchoTime, "Time", UiTheme::carrier, true, milliseconds, EchoDiv);
     };
     auto pan = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "pan");
         addBox(g, panModeBox, panModeAttachment, PanMode, { "Off", "Alt", "Step", "Left", "Right", "Rand" }, "Where the voices sit: centre, alternating left/right per note, stepping L-C-R on the beat, left, right, or a random side per note");
         addBox(g, panRateBox, panRateAttachment, PanRate, { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T" }, "Step length");
     };
     auto glide = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "glide");
         addToggle(g, monoButton, monoAttachment, Mono, "Legato", "Mono: a new note retunes the sounding one instead of starting another");
         addKnob(g, PortaTime, "Porta", UiTheme::green, false, milliseconds);
     };
     auto arp = [&](int theme, int row) {
-        auto& g = addGroup(theme, row);
+        auto& g = addGroup(theme, row, "arpeggio");
         addBox(g, arpModeBox, arpModeAttachment, ArpMode, { "Off", "Up", "Down", "UpDn", "Rnd", "Order" }, "Held notes take turns on one channel");
         addBox(g, arpDivBox, arpDivAttachment, ArpDiv, kDivisions, "Step length");
         arpSettingsButton = std::make_unique<juce::TextButton>(juce::String(juce::CharPointer_UTF8("\xe2\x80\xa6")));
@@ -134,32 +134,32 @@ void MotionStrip::buildLayout()
     
     // By how it moves: the LFOs (which Sync turns into note values) on top, the per-note envelopes below,
     // then the stereo tricks and the playing aids
-    const juce::String dot(juce::CharPointer_UTF8(" \xc2\xb7 "));
-    int t = addTheme("LFO", "vibrato", "timbre" + dot + "tremolo");
+    int t = addTheme("LFO");
     vibrato(t, 0); vibWave(t, 0); oneShot(t, 0);
     timbre(t, 1); tremolo(t, 1);
-    t = addTheme("ENVELOPE", "pitch", "sweep" + dot + "level");
+    t = addTheme("ENVELOPE");
     pitchEnv(t, 0);
     sweep(t, 1); levelEg(t, 1);
-    t = addTheme("SPACE", "wide" + dot + "echo", "pan");
+    t = addTheme("SPACE");
     wide(t, 0); echo(t, 0);
     pan(t, 1);
-    t = addTheme("PLAY", "glide" + dot + "velocity", "arpeggio");
+    t = addTheme("PLAY");
     glide(t, 0); velBright(t, 0);
     arp(t, 1);
 }
 
-int MotionStrip::addTheme(const juce::String& title, const juce::String& topCaption, const juce::String& bottomCaption)
+int MotionStrip::addTheme(const juce::String& title)
 {
-    themes.push_back(Theme { title, topCaption, bottomCaption, {} });
+    themes.push_back(Theme { title, {}, 0 });
     return static_cast<int>(themes.size()) - 1;
 }
 
-MotionStrip::Group& MotionStrip::addGroup(int theme, int row)
+MotionStrip::Group& MotionStrip::addGroup(int theme, int row, const juce::String& caption)
 {
     groups.push_back(Group {});
     groups.back().theme = theme;
     groups.back().row = row;
+    groups.back().caption = caption;
     return groups.back();
 }
 
@@ -252,21 +252,27 @@ void MotionStrip::paint(juce::Graphics& g)
     g.fillRect(0, 0, getWidth(), 1);
     for (size_t i = 0; i < themes.size(); ++i) {
         const auto& theme = themes[i];
-        // Title and the upper row's caption on top, the lower row's caption underneath, so each row says what it holds
-        auto title = theme.bounds.withHeight(kTitleHeight);
         g.setFont(UiTheme::mono(9.0f, true));
         g.setColour(UiTheme::dim);
-        const int titleWidth = juce::roundToInt(g.getCurrentFont().getStringWidthFloat(theme.title)) + 6;
-        g.drawText(theme.title, title.removeFromLeft(titleWidth), juce::Justification::centredLeft);
-        g.setFont(UiTheme::mono(9.0f));
-        g.setColour(UiTheme::dim.withAlpha(0.7f));
-        if (theme.topCaption.isNotEmpty()) g.drawText(theme.topCaption, title, juce::Justification::centredLeft, true);
-        if (theme.bottomCaption.isNotEmpty())
-            g.drawText(theme.bottomCaption, theme.bounds.withTop(theme.bounds.getBottom() - kTitleHeight), juce::Justification::centredLeft, true);
+        g.drawText(theme.title, theme.bounds.withHeight(kTitleHeight).withWidth(theme.titleWidth), juce::Justification::centredLeft);
         if (i > 0) {
             g.setColour(UiTheme::border);
             g.fillRect(theme.bounds.getX() - kThemeGap / 2, theme.bounds.getY() + 2, 1, theme.bounds.getHeight() - 4);
         }
+    }
+    // Each group's caption sits above its own controls: on the title line for the upper row (after the title),
+    // between the rows for the lower row
+    g.setFont(UiTheme::mono(9.0f));
+    g.setColour(UiTheme::dim.withAlpha(0.7f));
+    for (const auto& group : groups) {
+        if (group.caption.isEmpty()) continue;
+        const auto& theme = themes[static_cast<size_t>(group.theme)];
+        const int y = group.row == 0 ? theme.bounds.getY() : lowerCaptionTop;
+        const int left = group.row == 0 ? theme.bounds.getX() + theme.titleWidth : theme.bounds.getX();
+        // A caption wider than its group (velocity over one knob) slides left so it still ends inside the card
+        const int width = juce::roundToInt(g.getCurrentFont().getStringWidthFloat(group.caption)) + 2;
+        const int x = juce::jmax(left, juce::jmin(group.bounds.getX(), theme.bounds.getRight() - width));
+        g.drawText(group.caption, x, y, theme.bounds.getRight() - x, kTitleHeight, juce::Justification::centredLeft, true);
     }
 }
 
@@ -280,6 +286,7 @@ void MotionStrip::resized()
     const auto knobSize = RotaryKnob::preferredSize(knobStyle, RotaryKnob::LabelPosition::Below, false, 36);
     const int rowHeight = knobSize.getHeight() + 2;
     const int top = bounds.getY() + 6 + kTitleHeight;
+    lowerCaptionTop = top + rowHeight;
     
     int x = bounds.getX();
     for (size_t t = 0; t < themes.size(); ++t) {
@@ -292,7 +299,7 @@ void MotionStrip::resized()
         for (auto& g : groups) {
             if (g.theme != static_cast<int>(t)) continue;
             const int row = juce::jlimit(0, 1, g.row);
-            const int rowTop = top + row * rowHeight;
+            const int rowTop = row == 0 ? top : lowerCaptionTop + kTitleHeight;
             const int centreY = rowTop + knobSize.getHeight() / 2 + 1;
             int& gx = cx[static_cast<size_t>(row)];
             const int start = gx;
@@ -320,6 +327,7 @@ void MotionStrip::resized()
             gx += kGroupGap - kKnobGap;
         }
         themes[t].bounds = juce::Rectangle<int>(x, bounds.getY() + 4, themeWidth, getHeight() - 8);
+        themes[t].titleWidth = juce::roundToInt(UiTheme::mono(9.0f, true).getStringWidthFloat(themes[t].title)) + 6;
         x += themeWidth + kThemeGap;
     }
 }

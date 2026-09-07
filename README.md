@@ -52,7 +52,7 @@ If macOS does not list the Audio Unit right away, run `killall -9 AudioComponent
 1. Load YMulator Synth on an instrument track. Use a **stereo** track: Wide, Echo and pan movement use both channels.
 2. Pick a bank and a preset in the header. The first bank is the factory set; the second is the collection.
 3. Play. Velocity only changes the carriers' level, so a soft note keeps the same timbre.
-4. Shape the sound with the **TONE** knobs. Knobs move by dragging up or down; hold Shift for ten times finer steps, or use the scroll wheel. Hover a control for a tooltip.
+4. Shape the sound with the **TONE** knobs. Knobs move by dragging up or down; hold Shift for ten times finer steps, or use the scroll wheel. Double-click a knob to type the value (the raw number the knob works in, e.g. TL 0-127 or milliseconds); Return applies it, Escape cancels. Hover a control for a tooltip.
 5. Press a chip in the **MOTION** card to switch a feature on, and set the amount with its knob. Several can be on at once.
 6. Press **Generate** in the RECIPE card for a new sound in the chosen direction. **Undo** brings the previous one back, **A / B** switches between the two.
 7. For register-level editing, press **Detail**.
