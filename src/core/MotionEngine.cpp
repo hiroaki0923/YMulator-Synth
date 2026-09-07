@@ -180,7 +180,8 @@ void MotionEngine::tick(int numSamples)
     }
     
     // Pan: Off and Left / Right / Random place every voice, Alternate and Step move it.
-    // With Wide split left / right the chips own the pan bits and nothing is written.
+    // With Wide split left / right the chips own the pan bits, so the register just keeps
+    // the centre: Echo plays the note itself from that register while the echoes take sides.
     const int mode = juce::roundToInt(read(panMode, 0.0f));
     const bool wideBlocksPan = lastWideEnabled && lastWidePan == 0;
     const int stepPan = [&]() {
@@ -250,11 +251,9 @@ void MotionEngine::tick(int numSamples)
         c.active = active;
         c.note = note;
         
-        if (wideBlocksPan) {
-            c.pan = -1;
-        } else {
+        {
             int pan = 1;
-            switch (mode) {
+            switch (wideBlocksPan ? 0 : mode) {
                 case 1:   // Alternate: each new note takes the other side
                     if (noteStarted) {
                         pan = nextAlternateRight ? 2 : 0;

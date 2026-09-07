@@ -166,6 +166,7 @@ public:
     // Testing interface
     ymulatorsynth::MidiProcessorInterface* getMidiProcessor() { return midiProcessor.get(); }
     const YmfmWrapperInterface& getYmfmWrapper() const { return *ymfmWrapper; }
+    YmfmWrapperInterface& getYmfmWrapper() { return *ymfmWrapper; }
     ymulatorsynth::MacroMapper& getMacroMapper() { return *macroMapper; }
     ymulatorsynth::PatchWorkspace& getPatchWorkspace() { return *patchWorkspace; }
     const ymulatorsynth::MotionEngine& getMotionEngine() const { return *motionEngine; }

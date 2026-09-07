@@ -17,6 +17,7 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 - **JUCE 9.0.1** (from 8.0.4): the new SVG parser, software-renderer and Windows Direct2D improvements, macOS 26 support, TextEditor fixes, and VST3 parameter migration support come along. Linux builds need `libxi-dev` now. `-DYMULATOR_COPY_PLUGIN=OFF` builds the plug-ins without copying them into the user plug-in folders
 
 **🐛 Fixes:**
+- **Wide + Echo lost the note itself**: with Wide split left / right and Echo on, a plugin that had never written its pan register (a song that starts with both on, a preset loaded into a fresh instance) played only the echo, so every note arrived one echo time late and quieter. The pan register now keeps the centre while Wide owns the chips, and every channel starts centred at chip reset
 - **Operator envelope drawing**: the Detail view drew the sustain level as 4*D1L on its own instead of TL + 4*D1L, so a decay to the sustain level was often missing, D1L 15 stopped half way instead of at silence, D1R 0 still showed a decay, and the rate knobs barely changed the picture. The drawing now follows the chip: peak at TL, decay 1 to TL + 4*D1L, decay 2 sloping on while held, release from wherever the level was, with times that double every four rate steps on a log time axis
 
 ## Version 0.1.1 (2026-09-07)

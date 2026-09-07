@@ -4,6 +4,7 @@
 //   YMulatorSynthAU_SongRender --midi song.mid --out song.wav
 //       --program 1=10 --program 2=39 ...      bundled program (preset index) per MIDI track (1-based, tempo track excluded)
 //       [--opm voices.opm --voice 1=0 ...]      or voices from an .opm file, by index within that file
+//   SONG_RENDER_DEBUG=1 in the environment prints the sounding channel's registers after every block with MIDI
 //       [--motion 3=2]                          switch on a MOTION card feature by index (Wide, Vib, Growl, Echo, Sweep, Swell, Glide, Arp, Kick, Trem, Pan)
 //       [--param 2=macro_brightness:15]         any parameter, plain value
 //       [--bpm 172]                             transport tempo reported to the plugins (default: from the file)
@@ -11,6 +12,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
+#include "dsp/YM2151Registers.h"
 #include "ui/MotionPanel.h"
 #include <cstdio>
 #include <cstdlib>
@@ -163,7 +165,19 @@ int main(int argc, char** argv)
                 ++cursor[t];
             }
             block.clear();
+            const bool hadNoteOn = !midiBlock.isEmpty();
             tracks[t].processor->processBlock(block, midiBlock);
+            if (hadNoteOn && std::getenv("SONG_RENDER_DEBUG")) {
+                auto& w = tracks[t].processor->getYmfmWrapper();
+                const int ch = w.readCurrentRegister(YM2151Regs::REG_KEY_ON_OFF) & 0x07;
+                std::printf("t=%.3f track %zu ch %d keyon 0x%02x  main pan 0x%02x shadow pan 0x%02x  main KC 0x%02x KF 0x%02x  TL %d %d %d %d  block peak %.4f\n",
+                            blockStart, t + 1, ch, w.readCurrentRegister(YM2151Regs::REG_KEY_ON_OFF),
+                            w.readCurrentRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch), w.readShadowRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch),
+                            w.readCurrentRegister(YM2151Regs::REG_KEY_CODE_BASE + ch), w.readCurrentRegister(YM2151Regs::REG_KEY_FRACTION_BASE + ch),
+                            w.readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + ch), w.readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + 8 + ch),
+                            w.readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + 16 + ch), w.readCurrentRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + 24 + ch),
+                            block.getMagnitude(0, n));
+            }
             for (int ch = 0; ch < 2; ++ch) mix.addFrom(ch, start, block, ch, 0, n, tracks[t].gain * options.master);
         }
     }
