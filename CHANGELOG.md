@@ -14,6 +14,7 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 - **Arpeggiator**: Random and As-played orders, up to four octaves, retrigger with a gate (off: chip style, pitch only), a chord table that arpeggiates a single note (Major, Minor, 7th, m7, Maj7, Sus4, Sus2, Dim, Aug, 5th, Octave), Latch, and an accent on the beat or every 2-4 steps. A new chord restarts the pattern on its first note, quantised to the step so a chord placed on the bar line starts on the bar line. CC 108 / 109 / 119 set the chord table, octaves and gate. The finer settings open from the "..." button next to the arpeggio in the Detail view
 
 **🐛 Fixes:**
+- **Wide + Echo lost the note itself**: with Wide split left / right and Echo on, a plugin that had never written its pan register (a song that starts with both on, a preset loaded into a fresh instance) played only the echo, so every note arrived one echo time late and quieter. The pan register now keeps the centre while Wide owns the chips, and every channel starts centred at chip reset
 - **Operator envelope drawing**: the Detail view drew the sustain level as 4*D1L on its own instead of TL + 4*D1L, so a decay to the sustain level was often missing, D1L 15 stopped half way instead of at silence, D1R 0 still showed a decay, and the rate knobs barely changed the picture. The drawing now follows the chip: peak at TL, decay 1 to TL + 4*D1L, decay 2 sloping on while held, release from wherever the level was, with times that double every four rate steps on a log time axis
 
 ## Version 0.1.1 (2026-09-07)

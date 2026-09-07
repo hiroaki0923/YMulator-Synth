@@ -130,8 +130,10 @@ void YmfmWrapper::initializeOPM()
     
     // OPM chip reset complete, setting up voice
     
-    // Setup basic piano voice on all 8 channels
+    // Every channel starts centred: the pan bits are preserved by every later register
+    // write, and a chip left at the reset value (neither side on) is silent
     for (int channel = 0; channel < YM2151Regs::MAX_OPM_CHANNELS; ++channel) {
+        writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel, YM2151Regs::PAN_CENTER);
         setupBasicPianoVoice(channel);
     }
     

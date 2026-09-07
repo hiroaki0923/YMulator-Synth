@@ -121,3 +121,37 @@ TEST_F(EchoTest, SyncedEchoFollowsTheTempoDivision)
     runBlocks(4);                                    // 267 ms
     EXPECT_EQ(shadow(YM2151Regs::REG_KEY_ON_OFF), keyOn);
 }
+
+TEST_F(EchoTest, WideAndEchoFromTheFirstTickStillPlayTheNoteItself)
+{
+    // A song starts with Wide and Echo already on; the pan register has never been written
+    // by pan motion. The note itself must still sound, not only its echo.
+    auto render = [&](int blocks) {
+        juce::AudioBuffer<float> buffer(2, 512);
+        juce::MidiBuffer midi;
+        double l = 0.0, r = 0.0;
+        for (int b = 0; b < blocks; ++b) {
+            processor.processBlock(buffer, midi);
+            l += buffer.getMagnitude(0, 0, 512);
+            r += buffer.getMagnitude(1, 0, 512);
+        }
+        return std::make_pair(l / blocks, r / blocks);
+    };
+    processor.releaseResources();
+    processor.prepareToPlay(48000.0, 512);          // motion state starts afresh, as when a host opens the plugin
+    for (int ch = 0; ch < 8; ++ch) {                 // a preset written without pan bits, as a fresh chip has them
+        const int a = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch;
+        processor.getYmfmWrapper().writeRegister(a, static_cast<uint8_t>(main(a) & ~YM2151Regs::MASK_PAN_LR));
+    }
+    set(ParamID::Motion::Wide, 45.0f);
+    set(ParamID::Motion::WidePan, 0.0f);
+    set(ParamID::Motion::EchoLevel, 55.0f);
+    set(ParamID::Motion::EchoTime, 150.0f);
+    runBlocks(1);
+    const int ch = noteOn(69);
+    EXPECT_EQ(main(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + ch) & YM2151Regs::MASK_PAN_LR, YM2151Regs::PAN_CENTER)
+        << "the note keeps the centre in the register while Wide splits the chips";
+    const auto early = render(8);                    // 10-95 ms: before the first echo
+    EXPECT_GT(early.first, 0.02) << "the note itself sounds on the left";
+    EXPECT_GT(early.second, 0.02) << "and on the right";
+}

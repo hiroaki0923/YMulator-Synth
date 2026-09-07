@@ -44,6 +44,7 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **Wide + Echo の原音消失を修正（2026-09-07）** - GarageBand で「Lead が遅い」との報告。JUCE 9 との A/B（`song_render` で bit 一致）で JUCE は無関係と確認し、`SONG_RENDER_DEBUG=1` のレジスタダンプで原因を特定: リセット直後のレジスタ 0x20 は L/R ビットが 0（無音）で、Wide L/R 中は `MotionEngine` がパンを書かず、Echo ON だと `panForChip` が主チップに素のレジスタを渡すため主チップが無音、シャドウのエコーだけが鳴っていた。修正は 2 点: Wide 中も中央をレジスタに書く、`initializeOPM` で全チャンネルを中央に。`EchoTest.WideAndEchoFromTheFirstTickStillPlayTheNoteItself` で再現・検証。修正後のデモは以前の確認用ミックスと bit 一致
 - ✅ **ノブのダブルクリック数値入力** - `RotaryKnob::beginTextEntry`。ダイヤル中央に `TextEditor` を重ね、Return / フォーカス喪失で `applyTypedValue`（生の値をジェスチャ 1 回で適用、範囲とステップに丸め）、Escape で破棄。エディタは自身のキー処理から呼ばれるので `callAsync` で遅延削除。`tests/ui/RotaryKnobTest.cpp`
 - ✅ **オペレーターの役割タグ** - `OperatorPanel` のタグ幅を OP ラベル左端からトグル右端まで（76 px）にして文字を中央揃え。MOD → MODULATOR
 - ✅ **MOTION カードのキャプション位置** - テーマ単位の上下キャプションをやめ、`Group::caption` としてグループごとにその真上へ（上段はタイトル行、下段は行間 `lowerCaptionTop`）。グループより長いキャプション（velocity）はカード内に収まるよう左へずらす。高さは変えない
