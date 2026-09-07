@@ -5,6 +5,7 @@ YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 ## 未リリース
 
 **✨ 新機能:**
+- **ノブの数値入力**: ノブをダブルクリックするとダイヤルの上に入力欄が出る。生の値（TL 0〜127、Hz のレート、ms の時間）を打って Return で範囲とステップに丸めて確定、Escape で取り消し。見た目はそれ以外変えていない
 - **オペレーターの役割タグ**: Detail の MODULATOR / CARRIER / NOISE のタグを OP ラベルから ON/OFF トグルの右端までの幅にし、文字を中央に。MOD の略記をやめて全部つづる
 - **MOTION カードのキャプションは対象の真上に**: Detail の各グループ（vibrato / timbre / tremolo / pitch / sweep / level / wide / echo / pan / glide / velocity / arpeggio）にそれぞれキャプションを付け、そのグループの真上（下段は上段との間）に描く。カードの上と下に 1 つずつまとめて置く方式は、どれがどれか分かりにくかった
 - **エンベロープのマクロはキャリアだけに**: Attack / Decay / Release は音量エンベロープだけを動かす。モジュレーターのエンベロープは音色エンベロープなのでパッチのままにし、E.Piano やベルの尾を伸ばしても設計どおり暗く消える（以前はモジュレーターも一緒に伸びて明るいまま残った）。時間で明るさを変えるのは MOTION の Sweep の役目

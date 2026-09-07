@@ -15,6 +15,60 @@ RotaryKnob::RotaryKnob(const juce::String& labelText, Style knobStyle)
 
 RotaryKnob::~RotaryKnob() = default;
 
+void RotaryKnob::mouseDoubleClick(const juce::MouseEvent& event)
+{
+    if (event.mods.isLeftButtonDown() && isEnabled()) beginTextEntry();
+}
+
+void RotaryKnob::beginTextEntry()
+{
+    if (valueEditor) return;
+    const float fontSize = style == Style::Large ? 16.0f : (style == Style::Primary ? 12.0f : 10.0f);
+    valueEditor = std::make_unique<juce::TextEditor>();
+    auto& e = *valueEditor;
+    e.setFont(UiTheme::mono(fontSize, true));
+    e.setJustification(juce::Justification::centred);
+    e.setBorder(juce::BorderSize<int>(0));
+    e.setIndents(0, 0);
+    e.setColour(juce::TextEditor::backgroundColourId, UiTheme::dark);
+    e.setColour(juce::TextEditor::textColourId, UiTheme::text);
+    e.setColour(juce::TextEditor::highlightColourId, accentColour.withAlpha(0.4f));
+    e.setColour(juce::TextEditor::outlineColourId, accentColour);
+    e.setColour(juce::TextEditor::focusedOutlineColourId, accentColour);
+    e.setInputRestrictions(8, "0123456789.-");
+    e.setSelectAllWhenFocused(true);
+    const bool integer = stepSize >= 1.0 && std::floor(stepSize) == stepSize;
+    e.setText(integer ? juce::String(juce::roundToInt(value)) : juce::String(value, 2).trimCharactersAtEnd("0").trimCharactersAtEnd("."), false);
+    const auto disc = dialBounds().reduced(dialBounds().getWidth() * 0.14f).toNearestInt();
+    e.setBounds(disc.withSizeKeepingCentre(disc.getWidth() + 2, juce::roundToInt(fontSize) + 6));
+    e.onReturnKey = [this] { applyTypedValue(valueEditor->getText()); closeTextEntry(); };
+    e.onEscapeKey = [this] { closeTextEntry(); };
+    e.onFocusLost = [this] { if (valueEditor) { applyTypedValue(valueEditor->getText()); closeTextEntry(); } };
+    addAndMakeVisible(e);
+    e.grabKeyboardFocus();
+}
+
+void RotaryKnob::applyTypedValue(const juce::String& text)
+{
+    const auto trimmed = text.trim();
+    if (trimmed.isEmpty() || !trimmed.containsAnyOf("0123456789")) return;
+    const double typed = trimmed.getDoubleValue();
+    if (constrainValue(typed) == value) return;
+    if (onGestureStart) onGestureStart();
+    setValue(typed, juce::sendNotificationAsync);
+    if (onGestureEnd) onGestureEnd();
+}
+
+void RotaryKnob::closeTextEntry()
+{
+    if (!valueEditor) return;
+    // The editor may be calling us from its own key handler, so it is released after the event
+    auto* editor = valueEditor.release();
+    editor->setVisible(false);
+    juce::MessageManager::callAsync([editor] { delete editor; });
+    repaint();
+}
+
 int RotaryKnob::dialDiameter(Style s)
 {
     switch (s) {

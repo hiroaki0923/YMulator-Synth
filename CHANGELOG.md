@@ -5,6 +5,7 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 ## Unreleased
 
 **✨ New:**
+- **Type a knob value**: double-click any knob to get a box over the dial; type the raw value (TL 0-127, a rate in Hz, a time in ms), Return applies it snapped to the knob's range and step, Escape cancels. The knobs look the same otherwise
 - **Operator role tag**: the Detail view's MODULATOR / CARRIER / NOISE tag spans from the OP label to the on/off toggle, with the word centred and spelled out
 - **MOTION card captions above their controls**: in the Detail view each group has its own caption (vibrato, timbre, tremolo, pitch, sweep, level, wide, echo, pan, glide, velocity, arpeggio) drawn directly above it, the lower row's between the rows, instead of one combined caption above the card and one below
 - **Envelope macros act on the carriers**: Attack, Decay and Release move the loudness envelope only. Modulator envelopes are the timbre envelope and stay as the patch has them, so a lengthened tail on an e-piano or bell goes dark the way the sound was designed instead of staying bright. Brightness over time is Sweep's job under MOTION

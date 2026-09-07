@@ -44,6 +44,7 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **ノブのダブルクリック数値入力** - `RotaryKnob::beginTextEntry`。ダイヤル中央に `TextEditor` を重ね、Return / フォーカス喪失で `applyTypedValue`（生の値をジェスチャ 1 回で適用、範囲とステップに丸め）、Escape で破棄。エディタは自身のキー処理から呼ばれるので `callAsync` で遅延削除。`tests/ui/RotaryKnobTest.cpp`
 - ✅ **オペレーターの役割タグ** - `OperatorPanel` のタグ幅を OP ラベル左端からトグル右端まで（76 px）にして文字を中央揃え。MOD → MODULATOR
 - ✅ **MOTION カードのキャプション位置** - テーマ単位の上下キャプションをやめ、`Group::caption` としてグループごとにその真上へ（上段はタイトル行、下段は行間 `lowerCaptionTop`）。グループより長いキャプション（velocity）はカード内に収まるよう左へずらす。高さは変えない
 - ✅ **エンベロープマクロをキャリア限定に** - Attack / Decay / Release は音量エンベロープとしてキャリアの AR / D1R / D2R / RR だけを動かし、モジュレーター（音色エンベロープ）はアンカーのまま。`targetsOf` も同様で Detail のハイライトはキャリア行だけ
