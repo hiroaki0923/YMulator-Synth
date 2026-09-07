@@ -105,9 +105,9 @@ protected:
     void applyParameterAutomation(int step, int totalSteps) {
         float t = static_cast<float>(step) / (totalSteps - 1);
         
-        processor->setParameterNotifyingHost(0, t);        // Algorithm
-        processor->setParameterNotifyingHost(1, 1.0f - t); // Feedback
-        processor->setParameterNotifyingHost(2, t * 0.7f); // Op1 Total Level
+        processor->juce::AudioProcessor::getParameters()[0]->setValueNotifyingHost(t);        // Algorithm
+        processor->juce::AudioProcessor::getParameters()[1]->setValueNotifyingHost(1.0f - t); // Feedback
+        processor->juce::AudioProcessor::getParameters()[2]->setValueNotifyingHost(t * 0.7f); // Op1 Total Level
     }
 };
 
@@ -243,7 +243,7 @@ TEST_F(PerformanceRegressionTest, ParameterUpdateLatency) {
         float newValue = static_cast<float>(i % 8) / 7.0f; // Algorithm values 0-7
         
         auto start = std::chrono::high_resolution_clock::now();
-        processor->setParameterNotifyingHost(0, newValue); // Algorithm parameter
+        processor->juce::AudioProcessor::getParameters()[0]->setValueNotifyingHost(newValue); // Algorithm parameter
         auto end = std::chrono::high_resolution_clock::now();
         
         double updateTime = std::chrono::duration<double, std::milli>(end - start).count();

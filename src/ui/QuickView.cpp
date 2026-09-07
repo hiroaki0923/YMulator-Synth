@@ -60,7 +60,7 @@ juce::Rectangle<int> QuickView::Card::headerBounds() const
 
 int QuickView::Card::titleWidth() const
 {
-    return juce::roundToInt(UiTheme::mono(11.0f, true).getStringWidthFloat(title)) + 12;
+    return juce::roundToInt(juce::GlyphArrangement::getStringWidth(UiTheme::mono(11.0f, true), title)) + 12;
 }
 
 // ============================================================================
