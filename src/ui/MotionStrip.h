@@ -41,7 +41,7 @@ private:
         juce::Rectangle<int> bounds;
     };
     struct Theme {
-        juce::String title, subtitle;
+        juce::String title, topCaption, bottomCaption;   // what the upper and the lower row hold
         juce::Rectangle<int> bounds;
     };
     
@@ -56,7 +56,7 @@ private:
     std::unique_ptr<juce::TextButton> arpSettingsButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttachment, monoAttachment, oneShotAttachment;
     
-    int addTheme(const juce::String& title, const juce::String& subtitle);
+    int addTheme(const juce::String& title, const juce::String& topCaption, const juce::String& bottomCaption);
     Group& addGroup(int theme, int row);
     void addKnob(Group& group, const char* parameterId, const juce::String& label, juce::Colour accent, bool isRate = false,
                  std::function<juce::String(double)> formatter = {}, const char* divParameterId = nullptr);

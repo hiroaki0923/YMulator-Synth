@@ -134,23 +134,24 @@ void MotionStrip::buildLayout()
     
     // By how it moves: the LFOs (which Sync turns into note values) on top, the per-note envelopes below,
     // then the stereo tricks and the playing aids
-    int t = addTheme("LFO", "vibrato / timbre, tremolo");
+    const juce::String dot(juce::CharPointer_UTF8(" \xc2\xb7 "));
+    int t = addTheme("LFO", "vibrato", "timbre" + dot + "tremolo");
     vibrato(t, 0); vibWave(t, 0); oneShot(t, 0);
     timbre(t, 1); tremolo(t, 1);
-    t = addTheme("ENVELOPE", "pitch / sweep, level");
+    t = addTheme("ENVELOPE", "pitch", "sweep" + dot + "level");
     pitchEnv(t, 0);
     sweep(t, 1); levelEg(t, 1);
-    t = addTheme("SPACE", "wide, echo / pan");
+    t = addTheme("SPACE", "wide" + dot + "echo", "pan");
     wide(t, 0); echo(t, 0);
     pan(t, 1);
-    t = addTheme("PLAY", "glide, velocity / arpeggio");
+    t = addTheme("PLAY", "glide" + dot + "velocity", "arpeggio");
     glide(t, 0); velBright(t, 0);
     arp(t, 1);
 }
 
-int MotionStrip::addTheme(const juce::String& title, const juce::String& subtitle)
+int MotionStrip::addTheme(const juce::String& title, const juce::String& topCaption, const juce::String& bottomCaption)
 {
-    themes.push_back(Theme { title, subtitle, {} });
+    themes.push_back(Theme { title, topCaption, bottomCaption, {} });
     return static_cast<int>(themes.size()) - 1;
 }
 
@@ -241,7 +242,7 @@ int MotionStrip::widthOf(const Group& group) const
 int MotionStrip::preferredHeight() const
 {
     const auto knobSize = RotaryKnob::preferredSize(knobStyle, RotaryKnob::LabelPosition::Below, false, 36);
-    return 6 + kTitleHeight + 2 * (knobSize.getHeight() + 2) + 6;
+    return 6 + kTitleHeight + 2 * (knobSize.getHeight() + 2) + kTitleHeight + 4;
 }
 
 void MotionStrip::paint(juce::Graphics& g)
@@ -251,16 +252,17 @@ void MotionStrip::paint(juce::Graphics& g)
     g.fillRect(0, 0, getWidth(), 1);
     for (size_t i = 0; i < themes.size(); ++i) {
         const auto& theme = themes[i];
+        // Title and the upper row's caption on top, the lower row's caption underneath, so each row says what it holds
         auto title = theme.bounds.withHeight(kTitleHeight);
         g.setFont(UiTheme::mono(9.0f, true));
         g.setColour(UiTheme::dim);
         const int titleWidth = juce::roundToInt(g.getCurrentFont().getStringWidthFloat(theme.title)) + 6;
         g.drawText(theme.title, title.removeFromLeft(titleWidth), juce::Justification::centredLeft);
-        if (theme.subtitle.isNotEmpty()) {
-            g.setFont(UiTheme::mono(9.0f));
-            g.setColour(UiTheme::dim.withAlpha(0.7f));
-            g.drawText(theme.subtitle, title, juce::Justification::centredLeft, true);
-        }
+        g.setFont(UiTheme::mono(9.0f));
+        g.setColour(UiTheme::dim.withAlpha(0.7f));
+        if (theme.topCaption.isNotEmpty()) g.drawText(theme.topCaption, title, juce::Justification::centredLeft, true);
+        if (theme.bottomCaption.isNotEmpty())
+            g.drawText(theme.bottomCaption, theme.bounds.withTop(theme.bounds.getBottom() - kTitleHeight), juce::Justification::centredLeft, true);
         if (i > 0) {
             g.setColour(UiTheme::border);
             g.fillRect(theme.bounds.getX() - kThemeGap / 2, theme.bounds.getY() + 2, 1, theme.bounds.getHeight() - 4);
