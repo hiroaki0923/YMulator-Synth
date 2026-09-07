@@ -35,7 +35,7 @@ AlgorithmDisplay::AlgorithmDisplay()
             }
         };
         fixText(*xml);
-        return juce::Drawable::createFromSVG(*xml);
+        return juce::Drawable::createFromSVGString(xml->toString());
     };
     for (size_t i = 0; i < diagrams.size(); ++i) {
         diagrams[i] = load(data[i], sizes[i]);

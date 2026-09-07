@@ -127,7 +127,7 @@ By default (VOPMex "natural" mode) the 0-127 CC value is scaled to the parameter
 - CMake 3.22 or later and Git.
 - **macOS**: Xcode Command Line Tools (`xcode-select --install`). Optional: `brew install googletest` for the tests.
 - **Windows**: Visual Studio 2022 or later with the C++ workload.
-- **Linux** (Ubuntu / Debian): `cmake build-essential git libgtest-dev libasound2-dev libjack-jackd2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxinerama-dev libxrandr-dev libxrender-dev libglu1-mesa-dev`.
+- **Linux** (Ubuntu / Debian): `cmake build-essential git libgtest-dev libasound2-dev libjack-jackd2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxinerama-dev libxrandr-dev libxrender-dev libxi-dev libglu1-mesa-dev`.
 
 JUCE is fetched by CMake; ymfm is a submodule.
 

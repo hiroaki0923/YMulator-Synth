@@ -44,6 +44,7 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **JUCE 9.0.1 へ更新** - `cmake/JUCEConfig.cmake` の GIT_TAG を 8.0.4 → 8.0.15 → 9.0.1 の 2 段階で確認。8.0.15 で `AudioProcessor::setParameterNotifyingHost` が消えたのでテストはパラメーターリスト経由に、`Font::getStringWidthFloat` は `GlyphArrangement::getStringWidth` に。9.0 で `Drawable::createFromSVG(XmlElement)` が消え `createFromSVGString` に（アルゴリズム図のラベルは新パーサー lunasvg でも描ける）。Linux は `libxi-dev` が追加で必要（CI と README に追記）。`YMULATOR_COPY_PLUGIN` オプションで ~/Library へのコピーを止められる（別ビルドディレクトリでの検証用）
 - ✅ **ノブのダブルクリック数値入力** - `RotaryKnob::beginTextEntry`。ダイヤル中央に `TextEditor` を重ね、Return / フォーカス喪失で `applyTypedValue`（生の値をジェスチャ 1 回で適用、範囲とステップに丸め）、Escape で破棄。エディタは自身のキー処理から呼ばれるので `callAsync` で遅延削除。`tests/ui/RotaryKnobTest.cpp`
 - ✅ **オペレーターの役割タグ** - `OperatorPanel` のタグ幅を OP ラベル左端からトグル右端まで（76 px）にして文字を中央揃え。MOD → MODULATOR
 - ✅ **MOTION カードのキャプション位置** - テーマ単位の上下キャプションをやめ、`Group::caption` としてグループごとにその真上へ（上段はタイトル行、下段は行間 `lowerCaptionTop`）。グループより長いキャプション（velocity）はカード内に収まるよう左へずらす。高さは変えない

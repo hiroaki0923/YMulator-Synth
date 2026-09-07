@@ -13,6 +13,9 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 - **Feedback beside the algorithm**: the Feedback knob leaves the TONE row (it is a register, not a relative macro) and sits with the algorithm picker in both views. The Quick view's right column is wider, so the MOTION card has more room
 - **Arpeggiator**: Random and As-played orders, up to four octaves, retrigger with a gate (off: chip style, pitch only), a chord table that arpeggiates a single note (Major, Minor, 7th, m7, Maj7, Sus4, Sus2, Dim, Aug, 5th, Octave), Latch, and an accent on the beat or every 2-4 steps. A new chord restarts the pattern on its first note, quantised to the step so a chord placed on the bar line starts on the bar line. CC 108 / 109 / 119 set the chord table, octaves and gate. The finer settings open from the "..." button next to the arpeggio in the Detail view
 
+**🔧 Build:**
+- **JUCE 9.0.1** (from 8.0.4): the new SVG parser, software-renderer and Windows Direct2D improvements, macOS 26 support, TextEditor fixes, and VST3 parameter migration support come along. Linux builds need `libxi-dev` now. `-DYMULATOR_COPY_PLUGIN=OFF` builds the plug-ins without copying them into the user plug-in folders
+
 **🐛 Fixes:**
 - **Operator envelope drawing**: the Detail view drew the sustain level as 4*D1L on its own instead of TL + 4*D1L, so a decay to the sustain level was often missing, D1L 15 stopped half way instead of at silence, D1R 0 still showed a decay, and the rate knobs barely changed the picture. The drawing now follows the chip: peak at TL, decay 1 to TL + 4*D1L, decay 2 sloping on while held, release from wherever the level was, with times that double every four rate steps on a log time axis
 
