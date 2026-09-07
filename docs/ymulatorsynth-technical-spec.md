@@ -1,939 +1,387 @@
-# YMulator Synth 技術仕様書
+# YMulator-Synth 技術仕様書
 
-## 1. 詳細設計
+対象: YMulator-Synth v0.1.2。MIDI 実装、パラメーター一覧、ボイス割り当て、ノイズ、オーディオ出力の仕様をまとめる。数値はすべて `src/utils/ParameterIDs.h`、`src/core/ParameterManager.cpp`（`createParameterLayout`）、`src/core/MidiProcessor.cpp` から取っている。疑わしい点はソースを正とする。
 
-### 1.1 ymfm統合
+関連文書:
 
-#### 1.1.1 サポートチップ
-```cpp
-enum class ChipType {
-    YM2151_OPM,    // X68000, アーケード基板
-    YM2608_OPNA,   // PC-88VA, PC-98
-    AY38910_SSG    // SSG部分
-};
-```
+- 構成要素とスレッド: [docs/ymulatorsynth-architecture.md](ymulatorsynth-architecture.md)
+- YM2151 のレジスタ事実: [docs/ym2151-register-facts.md](ym2151-register-facts.md)
+- .opm 形式: [docs/ymulatorsynth-vopm-format-spec.md](ymulatorsynth-vopm-format-spec.md)
+- Quick パネルとマクロ: [docs/ymulatorsynth-quick-panel-design.md](ymulatorsynth-quick-panel-design.md)
+- Motion: [docs/ymulatorsynth-motion-design.md](ymulatorsynth-motion-design.md)
+- ymfm の使い方: [docs/ymulatorsynth-ymfm-integration-guide.md](ymulatorsynth-ymfm-integration-guide.md)
 
-#### 1.1.2 ymfmインターフェース
-```cpp
-class YmfmInterface : public ymfm::ymfm_interface {
-public:
-    // タイマー管理
-    virtual uint32_t get_timer_resolution() override;
-    
-    // 外部メモリアクセス（ADPCM用）
-    virtual uint8_t external_read(ymfm::access_class type, uint32_t address) override;
-    virtual void external_write(ymfm::access_class type, uint32_t address, uint8_t data) override;
-    
-private:
-    std::vector<uint8_t> adpcm_rom;
-};
-```
+## 1. 概要
 
-### 1.2 音色パラメータ構造
-
-#### 1.2.1 FM音色パラメータ
-```cpp
-struct FMVoiceParameters {
-    // Algorithm & Feedback
-    uint8_t algorithm;      // 0-7
-    uint8_t feedback;       // 0-7
-    
-    // Per-operator parameters (x4)
-    struct Operator {
-        // Envelope Generator
-        uint8_t attack_rate;    // 0-31
-        uint8_t decay1_rate;    // 0-31
-        uint8_t decay2_rate;    // 0-31
-        uint8_t release_rate;   // 0-15
-        uint8_t decay1_level;   // 0-15
-        
-        // Frequency
-        uint8_t detune;         // 0-7
-        uint8_t multiple;       // 0-15
-        
-        // Output
-        uint8_t total_level;    // 0-127
-        uint8_t key_scale;      // 0-3
-        
-        // LFO
-        uint8_t ams_enable;     // 0-1
-        uint8_t pms_depth;      // 0-7
-        
-        // SLOT control
-        uint8_t slot_enable;    // 0-1 (individual operator ON/OFF)
-    } operators[4];
-    
-    // Global parameters
-    uint8_t lfo_frequency;      // 0-7
-    uint8_t lfo_waveform;       // 0-3
-    uint8_t panning;            // 0-3 (L, R, LR)
-    
-    // Noise generator (YM2151 only)
-    uint8_t noise_enable;       // 0-1 (noise enable)
-    uint8_t noise_frequency;    // 0-31 (noise frequency)
-};
-```
-
-#### 1.2.2 SSGパラメータ
-```cpp
-struct SSGVoiceParameters {
-    uint8_t tone_enable[3];     // トーン出力ON/OFF
-    uint8_t noise_enable[3];    // ノイズ出力ON/OFF
-    uint8_t envelope_shape;     // エンベロープ形状
-    uint16_t envelope_period;   // エンベロープ周期
-    uint8_t noise_period;       // ノイズ周期
-};
-```
-
-### 1.3 プリセット管理
-
-#### 1.3.1 プリセットフォーマット
-```cpp
-struct PresetVoice {
-    std::string name;
-    std::string category;
-    std::string author;
-    ChipType chip_type;
-    
-    union {
-        FMVoiceParameters fm_params;
-        SSGVoiceParameters ssg_params;
-    };
-    
-    std::vector<uint8_t> custom_data;  // 拡張用
-};
-```
-
-#### 1.3.2 プリセットソース
-- **VOPM形式** (.opm): テキスト形式のOPM音色定義（プライマリサポート）
-- **その他の音色フォーマット**: 将来的な拡張として検討
-- **カスタムJSON形式**: プラグイン独自の拡張形式
-
-### 1.4 ADPCM管理
-
-#### 1.4.1 WAVファイル読み込み
-```cpp
-class ADPCMManager {
-public:
-    // WAVファイルをADPCM形式に変換
-    bool loadWAVFile(const std::string& path);
-    
-    // ADPCMデータをチップに転送
-    void uploadToChip(YmfmInterface* interface);
-    
-private:
-    // WAV→ADPCM変換
-    std::vector<uint8_t> convertToADPCM(const std::vector<int16_t>& pcm_data);
-    
-    // サンプリングレート変換
-    std::vector<int16_t> resample(const std::vector<int16_t>& input, 
-                                   int src_rate, int dst_rate);
-};
-```
-
-### 1.5 MIDI実装仕様
-
-#### 1.5.1 MIDI CCマッピング（VOPMex互換）
-本プラグインは、VOPMexのexモードと互換性のあるCCマッピングを採用する。これにより、既存のVOPMユーザーがスムーズに移行できる。
-
-```cpp
-// MIDI CC定義（VOPMex準拠）
-enum class VopmCC : uint8_t {
-    // LFO関連
-    LFO_FREQ_MSB = 1,      // CC 1: LFO周波数（上位）
-    LFO_PMD = 2,           // CC 2: ピッチ変調深度
-    LFO_AMD = 3,           // CC 3: 振幅変調深度
-    LFO_WAVEFORM = 12,     // CC 12: LFO波形（0-3）
-    LFO_FREQ_LSB = 33,     // CC 33: LFO周波数（下位）
-    
-    // アルゴリズム・フィードバック
-    ALGORITHM = 14,        // CC 14: アルゴリズム（0-7）
-    FEEDBACK = 15,         // CC 15: フィードバック（0-7）
-    
-    // オペレータ1-4 パラメータ（+0,+1,+2,+3でOP1-4）
-    TL_OP1 = 16,          // CC 16-19: Total Level
-    MUL_OP1 = 20,         // CC 20-23: Multiple
-    DT1_OP1 = 24,         // CC 24-27: Detune1
-    DT2_OP1 = 28,         // CC 28-31: Detune2
-    KS_OP1 = 39,          // CC 39-42: Key Scale
-    AR_OP1 = 43,          // CC 43-46: Attack Rate
-    D1R_OP1 = 47,         // CC 47-50: Decay1 Rate
-    D2R_OP1 = 51,         // CC 51-54: Decay2 Rate
-    D1L_OP1 = 55,         // CC 55-58: Decay1 Level
-    RR_OP1 = 59,          // CC 59-62: Release Rate
-    AME_OP1 = 70,         // CC 70-73: AM Enable
-    
-    // LFO感度
-    PMS = 75,             // CC 75: ピッチ変調感度（0-7）
-    AMS = 76,             // CC 76: 振幅変調感度（0-3）
-    
-    // ノイズ
-    NOISE_ENABLE = 80,    // CC 80: ノイズ有効（0-1）
-    NOISE_FREQ = 82,      // CC 82: ノイズ周波数（0-31）
-    
-    // その他
-    PITCH_BEND_RANGE = 81, // CC 81: ピッチベンド幅
-    VELOCITY_SENS_OP1 = 87,// CC 87-90: ベロシティ感度
-    OP_MASK = 93,         // CC 93: オペレータマスク
-    
-    // SLOT制御（個別オペレータON/OFF）
-    SLOT_OP1 = 83,        // CC 83-86: SLOT Enable OP1-4
-    SLOT_OP2 = 84,        
-    SLOT_OP3 = 85,        
-    SLOT_OP4 = 86,
-    
-    // S98録音
-    S98_LOOP_MARK = 118,  // CC 118: ループポイント設定
-    S98_RECORD = 119,     // CC 119: 録音開始/停止
-};
-```
-
-#### 1.5.2 パラメータ変換仕様
-VOPMex の既定（ナチュラルモード）に合わせる。0〜127 の CC 値をパラメータの段数へスケール（`value >> (7 - bit幅)`）し、TL/AR/D1R/D2R/D1L/RR はレジスタと逆向き（`max - value`）にする。MUL/DT1/DT2/KS/ALG/FB などはスケールのみで反転しない。範囲を超えた値は上限に丸める。8 ビットの LFO 周波数（LFRQ）は CC 1 を上位 7 ビット、CC 33 を最下位ビットとして合成する。
-
-```cpp
-int bits = 0; for (int m = maxValue; m > 0; m >>= 1) ++bits;
-int scaled = ccValue >> std::max(0, 7 - bits);
-if (reversed) scaled = maxValue - scaled;              // TL/AR/D1R/D2R/D1L/RR
-registerValue = juce::jlimit(0, maxValue, scaled);
-```
-
-NRPN でレジスタ値入力モードに切り替えると、CC 値がそのままレジスタ値になる（反転・スケールなし）。
-
-| NRPN | 設定 |
+| 項目 | 内容 |
 |------|------|
-| CC 99=126, CC 98=127, CC 6=127 | 全チャンネルをレジスタ値モードに |
-| CC 99=126, CC 98=0,   CC 6=127 | 当該チャンネルをレジスタ値モードに |
-| CC 6=0 | ナチュラルモードに戻す |
-| CC 121 (Reset All Controllers) | ナチュラルモードに戻す |
+| 音源 | YM2151 (OPM) のみ。エミュレーションは ymfm |
+| 同時発音数 | 8（YM2151 の 8 チャンネルをそのまま使う） |
+| 形式 | AU / AUv3 / VST3 / Standalone、macOS / Windows / Linux |
+| AU 識別子 | `aumu YMul Hrki` |
+| チップ動作レート | 3,579,545 Hz / 64 = 55,930 Hz。`YmfmWrapper` がホストのサンプルレートへ 4 点キュービック補間でリサンプルする（§6） |
+| 音色 | 1 音色を全 8 チャンネルに書き込む（マルチティンバーではない） |
+| プリセット | .opm（VOPM / VOPMex 形式）にレジスタ値のみ保存。マクロと Motion はプラグイン状態に保存（§3.7、ADR-010） |
 
-旧バージョン（0.0.6 以前）の CC 番号 76〜79（LFO）と 81（ノイズ周波数）は互換のため引き続き受け付ける。
+`YmfmWrapperInterface::ChipType` には `OPNA` も列挙されているが使われていない。YM2608、SSG、ADPCM、S98 録音、レイテンシーモードは実装していない。
 
-#### 1.5.3 MIDI処理実装
-```cpp
-class YMulatorSynthAudioProcessor : public juce::AudioProcessor {
-public:
-    void handleMidiCC(int channel, int ccNumber, int value) {
-        // オペレータパラメータの処理
-        for (int op = 0; op < 4; ++op) {
-            if (ccNumber == VopmCC::TL_BASE + op) {
-                setOperatorTL(op, value);
-            } else if (ccNumber == VopmCC::AR_BASE + op) {
-                setOperatorAR(op, value);
-            }
-            // ... 他のパラメータも同様
-        }
-        
-        // グローバルパラメータの処理
-        switch (ccNumber) {
-            case VopmCC::ALGORITHM:
-                setAlgorithm(value);
-                break;
-            case VopmCC::FEEDBACK:
-                setFeedback(value);
-                break;
-            // ... その他のパラメータ
-        }
-    }
-};
-```
+## 2. MIDI 実装仕様
 
-#### 1.5.4 NRPN実装
-```cpp
-// VOPMex互換モード切り替え用NRPN
-struct NRPNCommands {
-    static constexpr uint8_t MODE_SWITCH_LSB = 0;
-    static constexpr uint8_t MODE_SWITCH_MSB = 127;
-    
-    // 個別チャンネル設定
-    static constexpr uint8_t CHANNEL_MODE_LSB = 0;
-    static constexpr uint8_t CHANNEL_MODE_MSB = 127;
-    
-    // パラメータ入力モード切り替え
-    static constexpr uint8_t PARAM_MODE_LSB = 127;
-    static constexpr uint8_t PARAM_MODE_MSB = 126;
-};
-```
+### 2.1 受信するメッセージ
 
-### 1.6 YM2151ノイズジェネレータ実装
+`MidiProcessor::processMidiMessages` が扱うのは次のメッセージ。MIDI チャンネル番号は見ない（全チャンネルを同じに扱う）。
 
-#### 1.6.1 ハードウェア制約
-```cpp
-namespace YM2151NoiseConstraints {
-    // YM2151 ハードウェア制約
-    constexpr uint8_t NOISE_CHANNEL = 7;           // ノイズはチャンネル7でのみ動作
-    constexpr uint8_t NOISE_OPERATOR = 3;          // ノイズはオペレータ4（インデックス3）でのみ生成
-    constexpr uint8_t REG_NOISE_CONTROL = 0x0F;    // ノイズ制御レジスタ
-    
-    // ノイズ制御マスク
-    constexpr uint8_t MASK_NOISE_ENABLE = 0x80;    // ビット7: ノイズ有効
-    constexpr uint8_t MASK_NOISE_FREQUENCY = 0x1F; // ビット0-4: ノイズ周波数
-    
-    // 周波数範囲
-    constexpr uint8_t NOISE_FREQUENCY_MIN = 0;     // 最高周波数（最も速い）
-    constexpr uint8_t NOISE_FREQUENCY_MAX = 31;    // 最低周波数（最も遅い）
-    constexpr uint8_t NOISE_FREQUENCY_DEFAULT = 16; // デフォルト周波数
-}
-```
+| メッセージ | 処理 |
+|-----------|------|
+| Note On | `VoiceManager` でチャンネルを割り当て、`YmfmWrapper::noteOn`。Mono / アルペジオ時は §2.8 |
+| Note Off | 該当チャンネルに `noteOff`、ボイス解放 |
+| Control Change | §2.2〜2.5 |
+| Channel Pressure | Expressive MIDI が ON のときだけ Brightness マクロへ（§2.5） |
+| Pitch Bend | §2.6 |
 
-#### 1.6.2 ノイズジェネレータ実装
-```cpp
-class YmfmWrapper {
-public:
-    // ノイズ制御API
-    void setNoiseEnable(bool enable);
-    void setNoiseFrequency(uint8_t frequency);  // 0-31
-    void setNoiseParameters(bool enable, uint8_t frequency);
-    
-    bool getNoiseEnable() const;
-    uint8_t getNoiseFrequency() const;
-    
-    // テスト用メソッド
-    void testNoiseChannel();
-    
-private:
-    void configureNoiseChannel();
-};
+Velocity 0 の Note On は JUCE が Note Off として扱う。プログラムチェンジ、ポリフォニックアフタータッチ、All Notes Off は処理しない。
 
-// 実装例
-void YmfmWrapper::setNoiseParameters(bool enable, uint8_t frequency) {
-    CS_ASSERT_PARAMETER_RANGE(frequency, YM2151Regs::NOISE_FREQUENCY_MIN, YM2151Regs::NOISE_FREQUENCY_MAX);
-    
-    if (chipType != ChipType::OPM) {
-        CS_DBG("Warning: Noise is only supported on OPM (YM2151) chip");
-        return;
-    }
-    
-    // レジスタ0x0Fに書き込み：ビット7=有効、ビット0-4=周波数
-    uint8_t noiseValue = (enable ? YM2151Regs::MASK_NOISE_ENABLE : 0) | 
-                         (frequency & YM2151Regs::MASK_NOISE_FREQUENCY);
-    
-    writeRegister(YM2151Regs::REG_NOISE_CONTROL, noiseValue);
-}
-```
+### 2.2 CC 一覧
 
-#### 1.6.3 リズム音色プリセット対応
-```cpp
-// リズム系プリセットの設定例
-struct RhythmPresetConfig {
-    const char* name;
-    uint8_t noiseFrequency;
-    bool noiseEnable;
-    uint8_t operatorConfig[4][10]; // TL, AR, D1R, D2R, RR, D1L, KS, MUL, DT1, DT2
-};
+VOPMex 互換の番号を使う。「CC 値の扱い」の列は §2.3 を参照。
 
-const RhythmPresetConfig rhythmPresets[] = {
-    {"Kick Drum",    8, true, {{31,31,0,15,0,0,2,0,0,0}, {31,31,20,15,0,50,3,1,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
-    {"Snare Drum",   20, true, {{31,31,0,15,0,0,3,15,0,0}, {31,31,31,15,0,40,3,1,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
-    {"Hi-Hat",       25, true, {{31,31,0,15,0,0,3,15,0,0}, {31,31,31,15,0,35,3,15,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}},
-    {"Crash Cymbal", 15, true, {{31,31,31,10,0,0,3,15,0,0}, {31,20,20,5,15,20,3,15,0,0}, {0,0,0,0,0,127,0,1,0,0}, {0,0,0,0,0,127,0,1,0,0}}}
-};
-```
+#### グローバル
 
-#### 1.6.4 ノイズ対応スマートボイス割り当て
+| CC | 対象パラメーター | 範囲 | CC 値の扱い |
+|----|----------------|------|------------|
+| 14 | `algorithm` (CON) | 0-7 | レジスタ値 |
+| 15 | `feedback` (FL) | 0-7 | レジスタ値 |
+| 1 | `lfo_rate` (LFRQ) 上位 7 ビット | 0-255 | `(CC1 << 1) \| CC33 のビット` |
+| 33 | `lfo_rate` 最下位ビット | — | CC 値 ≥ 64 で 1。CC 1 を受けたときに合成される |
+| 2 | `lfo_pmd` | 0-127 | レジスタ値 |
+| 3 | `lfo_amd` | 0-127 | レジスタ値 |
+| 12 | `lfo_waveform` (WF) | 0-3 | レジスタ値 |
+| 75 | `lfo_pms` (PMS) | 0-7 | レジスタ値 |
+| 76 | `lfo_ams` (AMS) | 0-3 | レジスタ値 |
+| 80 | `noise_enable` (NE) | 0/1 | レジスタ値 |
+| 82 | `noise_frequency` (NFRQ) | 0-31 | レジスタ値 |
+| 81 | `noise_frequency`（0.0.6 以前の番号、互換のため残す） | 0-31 | レジスタ値 |
 
-```cpp
-// VoiceManagerでノイズ対応プリセットを自動的にチャンネル7に割り当て
-class VoiceManager {
-public:
-    // 通常の割り当て（後方互換性）
-    int allocateVoice(uint8_t note, uint8_t velocity);
-    
-    // ノイズ対応割り当て（推奨）
-    int allocateVoiceWithNoisePriority(uint8_t note, uint8_t velocity, bool needsNoise);
+#### オペレーター（Op1〜Op4 が連番。Op1 = M1、Op2 = C1、Op3 = M2、Op4 = C2）
 
-private:
-    // ノイズ優先割り当てロジック
-    int findAvailableVoiceWithNoisePriority(bool needsNoise) {
-        if (needsNoise) {
-            // ノイズプリセット：チャンネル7を最優先
-            if (!voices[7].active) return 7;
-            
-            // チャンネル7が使用中の場合は6→0の順で検索
-            for (int i = 6; i >= 0; --i) {
-                if (!voices[i].active) return i;
-            }
-            
-            // 全チャンネル使用中：ノイズプリセットのためにチャンネル7を奪取
-            return 7;
-        } else {
-            // 非ノイズプリセット：チャンネル7を避ける（6→0の順）
-            for (int i = 6; i >= 0; --i) {
-                if (!voices[i].active) return i;
-            }
-            
-            // チャンネル0-6が全て使用中の場合のみチャンネル7を使用
-            if (!voices[7].active) return 7;
-            
-            // 通常のポリシーでボイススティーリング
-            return findAvailableVoice();
-        }
-    }
-};
+| CC (Op1/Op2/Op3/Op4) | パラメーター | 範囲 | ナチュラルモードで反転 |
+|----------------------|------------|------|------------------|
+| 16/17/18/19 | `opN_tl` | 0-127 | する |
+| 20/21/22/23 | `opN_mul` | 0-15 | しない |
+| 24/25/26/27 | `opN_dt1` | 0-7 | しない |
+| 28/29/30/31 | `opN_dt2` | 0-3 | しない |
+| 39/40/41/42 | `opN_ks` | 0-3 | しない |
+| 43/44/45/46 | `opN_ar` | 0-31 | する |
+| 47/48/49/50 | `opN_d1r` | 0-31 | する |
+| 51/52/53/54 | `opN_d2r` | 0-31 | する |
+| 55/56/57/58 | `opN_d1l` | 0-15 | する |
+| 59/60/61/62 | `opN_rr` | 0-15 | する |
+| 70/71/72/73 | `opN_ams_en` (AMS-EN) | 0/1 | しない |
 
-// PluginProcessorでの使用例
-void processMidiMessage(const juce::MidiMessage& message) {
-    if (message.isNoteOn()) {
-        // 現在のプリセットがノイズを使用するかチェック
-        bool needsNoise = *parameters.getRawParameterValue(ParamID::Global::NoiseEnable) >= 0.5f;
-        
-        // ノイズ対応割り当てを使用
-        int channel = voiceManager.allocateVoiceWithNoisePriority(
-            message.getNoteNumber(), 
-            message.getVelocity(), 
-            needsNoise
-        );
-        
-        ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
-    }
-}
-```
+`opN_slot_en` に対応する CC はない。
 
-#### 1.6.5 アルゴリズムとノイズの関係
-```cpp
-// YM2151ノイズはオペレータ4の正弦波出力をノイズに置き換える
-// アルゴリズムに関係なく、オペレータ4が最終出力に寄与する場合にノイズが聞こえる
+#### Quick マクロ（CC 値 = 範囲上の位置、64 ≈ 中央）
 
-// オペレータ4が出力に寄与するアルゴリズム：
-// - アルゴリズム 0, 1, 2, 3, 4, 5, 6, 7 (全アルゴリズム)
-// オペレータ4が出力に寄与しないアルゴリズム：
-// - なし（YM2151では全アルゴリズムでオペレータ4が出力される）
+| CC | パラメーター | 範囲 |
+|----|------------|------|
+| 102 | `macro_brightness` | -50..+50 |
+| 103 | `macro_harmonics` | 選択肢 9 個（Preset, Saw, Square, Pulse, Bright, Bell, Metal, Sub, Octave） |
+| 104 | `macro_attack` | -50..+50 |
+| 105 | `macro_decay` | -50..+50 |
+| 106 | `macro_release` | -50..+50 |
+| 107 | `macro_spread` | -50..+50 |
 
-// ノイズを確実に聞かせるための設定例（テスト用）
-void setupNoiseChannelForTesting() {
-    const uint8_t noiseChannel = 7;  // 必須：チャンネル7
-    
-    // アルゴリズム7を使用（全オペレータ並列で最も分かりやすい）
-    // 注意：他のアルゴリズムでもノイズは動作する
-    uint8_t algorithmValue = 0x07;
-    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
-                  algorithmValue | YM2151Regs::PAN_CENTER);
-    
-    // オペレータ1-3を無音に設定（ノイズを際立たせるため）
-    for (int op = 0; op < 3; op++) {
-        int baseAddr = op * 8 + noiseChannel;
-        writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + baseAddr, 127); // 最大減衰
-    }
-    
-    // オペレータ4（ノイズ用）を設定
-    int op4BaseAddr = 3 * 8 + noiseChannel;
-    writeRegister(YM2151Regs::REG_TOTAL_LEVEL_BASE + op4BaseAddr, 32); // 適度な音量
-    // その他のオペレータ4パラメータ設定...
-}
+#### Motion（CC 値 = 範囲上の位置）
 
-// 既存の音色にノイズを追加する場合の例
-void addNoiseToExistingVoice(uint8_t algorithm) {
-    const uint8_t noiseChannel = 7;  // 必須：チャンネル7
-    
-    // 既存のアルゴリズムをそのまま使用可能
-    writeRegister(YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + noiseChannel, 
-                  algorithm | YM2151Regs::PAN_CENTER);
-    
-    // オペレータ4の設定により、正弦波＋ノイズのミックスが可能
-    // オペレータ1-3は既存の音色設定を維持
-}
-```
+| CC | パラメーター | 範囲 |
+|----|------------|------|
+| 110 | `motion_wide` | 0-100 |
+| 111 | `motion_vib_depth` | 0-100 |
+| 112 | `motion_timbre_depth` | 0-40 |
+| 113 | `motion_echo_level` | 0-100 |
+| 114 | `motion_sweep_amount` | -40..+40 |
+| 115 | `motion_level_attack` (Swell) | 0-3000 ms |
+| 116 | `motion_porta_time` | 0-1000 ms |
+| 117 | `motion_pitch_env` | -2400..+2400 cent |
+| 118 | `motion_vel_bright` | 0-100 |
 
-### 1.6 グローバルパン機能実装
+#### アルペジオ（CC 値 = 範囲上の位置）
 
-#### 1.6.1 グローバルパン設計思想
-グローバルパンは音色プリセットに影響しない独立したパラメータとして実装。これにより、プリセット選択後にパンポジションを調整してもプリセット名が「カスタム」に変わらない。
+| CC | パラメーター | 範囲 |
+|----|------------|------|
+| 108 | `motion_arp_chord` | 選択肢 12 個（None, Major, Minor, 7th, m7, Maj7, Sus4, Sus2, Dim, Aug, 5th, Octave） |
+| 109 | `motion_arp_octaves` | 1-4 |
+| 119 | `motion_arp_gate` | 10-100 % |
 
-#### 1.6.2 技術仕様
-```cpp
-enum class GlobalPanPosition : int {
-    LEFT = 0,      // 左チャンネルのみ
-    CENTER = 1,    // 中央（デフォルト）
-    RIGHT = 2,     // 右チャンネルのみ  
-    RANDOM = 3     // チャンネル毎にランダム
-};
+#### 制御用
 
-namespace YM2151Regs {
-    // パンニング制御ビット（修正済み）
-    constexpr uint8_t PAN_LEFT = 0x40;     // ビット6: 左チャンネル出力
-    constexpr uint8_t PAN_RIGHT = 0x80;    // ビット7: 右チャンネル出力
-    constexpr uint8_t PAN_CENTER = PAN_LEFT | PAN_RIGHT;  // 両チャンネル
-    constexpr uint8_t PAN_MASK = 0x3F;     // パンビット以外のマスク
-}
-```
+| CC | 役割 |
+|----|------|
+| 99 / 98 / 6 | NRPN（§2.4） |
+| 121 | Reset All Controllers: レジスタ値モードを解除し、NRPN 状態を消し、6 つのマクロを既定値（中央）へ戻す。ノートは止めない |
+| 1 | Expressive MIDI が ON のときは `motion_vib_depth`（§2.5）。OFF のときは上記 LFRQ MSB |
 
-#### 1.6.3 実装アーキテクチャ
-```cpp
-class YMulatorSynthAudioProcessor {
-public:
-    // グローバルパン適用メソッド
-    void applyGlobalPan(int channel);
-    void applyGlobalPanToAllChannels();
-    void setChannelRandomPan(int channel);
-    
-    // パラメータ変更処理（グローバルパン例外処理）
-    void parameterValueChanged(int parameterIndex, float newValue) override;
-    
-private:
-    // チャンネル毎のランダムパン状態管理
-    std::array<uint8_t, 8> channelRandomPanStates;
-    std::random_device randomDevice;
-    std::mt19937 randomGenerator;
-};
-```
+### 2.3 CC 値の解釈
 
-#### 1.6.4 プリセット名保持ロジック
-```cpp
-void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, float newValue) {
-    // グローバルパンパラメータの識別
-    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
-    bool isGlobalPanChange = (parameterIndex < allParams.size() && 
-                             allParams[parameterIndex] == globalPanParam);
-    
-    if (isGlobalPanChange) {
-        applyGlobalPanToAllChannels();
-        return; // カスタムモード切り替えをスキップ
-    }
-    
-    // 通常のパラメータ変更処理
-    if (!isCustomPreset && userGestureInProgress) {
-        isCustomPreset = true; // カスタムモードに切り替え
-    }
-}
-```
+`MidiProcessor::applyCcToParameter` の規則。
 
-#### 1.6.5 YM2151レジスタ操作
-```cpp
-void YmfmWrapper::setChannelPan(uint8_t channel, uint8_t panValue) {
-    CS_ASSERT_CHANNEL(channel);
-    
-    uint8_t regAddr = YM2151Regs::REG_ALGORITHM_FEEDBACK_BASE + channel;
-    uint8_t currentValue = getCurrentRegisterValue(regAddr);
-    
-    // パンビット以外を保持してパンビットのみ更新
-    uint8_t newValue = (currentValue & YM2151Regs::PAN_MASK) | panValue;
-    writeRegister(regAddr, newValue);
-}
-```
-
-### 1.7 オーディオバッファ処理とDAW互換性
-
-#### 1.7.1 ymfm出力バッファ構造
-ymfmライブラリの出力は**インターリーブされていない**ステレオ形式：
-```cpp
-// 正しい出力バッファ解釈
-struct ymfm_output<2> {
-    int32_t data[2];  // data[0]=左、data[1]=右（インターリーブではない）
-};
-
-// 正しいサンプル生成処理
-void YmfmWrapper::generateSamples(float* leftBuffer, float* rightBuffer, int numSamples) {
-    // バッファクリアで残留データ防止
-    std::memset(leftBuffer, 0, numSamples * sizeof(float));
-    if (leftBuffer != rightBuffer) {
-        std::memset(rightBuffer, 0, numSamples * sizeof(float));
-    }
-    
-    const float scaleFactor = 1.0f / YM2151Regs::SAMPLE_SCALE_FACTOR;
-    
-    for (int i = 0; i < numSamples; i++) {
-        opmChip->generate(&opmOutput, 1);
-        
-        // 正しい出力マッピング
-        leftBuffer[i] = static_cast<float>(opmOutput.data[0]) * scaleFactor;
-        rightBuffer[i] = static_cast<float>(opmOutput.data[1]) * scaleFactor;
-    }
-}
-```
-
-#### 1.7.2 Audio Unit互換性対策
-```cpp
-// サンプルレート同期問題の解決
-void YmfmWrapper::initialize(ChipType type, uint32_t outputSampleRate) {
-    chipType = type;
-    this->outputSampleRate = outputSampleRate;
-    
-    if (type == ChipType::OPM) {
-        uint32_t opm_clock = YM2151Regs::OPM_DEFAULT_CLOCK;
-        initializeOPM();
-        
-        if (opmChip) {
-            uint32_t ymfm_internal_rate = opmChip->sample_rate(opm_clock);
-            // 重要: DAWのサンプルレートを使用してDAW同期を保証
-            internalSampleRate = outputSampleRate; // ymfm_internal_rateではない
-        }
-    }
-}
-
-// リソース解放でオーディオ遅延を防止
-void YMulatorSynthAudioProcessor::releaseResources() {
-    voiceManager.releaseAllVoices();  // 全ボイスクリア
-    ymfmWrapper.reset();              // ymfm状態リセット
-}
-```
-
-#### 1.7.3 リアルタイム処理最適化
-```cpp
-// パフォーマンス最適化済みオーディオ処理
-void YMulatorSynthAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages) {
-    // デバッグ出力の最適化（リアルタイム処理中は最小限）
-    static int callCounter = 0;
-    if (++callCounter % 1000 == 0) {  // 1000回に1回のみログ
-        CS_DBG("processBlock #" + String(callCounter));
-    }
-    
-    buffer.clear();  // 出力バッファクリア
-    
-    // MIDI処理
-    for (const auto metadata : midiMessages) {
-        // 効率的なMIDI処理...
-    }
-    
-    // パラメータ更新（分周して負荷軽減）
-    if (++parameterUpdateCounter >= PARAMETER_UPDATE_RATE_DIVIDER) {
-        parameterUpdateCounter = 0;
-        updateYmfmParameters();
-    }
-    
-    // オーディオ生成
-    ymfmWrapper.generateSamples(
-        buffer.getWritePointer(0),
-        buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : buffer.getWritePointer(0),
-        buffer.getNumSamples()
-    );
-}
-```
-
-#### 1.7.4 Audio Unit検証
-```bash
-# Audio Unit検証コマンド
-auval -v aumu YMul Hrki  # YMulator Synthの検証
-
-# 成功例出力:
-# PASS: YMulatorSynth
-# --------------------------------------------------
-# TOTAL TESTS RUN: 21
-# PASSED: 21
-# FAILED: 0
-```
-
-### 1.8 ポリフォニック実装仕様
-
-#### 1.8.1 VoiceManager設計
-
-```cpp
-class VoiceManager {
-public:
-    static constexpr int MAX_VOICES = 8;  // YM2151の物理チャンネル数
-    
-    // ボイス割り当て戦略
-    enum class StealingPolicy {
-        OLDEST,     // 最も古い音を停止（デフォルト）
-        QUIETEST,   // 最も小さい音を停止
-        LOWEST      // 最も低い音を停止
-    };
-    
-    // チャンネル状態管理
-    struct Voice {
-        bool active = false;
-        uint8_t note = 0;
-        uint8_t velocity = 0;
-        uint64_t timestamp = 0;  // ボイス年齢追跡用
-    };
-    
-    int allocateVoice(uint8_t note, uint8_t velocity);
-    void releaseVoice(uint8_t note);
-    int getChannelForNote(uint8_t note) const;
-};
-```
-
-#### 1.8.2 パラメータ同期の実装
-
-**問題**: UIパラメータ変更時、全チャンネルへの反映が必要
-**解決**: パラメータ更新ループで全8チャンネルを更新
-
-```cpp
-void updateYmfmParameters() {
-    // 全チャンネルのパラメータを同期
-    for (int channel = 0; channel < 8; ++channel) {
-        // グローバルパラメータ
-        ymfmWrapper.setAlgorithm(channel, algorithm);
-        ymfmWrapper.setFeedback(channel, feedback);
-        
-        // オペレータパラメータ
-        for (int op = 0; op < 4; ++op) {
-            ymfmWrapper.setOperatorParameters(channel, op, 
-                tl, ar, d1r, d2r, rr, d1l, ks, mul, dt1);
-        }
-    }
-}
-```
-
-#### 1.8.3 MIDI処理フロー
+**ナチュラルモード（既定、VOPMex の既定と同じ）**: 7 ビットの CC 値をパラメーターの段数へスケールし、エンベロープ系は反転する。
 
 ```
-MIDI Note On → VoiceManager::allocateVoice() → チャンネル決定
-    ↓
-ymfmWrapper.noteOn(channel, note, velocity)
-    ↓
-レジスタ書き込み（KC, KF, Key On）
-
-MIDI Note Off → VoiceManager::getChannelForNote() → チャンネル特定
-    ↓
-ymfmWrapper.noteOff(channel, note)
-    ↓
-レジスタ書き込み（Key Off） → VoiceManager::releaseVoice()
+bits  = 最大値のビット数（7 → 3, 15 → 4, 31 → 5, 127 → 7, 1 → 1）
+value = cc >> max(0, 7 - bits)
+反転するパラメーター（TL/AR/D1R/D2R/D1L/RR）は value = max - value
 ```
 
-### 1.9 S98録音機能
+例: CC 14 = 127 → ALG 7、CC 43 = 0 → AR 31、CC 16 = 0 → TL 127（無音）、CC 80 ≥ 64 → NE = 1。
 
-#### 1.9.1 S98フォーマット仕様
-```cpp
-struct S98Header {
-    char magic[3];          // "S98"
-    char version;           // '3'
-    uint32_t timer_info;    // タイマー情報
-    uint32_t timer_info2;   // タイマー情報2
-    uint32_t compressing;   // 圧縮フラグ
-    uint32_t tag_offset;    // タグオフセット
-    uint32_t dump_offset;   // データオフセット
-    uint32_t loop_offset;   // ループオフセット
-    uint32_t device_count;  // デバイス数
-};
-```
+**レジスタ値モード**（NRPN で切り替え）: `value = cc & max`。反転もスケールもしない。
 
-#### 1.9.2 録音エンジン
-```cpp
-class S98Recorder {
-public:
-    void startRecording();
-    void stopRecording();
-    
-    // レジスタ書き込みを記録
-    void logRegisterWrite(uint8_t chip_id, uint16_t address, uint8_t data);
-    
-    // 同期待機を記録
-    void logSync(uint32_t samples);
-    
-    // S98ファイルとして出力
-    bool exportToFile(const std::string& path);
-    
-private:
-    std::vector<uint8_t> command_buffer;
-    bool is_recording;
-    uint64_t sample_counter;
-};
-```
+**LFRQ（CC 1）**: モードに関係なく `(cc << 1) | lsb` を書く。`lsb` は直前に受けた CC 33 の値 ≥ 64 なら 1。
 
-## 2. UI設計
+**位置指定 CC（102-119）**: `cc / 127` を正規化値としてそのままパラメーターへ渡す。`macro_*` の -50..+50 では CC 64 が 0（アンカーのまま）に丸まる。選択肢型（`macro_harmonics`、`motion_arp_chord`）はリストの上の位置になる。
 
-### 2.1 JUCE実装概要
+すべての CC は `setValueNotifyingHost` でパラメーターを書き換えるので、ホストのオートメーションや UI と同じ経路で音色に反映される。レジスタ系 CC を動かすとプリセットは Custom になる。
 
-#### 2.1.1 基本構成
-```cpp
-class YMulatorSynthPluginEditor : public juce::AudioProcessorEditor {
-public:
-    YMulatorSynthPluginEditor(YMulatorSynthAudioProcessor& processor);
-    
-    void paint(juce::Graphics& g) override;
-    void resized() override;
-    
-private:
-    // UIコンポーネント
-    PresetBrowserComponent presetBrowser;
-    VoiceEditorComponent voiceEditor;
-    ADPCMManagerComponent adpcmManager;
-    S98RecorderComponent s98Recorder;
-    
-    // カスタムLook&Feel
-    VopmLookAndFeel lookAndFeel;
-};
-```
+### 2.4 NRPN
 
-#### 2.1.2 カスタムLook&Feel
-```cpp
-class VopmLookAndFeel : public juce::LookAndFeel_V4 {
-public:
-    // VOPMライクな外観を再現
-    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
-                          float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
-                          juce::Slider& slider) override;
-    
-    // 3Dエフェクト付きボタン
-    void drawButtonBackground(juce::Graphics& g, juce::Button& button,
-                             const juce::Colour& backgroundColour,
-                             bool shouldDrawButtonAsHighlighted,
-                             bool shouldDrawButtonAsDown) override;
-};
-```
+VOPMex と同じ手順でモードを切り替える。
 
-### 2.2 主要コンポーネント設計
+| 送る順 | 意味 |
+|--------|------|
+| CC 99 = 126, CC 98 = 127, CC 6 = 127 | レジスタ値モード（VOPMex では全チャンネル） |
+| CC 99 = 126, CC 98 = 0, CC 6 = 127 | レジスタ値モード（VOPMex では当該チャンネル） |
+| 上のどちらかの後に CC 6 = 0 | ナチュラルモードに戻す |
+| CC 121 | ナチュラルモードに戻す |
 
-#### 2.2.1 オペレータエディタ
-```cpp
-class OperatorComponent : public juce::Component,
-                          public juce::Slider::Listener {
-public:
-    OperatorComponent(int operatorNumber);
-    
-private:
-    // エンベロープパラメータ
-    juce::Slider arSlider{"AR"};   // Attack Rate
-    juce::Slider d1rSlider{"D1R"}; // Decay1 Rate
-    juce::Slider d2rSlider{"D2R"}; // Decay2 Rate
-    juce::Slider rrSlider{"RR"};   // Release Rate
-    juce::Slider d1lSlider{"D1L"}; // Decay1 Level
-    juce::Slider tlSlider{"TL"};   // Total Level
-    
-    // 周波数パラメータ
-    juce::Slider mulSlider{"MUL"}; // Multiple
-    juce::Slider dt1Slider{"DT1"}; // Detune1
-    juce::Slider dt2Slider{"DT2"}; // Detune2
-    juce::Slider ksSlider{"KS"};   // Key Scale
-    
-    // モジュレーション
-    juce::ToggleButton ameButton{"AM"};
-    
-    // カスタム描画エリア
-    EnvelopeDisplay envelopeDisplay;
-};
-```
+本プラグインは MIDI チャンネルを区別しないので、両方の形式が同じくプラグイン全体に効く。他の NRPN 番号は無視する。
 
-#### 2.2.2 アルゴリズム表示
-```cpp
-class AlgorithmDisplay : public juce::Component {
-public:
-    void setAlgorithm(int algorithm);
-    void paint(juce::Graphics& g) override;
-    
-private:
-    void drawOperatorConnection(juce::Graphics& g, int algorithm);
-    int currentAlgorithm = 0;
-};
-```
+### 2.5 Expressive MIDI
 
-#### 2.2.3 エンベロープ表示
-```cpp
-class EnvelopeDisplay : public juce::Component,
-                        public juce::Timer {
-public:
-    void updateEnvelope(const EnvelopeParameters& params);
-    void paint(juce::Graphics& g) override;
-    void timerCallback() override;
-    
-    // ドラッグによる編集機能
-    void mouseDown(const juce::MouseEvent& e) override;
-    void mouseDrag(const juce::MouseEvent& e) override;
-    
-private:
-    juce::Path envelopePath;
-    std::vector<juce::Point<float>> controlPoints;
-};
-```
+`midi_expressive`（既定 OFF）を ON にすると次の 2 つが変わる。
 
-### 2.3 MIDI CCマッピング実装
+| 入力 | 対象 |
+|------|------|
+| CC 1（モジュレーションホイール） | `motion_vib_depth` を `cc / 127` の位置に設定。LFRQ MSB としては扱わない |
+| チャンネルプレッシャー | `macro_brightness` を `0.5 + pressure / 254` の正規化値に設定（0 で中央、127 で最大） |
 
-#### 2.3.1 VOPMex互換CCマッピング
-```cpp
-// VOPMex準拠のCCマッピング定義
-namespace VopmCC {
-    // オペレータパラメータ (OP1-4)
-    constexpr int TL_BASE = 16;      // CC 16-19: Total Level
-    constexpr int AR_BASE = 43;      // CC 43-46: Attack Rate
-    constexpr int D1R_BASE = 47;     // CC 47-50: Decay1 Rate
-    constexpr int D1L_BASE = 55;     // CC 55-58: Decay1 Level
-    constexpr int D2R_BASE = 51;     // CC 51-54: Decay2 Rate
-    constexpr int RR_BASE = 59;      // CC 59-62: Release Rate
-    constexpr int KS_BASE = 39;      // CC 39-42: Key Scale
-    constexpr int MUL_BASE = 20;     // CC 20-23: Multiple
-    constexpr int DT1_BASE = 24;     // CC 24-27: Detune1
-    constexpr int DT2_BASE = 28;     // CC 28-31: Detune2
-    constexpr int AME_BASE = 70;     // CC 70-73: AM Enable
-    
-    // グローバルパラメータ
-    constexpr int ALGORITHM = 14;    // CC 14: Connection (Algorithm)
-    constexpr int FEEDBACK = 15;     // CC 15: Feedback Level
-    constexpr int LFO_WAVE = 12;     // CC 12: LFO Waveform
-    constexpr int LFO_FREQ_MSB = 1;  // CC 1: LFO Frequency MSB
-    constexpr int LFO_FREQ_LSB = 33; // CC 33: LFO Frequency LSB
-    constexpr int PMS = 75;          // CC 75: Pitch Mod Sensitivity
-    constexpr int AMS = 76;          // CC 76: Amplitude Mod Sensitivity
-    constexpr int PMD = 2;           // CC 2: Pitch Mod Depth
-    constexpr int AMD = 3;           // CC 3: Amplitude Mod Depth
-    
-    // ノイズ
-    constexpr int NOISE_ENABLE = 80; // CC 80: Noise Enable
-    constexpr int NOISE_FREQ = 82;   // CC 82: Noise Frequency
-}
-```
+### 2.6 ピッチベンド
 
-### 2.4 メインウィンドウレイアウト（JUCE実装）
+- 14 ビット値（0-16383、中央 8192）を `pitch_bend_range`（1-12 半音、既定 2）で半音へ換算する。
+- 発音中の全チャンネルに `YmfmWrapper::setPitchBend` で適用する。KC / KF は「基準ノート + ベンド + Motion のピッチオフセット」から書き直される（`writePitch`）。
+- ベンド量はチャンネル状態として保持され、次のノートオンにもそのまま乗る。
+- ピッチベンド幅を変える CC はない。パラメーターまたは UI で設定する。
 
-#### 2.4.1 レイアウト構成
-```cpp
-void YMulatorSynthPluginEditor::resized() {
-    auto bounds = getLocalBounds();
-    
-    // 左側パネル（プリセット・ADPCM）
-    auto leftPanel = bounds.removeFromLeft(200);
-    presetBrowser.setBounds(leftPanel.removeFromTop(300));
-    adpcmManager.setBounds(leftPanel);
-    
-    // 右側メインエリア
-    auto mainArea = bounds;
-    
-    // 音色エディタ
-    auto editorArea = mainArea.removeFromTop(400);
-    voiceEditor.setBounds(editorArea);
-    
-    // S98レコーダー
-    s98Recorder.setBounds(mainArea);
-}
-```
+### 2.7 ベロシティ
 
-#### 2.4.2 プリセットブラウザ
-```cpp
-class PresetBrowserComponent : public juce::Component {
-private:
-    juce::TreeView presetTree;
-    
-    // カテゴリ別表示
-    // - Factory/VOPM
-    // - Factory/Other Formats（将来拡張）
-    // - User Presets
-};
-```
+`YmfmWrapper::applyVelocityToChannel`（`YM2151Regs::VELOCITY_TL_RANGE = 32`）。
 
-### 2.5 キーボードショートカット実装
-```cpp
-class YMulatorSynthPluginEditor : public juce::KeyListener {
-    bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override {
-        if (key.isKeyCode(juce::KeyPress::spaceKey)) {
-            // プレビュー音の再生/停止
-            togglePreview();
-            return true;
-        }
-        
-        if (key.getModifiers().isCommandDown()) {
-            switch (key.getKeyCode()) {
-                case 'S': savePreset(); return true;
-                case 'L': loadPreset(); return true;
-                case 'R': toggleS98Recording(); return true;
-            }
-        }
-        return false;
-    }
-};
-```
+- `quiet = 1 - velocity / 127`。キャリアの TL に `round(quiet * 32)` ステップを加える（velocity 127 でプリセットどおり、velocity 1 で 32 ステップ ≈ 24 dB 減衰）。
+- モジュレーターは既定では変えない（音色はベロシティで変わらない）。`motion_vel_bright`（0-100）を上げると `round(quiet * vel_bright/100 * 32 * 1.25)` ステップ（最大 40）をモジュレーターにも加え、弱く弾くほど暗くなる。
+- TL は「パラメーター値 + 減衰」として書かれるので、発音中にパラメーターを書き換えてもベロシティは残る。
 
-## 3. テスト計画
+### 2.8 Mono / レガート、アルペジオ、ラッチ
 
-### 3.1 単体テスト
-- ymfmラッパークラス
-- 音色パラメータ変換
-- S98エンコーダ
+`motion_mono` または `motion_arp_mode ≠ Off` のとき、押されているノートは `HeldNotes`（最大 16 音、新しいものが末尾）にまとめられ、1 チャンネルだけを使う。
 
-### 3.2 統合テスト
-- DAWとの互換性（Logic Pro, Ableton Live, etc.）
-- CPU使用率とレイテンシ
-- プリセット互換性
+**Mono / レガート**
+- 最初のノートで通常どおりチャンネルを割り当てる。
+- 押している間に次のノートが来たら同じチャンネルを `retuneChannel` で移調する（キーオンし直さない）。`motion_porta_time > 0` ならグライドする。
+- ノートオフで残っているノートがあれば直前に押したノートへ戻り、最後のノートオフでチャンネルを解放する。
 
-### 3.3 ユーザビリティテスト
-- 音色エディタの操作性
-- プリセットブラウジング
-- 録音ワークフロー
+**アルペジオ**
+- 押されているノートは `HeldNotes` に入り、`MotionEngine` が `motion_arp_div` の刻みで順に鳴らす（Up / Down / Up Down / Random / As Played、`motion_arp_octaves` で上のオクターブを追加、`motion_arp_chord` で 1 音からコードを作る）。
+- `motion_arp_retrig` OFF ではピッチだけ切り替える（チップ流）。ON では各ステップでキーオンし直し、`motion_arp_gate` の割合だけ押さえる。
+- `motion_arp_accent` / `motion_arp_accent_depth` はアクセントのないステップのキャリア TL を下げる。
+- ノートの追加・削除のたびに `HeldNotes::version` が進み、パターンは先頭からやり直す。
+
+**ラッチ（`motion_arp_latch`）**
+- ON のとき、ノートオフしてもノートは `HeldNotes` に残り、アルペジオは鳴り続ける。
+- 全部の鍵を離した後に新しいノートを押すと、その時点でラッチ中のコードを捨てて新しいコードに置き換える（チャンネルは鳴ったまま）。
+- ラッチを OFF にした時点で鍵が押されていなければ `releaseLatchedNotes` がチャンネルを解放する。
+
+Mono でもアルペジオでもない状態に戻ったときは `HeldNotes` を空にして通常のポリ割り当てに戻る。
+
+## 3. パラメーター一覧
+
+`ParameterManager::createParameterLayout` が作る APVTS パラメーター。表の「.opm」は .opm ファイルに保存されるもの（§3.7）。
+
+### 3.1 Operator（N = 1..4）
+
+| ID | 名前 | 型 | 範囲 | 既定 | .opm |
+|----|------|----|------|------|------|
+| `opN_tl` | OpN TL | int | 0-127 | 0 | TL |
+| `opN_ar` | OpN AR | int | 0-31 | 31 | AR |
+| `opN_d1r` | OpN D1R | int | 0-31 | 0 | D1R |
+| `opN_d1l` | OpN D1L | int | 0-15 | 15 | D1L |
+| `opN_d2r` | OpN D2R | int | 0-31 | 0 | D2R |
+| `opN_rr` | OpN RR | int | 0-15 | 7 | RR |
+| `opN_ks` | OpN KS | int | 0-3 | 0 | KS |
+| `opN_mul` | OpN MUL | int | 0-15 | 1 | MUL |
+| `opN_dt1` | OpN DT1 | int | 0-7 | 3 | DT1 |
+| `opN_dt2` | OpN DT2 | int | 0-3 | 0 | DT2 |
+| `opN_ams_en` | OpN AMS Enable | bool | — | OFF | AMS-EN |
+| `opN_slot_en` | OpN Slot | bool | — | ON | SLOT（4 つをまとめて 1 バイト） |
+
+`d1l` の既定 15 は D1L レジスタとして「サステイン最小」だが、`d1r = 0` なので減衰せず、実質はサステイン音になる。
+
+### 3.2 Global
+
+| ID | 名前 | 型 | 範囲 | 既定 | .opm |
+|----|------|----|------|------|------|
+| `algorithm` | Algorithm | int | 0-7 | 0 | CON |
+| `feedback` | Feedback | int | 0-7 | 0 | FL |
+| `pitch_bend_range` | Pitch Bend Range | int | 1-12 | 2 | — |
+| `midi_expressive` | Expressive MIDI | bool | — | OFF | — |
+
+### 3.3 LFO / Noise
+
+| ID | 名前 | 型 | 範囲 | 既定 | .opm |
+|----|------|----|------|------|------|
+| `lfo_rate` | LFO Rate | int | 0-255 | 0 | LFRQ |
+| `lfo_pmd` | LFO PMD | int | 0-127 | 0 | PMD |
+| `lfo_amd` | LFO AMD | int | 0-127 | 0 | AMD |
+| `lfo_waveform` | LFO Waveform | choice | Sawtooth, Square, Triangle, Noise | Sawtooth | WF |
+| `lfo_ams` | LFO AMS | int | 0-3 | 0 | AMS |
+| `lfo_pms` | LFO PMS | int | 0-7 | 0 | PMS |
+| `noise_enable` | Noise Enable | bool | — | OFF | NE |
+| `noise_frequency` | Noise Frequency | int | 0-31 | 0 | NFRQ |
+
+AMS / PMS はチャンネルレジスタ（0x38+ch）だが、1 音色を全チャンネルに書くので 1 組しか持たない。
+
+### 3.4 Macro（Quick パネル）
+
+すべて meta パラメーター（動かすと §3.1〜3.3 の生パラメーターを書き換える）。写像は `src/core/MacroMapper.h` と [Quick パネル設計](ymulatorsynth-quick-panel-design.md) を参照。
+
+| ID | 名前 | 型 | 範囲 | 既定 |
+|----|------|----|------|------|
+| `macro_brightness` | Brightness | float | -50..+50、刻み 1 | 0 |
+| `macro_harmonics` | Harmonics | choice | Preset, Saw, Square, Pulse, Bright, Bell, Metal, Sub, Octave | Preset |
+| `macro_attack` | Attack | float | -50..+50、刻み 1 | 0 |
+| `macro_decay` | Decay | float | -50..+50、刻み 1 | 0 |
+| `macro_release` | Release | float | -50..+50、刻み 1 | 0 |
+| `macro_spread` | Spread | float | -50..+50、刻み 1 | 0 |
+
+Feedback ノブは `feedback` そのもの（マクロではない）。
+
+### 3.5 Motion
+
+すべてプラグイン状態のみ（.opm には入らない）。動作は [Motion 設計](ymulatorsynth-motion-design.md)。`divisions` は共通の音符リスト: 1/1, 1/2, 1/4, 1/8, 1/16, 1/2T, 1/4T, 1/8T, 1/32, 1/64, 1/16T（この順、index 0-10）。
+
+| ID | 名前 | 型 | 範囲 | 既定 |
+|----|------|----|------|------|
+| `motion_vib_depth` | Vibrato Depth | float | 0-100（→ 0-50 cent） | 0 |
+| `motion_vib_rate` | Vibrato Rate | float | 0.5-12 Hz、刻み 0.1 | 5 |
+| `motion_vib_delay` | Vibrato Delay | float | 0-2000 ms、刻み 10 | 0 |
+| `motion_vib_rise` | Vibrato Rise | float | 0-2000 ms、刻み 10 | 300 |
+| `motion_vib_wave` | Vibrato Wave | choice | Sine, Triangle, Saw, Square, Random | Sine |
+| `motion_vib_div` | Vibrato Sync Rate | choice | divisions | 1/8 |
+| `motion_wide` | Wide | float | 0-100（→ 0-25 cent） | 0 |
+| `motion_wide_pan` | Wide Pan | choice | L / R, Center | L / R |
+| `motion_timbre_depth` | Timbre LFO Depth | float | 0-40 TL ステップ | 0 |
+| `motion_timbre_rate` | Timbre LFO Rate | float | 0.1-12 Hz、刻み 0.1 | 1 |
+| `motion_timbre_wave` | Timbre LFO Wave | choice | Sine, Triangle, Saw, Square, Random | Triangle |
+| `motion_timbre_div` | Timbre LFO Sync Rate | choice | divisions | 1/1 |
+| `motion_trem_depth` | Tremolo Depth | float | 0-24 TL ステップ | 0 |
+| `motion_trem_rate` | Tremolo Rate | float | 0.5-12 Hz、刻み 0.1 | 5 |
+| `motion_trem_div` | Tremolo Sync Rate | choice | divisions | 1/8 |
+| `motion_lfo_oneshot` | LFO One Shot | bool | — | OFF |
+| `motion_sync` | Motion Sync | bool | — | OFF |
+| `motion_pan_mode` | Pan | choice | Off, Alternate, Step, Left, Right, Random | Off |
+| `motion_pan_rate` | Pan Step | choice | divisions | 1/4 |
+| `motion_pitch_env` | Pitch Env | float | -2400..+2400 cent | 0 |
+| `motion_pitch_time` | Pitch Env Time | float | 0-500 ms | 60 |
+| `motion_pitch_env2` | Pitch Env 2 | float | -2400..+2400 cent | 0 |
+| `motion_pitch_time2` | Pitch Env Time 2 | float | 0-1000 ms | 0 |
+| `motion_echo_level` | Echo Level | float | 0-100 | 0 |
+| `motion_echo_time` | Echo Time | float | 10-500 ms | 120 |
+| `motion_echo_div` | Echo Sync Rate | choice | divisions | 1/16 |
+| `motion_sweep_amount` | Sweep Amount | float | -40..+40 TL ステップ | 0 |
+| `motion_sweep_time` | Sweep Time | float | 50-4000 ms、刻み 10 | 1500 |
+| `motion_level_attack` | Level EG Attack | float | 0-3000 ms、刻み 10 | 0 |
+| `motion_level_decay` | Level EG Decay | float | 0-3000 ms、刻み 10 | 0 |
+| `motion_level_sustain` | Level EG Sustain | float | 0-40 TL ステップ | 0 |
+| `motion_mono` | Mono / Legato | bool | — | OFF |
+| `motion_porta_time` | Portamento Time | float | 0-1000 ms、刻み 5 | 0 |
+| `motion_vel_bright` | Velocity Brightness | float | 0-100 | 0 |
+| `motion_arp_mode` | Arpeggio | choice | Off, Up, Down, Up Down, Random, As Played | Off |
+| `motion_arp_div` | Arpeggio Step | choice | divisions | 1/64 |
+| `motion_arp_octaves` | Arpeggio Octaves | int | 1-4 | 1 |
+| `motion_arp_retrig` | Arpeggio Retrigger | bool | — | OFF |
+| `motion_arp_gate` | Arpeggio Gate | float | 10-100 %、刻み 5 | 70 |
+| `motion_arp_latch` | Arpeggio Latch | bool | — | OFF |
+| `motion_arp_chord` | Arpeggio Chord | choice | None, Major, Minor, 7th, m7, Maj7, Sus4, Sus2, Dim, Aug, 5th, Octave | None |
+| `motion_arp_accent` | Arpeggio Accent | choice | Off, Beat, 2 steps, 3 steps, 4 steps | Off |
+| `motion_arp_accent_depth` | Arpeggio Accent Depth | float | 0-24 TL ステップ | 6 |
+
+`motion_sync` ON のとき、`*_rate` / `*_time` の代わりに `*_div` がホストテンポ上の音符長として使われる（Pan Step と Arpeggio Step は常に音符長）。
+
+### 3.6 プラグイン状態の付加情報
+
+`StateManager::getStateInformation` は APVTS の全パラメーターに加えて次を保存する。
+
+| キー | 内容 |
+|------|------|
+| `currentPreset` | プログラム番号 |
+| `isCustomPreset` / `customPresetName` | 編集済み（Custom）かどうかと表示名 |
+| `currentBankIndex` / `currentPresetInBank` | バンクとバンク内プリセット位置（ValueTree プロパティ） |
+| `macroAnchor`（子ノード） | マクロの基準になる生パラメーター値（`MacroMapper::writeAnchorTo`） |
+| `uiViewMode` | `"quick"` / `"detail"` |
+| `generator`（子ノード） | ジェネレーターカードの設定（`GeneratorPanel`） |
+
+`ParameterIDs.h` の `presetIndex`、`presetIndexChanged`、`isCustomMode`、および `Channel::pan/ams/pms` は定義だけが残っており、パラメーターにもプロパティにも使われていない。
+
+### 3.7 .opm に入るものと入らないもの
+
+| 保存先 | 内容 |
+|--------|------|
+| .opm（レジスタ値） | §3.1 のオペレーター 12 項目 × 4、`algorithm`、`feedback`、`lfo_*`（LFRQ/AMD/PMD/WF/AMS/PMS）、`noise_enable`、`noise_frequency`。PAN は書き出し時に常にセンター（3）、読み込み時は使わない |
+| プラグイン状態のみ | `pitch_bend_range`、`midi_expressive`、`macro_*`、`motion_*`、§3.6 の付加情報 |
+
+読み込み時は .opm のレジスタ値をパラメーターへ入れ、マクロを中央へ戻してアンカーを取り直す。詳細は [VOPM 形式仕様](ymulatorsynth-vopm-format-spec.md) と ADR-010。
+
+## 4. ボイス割り当て
+
+`VoiceManager`（`src/core/VoiceManager.cpp`）。8 チャンネル、1 チャンネル 1 ノート。
+
+1. 同じノート番号が鳴っていればそのチャンネルを再利用する（リトリガー）。
+2. `noise_enable` が ON のプリセットはチャンネル 7 だけを使う。空いていなければチャンネル 7 の音を奪う。
+3. それ以外は 7 → 0 の順に空きチャンネルを探す（チャンネル 7 は空いていれば普通に使う）。
+4. 全部使用中なら `StealingPolicy` に従って奪う。既定は `OLDEST`（最も古いキーオン）。`QUIETEST` / `LOWEST` はインターフェースにあるが、パラメーターや UI からは選べない。
+
+ノートオフはノート番号からチャンネルを引き、`YmfmWrapper::noteOff` の後にボイスを解放する。Mono / アルペジオ時の扱いは §2.8。
+
+## 5. ノイズジェネレーター
+
+YM2151 のハードウェア制約（`YM2151Regs`）:
+
+| 項目 | 値 |
+|------|----|
+| レジスタ | 0x0F: bit 7 = NE、bit 0-4 = NFRQ |
+| 鳴るチャンネル | 7 のみ（`NOISE_CHANNEL`） |
+| 鳴るオペレーター | Op4 = C2 のみ（`NOISE_OPERATOR = 3`）。C2 の正弦波出力がノイズに置き換わる |
+| NFRQ | 0 が最も高い周波数、31 が最も低い |
+
+C2 はどのアルゴリズムでもキャリアなので、ノイズは全アルゴリズムで出力に届く。Op1〜Op3 を TL 127 にすればノイズだけになり、残せばノイズと FM 音の混合になる。§4 のとおり、ノイズ ON のプリセットはチャンネル 7 に固定されるので、実質モノフォニックになる。
+
+API: `YmfmWrapper::setNoiseEnable / setNoiseFrequency / setNoiseParameters / getNoiseEnable / getNoiseFrequency`。
+
+## 6. オーディオ出力
+
+`YmfmWrapper`（`src/dsp/YmfmWrapper.h/.cpp`）。
+
+- ymfm の出力 `ymfm::ym2151::output_data` はインターリーブではない。`data[0]` = 左、`data[1]` = 右。`1 / 32768`（`SAMPLE_SCALE_FACTOR`）で float に落とす。
+- チップは 55,930 Hz で動く（`ym2151::sample_rate(3579545)`）。`generateSamples` は 4 サンプルの履歴に対する Catmull-Rom 補間でホストレートへリサンプルする。`resampleStep` = ネイティブレート / ホストレート、位相が 1 を超えるたびに `renderNativeSample` で 1 サンプル進める。
+- `generateSamples` は最初に出力バッファをゼロクリアする。未初期化のときはクリアだけして返る。
+- **シャドウチップ**: 2 台目の `ym2151` がすべてのレジスタ書き込みをミラーする。Wide か Echo が ON のときだけ `renderNativeSample` でメインと合成される。
+  - Wide: シャドウ側を最大 ±25 cent ずらす。`motion_wide_pan` = L / R では各チップが片側を受け持ち、Center では両方を -3 dB（0.7071）で混ぜる。
+  - Echo: キーオン、ピッチ、レベルの書き込みをキュー（最大 8192 件）に積み、`motion_echo_time` 後にシャドウへ流す。キャリアは減衰させる。L / R ではノートは自分のパンを保ち、エコーは左右交互。
+- Motion はレジスタ書き込みだけで実現している。出力の後段処理はない。
+
+## 7. UI
+
+UI の仕様はこの文書には置かない。
+
+- Quick / Detail の 2 ビューとマクロ、ジェネレーター: [docs/ymulatorsynth-quick-panel-design.md](ymulatorsynth-quick-panel-design.md)
+- Motion カードと各効果: [docs/ymulatorsynth-motion-design.md](ymulatorsynth-motion-design.md)
+- コンポーネント一覧とスレッド: [docs/ymulatorsynth-architecture.md](ymulatorsynth-architecture.md)

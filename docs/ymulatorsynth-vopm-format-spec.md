@@ -4,15 +4,17 @@
 
 ## 1. VOPM形式概要
 
-VOPMファイルはYM2151 (OPM)用のボイス情報を含むプレーンテキスト形式です。YMulator-Synthは**VOPMex標準フォーマット**との完全互換性を実現しており、VOPMexで作成されたプリセットファイルをそのまま使用できます。
+VOPMファイルはYM2151 (OPM)用のボイス情報を含むプレーンテキスト形式です。YMulator-SynthはVOPMexの書式で読み書きし、VOPMexで作成されたプリセットファイルをそのまま読み込めます。
+
+.opm が持つのは YM2151 のレジスタ値（LFO、チャンネル、オペレータ 4 つ）だけです。Quick 画面のマクロ、そのアンカー、Motion の設定はファイルには入らず、プラグインの状態（ホストのプロジェクト）に保存されます（[ADR-010](ymulatorsynth-adr.md#adr-010-quickdetail-2モード-ui-とマクロの相対写像方式)）。
 
 ### 1.1 VOPMex互換性
 
-YMulator-SynthはVOPMex Ver2002.04.22フォーマットに完全対応しています：
+YMulator-SynthはVOPMex Ver2002.04.22フォーマットに対応しています：
 - **ファイル形式**: MiOPMdrv sound bank Parameter形式
 - **拡張子**: .opm
 - **エンコーディング**: UTF-8またはShift_JIS対応
-- **相互運用性**: VOPMex、その他VOPMツールとの完全な相互運用性
+- **相互運用性**: VOPMex、その他VOPMツールと相互に読み書きできる
 
 ## 2. ファイル構造
 
@@ -23,11 +25,13 @@ YMulator-SynthはVOPMex Ver2002.04.22フォーマットに完全対応してい�
 @:[Num] [Name]
 LFO: LFRQ AMD PMD WF NFRQ
 CH: PAN FL CON AMS PMS SLOT NE
-[OP1]: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
-[OP2]: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
-[OP3]: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
-[OP4]: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
+M1: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
+C1: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
+M2: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
+C2: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN
 ```
+
+オペレータ行のラベルは `M1:`, `C1:`, `M2:`, `C2:` の順で、プラグインの Op1〜Op4 に対応します（`src/utils/VOPMParser.cpp` の `opLabels`）。YM2151 のレジスタ上の順序は M1, M2, C1, C2（オフセット +0, +8, +16, +24）で、Op1〜Op4 との対応は `YM2151Regs::OPERATOR_SLOT_OFFSET = {0, 16, 8, 24}` が持ちます（[YM2151 レジスタの事実](ym2151-register-facts.md)）。
 
 ### 2.2 パラメータ詳細
 
@@ -39,7 +43,7 @@ CH: PAN FL CON AMS PMS SLOT NE
 - `LFRQ` - LFO周波数 (0-255)
 - `AMD` - AM深度 (0-127)
 - `PMD` - PM深度 (0-127)
-- `WF` - 波形選択 (0-3: ノコギリ波、矩形波、三角波、ノイズ)
+- `WF` - 波形選択 (0-3: ノコギリ波、矩形波、三角波、ノイズ)。これは YM2151 内蔵 LFO の波形（レジスタ 0x1B）で、Motion のビブラート／音色 LFO が持つ波形（sine / tri / saw / square / random）とは別物
 - `NFRQ` - ノイズ周波数 (0-31、WF=3時のみ有効)
 
 #### チャンネルパラメータ
@@ -84,6 +88,8 @@ CH: PAN FL CON AMS PMS SLOT NE
 - `AMS-EN` - AM有効フラグ (0-1)
 
 ## 3. パース実装
+
+実装は `src/utils/VOPMParser.h` / `.cpp`（`VOPMVoice` 構造体、`parseFile` / `parseContent` / `validate` / `voiceToString`、PAN・SLOT・AME の変換関数）。以下のコードは構造を示す抜粋で、正確な内容はソースを参照。
 
 ### 3.1 データ構造定義
 
@@ -259,7 +265,7 @@ private:
     }
     
     // VOPMex PAN値変換関数
-    static int convertOmpPanToInternal(int opmPan)
+    static int convertOpmPanToInternal(int opmPan)
     {
         // VOPMex PAN値: 0, 64, 128, 192を内部形式0-3に変換
         switch (opmPan)
@@ -309,7 +315,7 @@ private:
     
     static void parseOperator(const juce::String& line, VOPMVoice::Operator& op)
     {
-        // "OP1: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN" 形式をパース
+        // "M1: AR D1R D2R RR D1L TL KS MUL DT1 DT2 AMS-EN" 形式をパース（C1, M2, C2 も同じ）
         auto values = juce::StringArray::fromTokens(
             line.fromFirstOccurrenceOf(":", false, false), " ", "");
         
@@ -331,122 +337,25 @@ private:
 };
 ```
 
-## 4. Factory Presetデータ
+## 4. 同梱プリセットとユーザーデータ
 
-### 4.1 基本プリセット定義
+### 4.1 Factory バンク
 
-```cpp
-// FactoryPresets.cpp
-namespace ymulatorsynth {
+`src/utils/PresetManager.cpp` の `FACTORY_VOICES`（`VOPMVoice` の配列、8 音色: Electric Piano / Synth Bass / Brass Section / String Pad / Lead Synth / Organ / Bells / Init）。起動時に `Preset::fromVOPM` で読み込まれ、バンク「Factory」になる。値はソースが正で、このドキュメントには複製しない。
 
-const VOPMVoice FACTORY_PRESETS[] = {
-    // Electric Piano
-    {
-        0, "Electric Piano",
-        {3, 0, 0, 0, 0}, // LFO
-        {3, 7, 5, 0, 0, 15, 0}, // Channel
-        {
-            {31, 14, 0, 7, 0, 32, 0, 1, 3, 0, 0}, // OP1
-            {31, 5, 0, 7, 0, 0, 0, 1, 3, 0, 0},   // OP2
-            {31, 7, 0, 7, 0, 0, 0, 1, 3, 0, 0},   // OP3
-            {31, 9, 0, 7, 0, 0, 0, 1, 3, 0, 0}    // OP4
-        }
-    },
-    
-    // Synth Bass
-    {
-        1, "Synth Bass",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 6, 7, 0, 0, 15, 0}, // Channel
-        {
-            {31, 8, 0, 7, 0, 16, 1, 1, 3, 0, 0}, // OP1
-            {31, 8, 0, 7, 0, 0, 1, 1, 3, 0, 0},  // OP2
-            {31, 8, 0, 7, 0, 0, 1, 1, 3, 0, 0},  // OP3
-            {31, 8, 0, 7, 0, 0, 1, 1, 3, 0, 0}   // OP4
-        }
-    },
-    
-    // Brass Section
-    {
-        2, "Brass Section",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 6, 4, 0, 0, 15, 0}, // Channel
-        {
-            {31, 14, 6, 7, 1, 45, 1, 1, 3, 0, 0}, // OP1
-            {31, 14, 3, 7, 1, 29, 1, 1, 3, 0, 0}, // OP2
-            {31, 11, 11, 7, 1, 18, 1, 1, 3, 0, 0}, // OP3
-            {31, 14, 6, 7, 1, 3, 1, 1, 3, 0, 0}   // OP4
-        }
-    },
-    
-    // String Pad
-    {
-        3, "String Pad",
-        {35, 0, 0, 0, 0}, // LFO
-        {3, 0, 1, 0, 0, 15, 0}, // Channel
-        {
-            {15, 7, 7, 1, 1, 24, 0, 1, 3, 0, 0}, // OP1
-            {15, 4, 4, 1, 1, 16, 0, 1, 3, 0, 0}, // OP2
-            {15, 7, 7, 1, 1, 0, 0, 1, 3, 0, 0},  // OP3
-            {15, 4, 4, 1, 1, 0, 0, 1, 3, 0, 0}   // OP4
-        }
-    },
-    
-    // Lead Synth
-    {
-        4, "Lead Synth",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 4, 7, 0, 0, 15, 0}, // Channel
-        {
-            {31, 6, 2, 7, 0, 18, 2, 1, 3, 0, 0}, // OP1
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0},  // OP2
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0},  // OP3
-            {31, 6, 2, 7, 0, 0, 2, 1, 3, 0, 0}   // OP4
-        }
-    },
-    
-    // Organ
-    {
-        5, "Organ",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 0, 7, 0, 0, 15, 0}, // Channel
-        {
-            {31, 0, 0, 7, 0, 20, 0, 2, 3, 0, 0}, // OP1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // OP2
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // OP3
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // OP4
-        }
-    },
-    
-    // Bells
-    {
-        6, "Bells",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 0, 1, 0, 0, 15, 0}, // Channel
-        {
-            {31, 18, 0, 4, 3, 26, 1, 14, 3, 0, 0}, // OP1
-            {31, 18, 0, 4, 3, 22, 1, 1, 3, 0, 0},  // OP2
-            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0},   // OP3
-            {31, 18, 0, 4, 3, 0, 1, 1, 3, 0, 0}    // OP4
-        }
-    },
-    
-    // Init (基本音色)
-    {
-        7, "Init",
-        {0, 0, 0, 0, 0}, // LFO
-        {3, 0, 7, 0, 0, 15, 0}, // Channel
-        {
-            {31, 0, 0, 7, 0, 32, 0, 1, 3, 0, 0}, // OP1
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // OP2
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0},  // OP3
-            {31, 0, 0, 7, 0, 0, 0, 1, 3, 0, 0}   // OP4
-        }
-    }
-};
+### 4.2 Collection バンク
 
-} // namespace ymulatorsynth
-```
+`resources/presets/ymulator-synth-preset-collection.opm`（64 音色、すべて PAN=64、SLOT=120）を `juce_add_binary_data` で埋め込み、`PresetManager::loadBundledPresets` が Factory の後ろに読み込んでバンク「Collection」にする。同梱プリセットは合計 72 で、`tests/unit/RegisterGoldenTest.cpp` が全 72 音色の読込 → ノートオンのレジスタ列を .opm の値と突き合わせる。BinaryData が無いビルドでは `getPresetsDirectory()`（`resources/presets` またはバンドルの `Resources/presets`）から読む。
+
+### 4.3 ユーザーデータ
+
+`PresetManager::getUserDataDirectory()` は `juce::File::userApplicationDataDirectory` 直下の `YMulator-Synth`（macOS では `~/Library/YMulator-Synth`）。テストは `setUserDataDirectoryOverride` で一時ディレクトリに向ける。
+
+- **.opm の読み込み**（`loadOPMFile`）: ファイル名（拡張子なし）を名前とするバンクを作り、全ボイスを追加する。同じファイル名のバンクがあれば読み込まない。ファイルは `banks/` にコピーされ（既存なら上書きしない）、一覧は `imported-banks.xml` に記録して次回起動時に復元する
+- **ユーザープリセットの保存**（`addUserPreset`）: バンク「User」（無ければ Factory の直後に作る）に追加し、`user-presets.xml` に保存する。保存されるのはレジスタ値のみで、マクロと Motion は含まれない
+- **書き出し**（`saveOPMFile` / `savePresetAsOPM`）: `VOPMParser::voiceToString` で VOPMex 書式に書く
+
+プログラム一覧（ホストのプログラムチェンジ）は Factory → Collection → User → 読み込んだバンクの順で固定長、最後のスロットは編集中を示す「Custom」。
 
 ## 5. エラーハンドリング
 
@@ -552,28 +461,14 @@ YMulator-Synthプリセットファイルの互換性は以下の方法で確認
    - 音色の一致確認
 
 3. **プリセットコレクション**
-   - 64種類の実用的プリセットをVOPMex標準形式で提供
-   - 全ての有効プリセットでPAN=64, SLOT=120を使用
-   - SLOT=254は無効プリセット用として認識（使用しない）
-   - アルゴリズム/フィードバック逆転問題を修正済み
+   - 同梱は Factory 8 音色（`FACTORY_VOICES`）と Collection 64 音色（`resources/presets/ymulator-synth-preset-collection.opm`）の計 72
+   - Collection の 64 音色はすべて PAN=64, SLOT=120
+   - 全 72 音色のレジスタ列を `tests/unit/RegisterGoldenTest.cpp` で固定
 
 ### 6.3 実装のベストプラクティス
 
 #### 6.3.1 ファイルI/O
-```cpp
-// ✅ 正しい実装
-void saveToFile(const VOPMVoice& voice, juce::File& file)
-{
-    // 内部形式からVOPMex形式に変換して保存
-    int opmPan = convertInternalPanToOpm(voice.channel.pan);
-    int opmSlot = (voice.channel.slotMask == 15) ? 120 : voice.channel.slotMask;
-    
-    result << "CH: " << opmPan << " " << voice.channel.feedback << " " 
-           << voice.channel.algorithm << " " << voice.channel.ams << " "
-           << voice.channel.pms << " " << opmSlot << " " 
-           << voice.channel.noiseEnable << "\n";
-}
-```
+書き出しは `VOPMParser::voiceToString` に一本化する。PAN は `convertInternalPanToOpm`（0-3 → 0/64/128/192）、SLOT は `convertInternalSlotToOpm`（内部値 << 3）、AMS-EN は `convertInternalAmeToOpm`（0/1 → 0/128）で変換する。手書きの文字列組み立てを別の場所に増やさない。
 
 #### 6.3.2 バリデーション
 ```cpp
@@ -585,8 +480,8 @@ bool isValidOpmPan(int value)
 
 bool isValidOpmSlot(int value)
 {
-    return ((value >= 0 && value <= 15) || value == 120 || value == 254);
+    return (value & 0x87) == 0;   // bit 3-6 のみ使用（0, 8, ..., 120）
 }
 ```
 
-この仕様により、VOPMex互換のプリセット管理とファイルI/O機能が実装でき、既存のVOPMエコシステムとの完全な相互運用性が保証されます。
+この仕様に従うことで、VOPMex で作られた .opm をそのまま読み込み、書き出したファイルを VOPMex 側でも読める。

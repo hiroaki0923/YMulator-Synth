@@ -8,7 +8,7 @@
 
 **日時**: 2025-06-29 18:52:07  
 **ログファイル**: `AUHostingServiceXPC_arrow-2025-06-29-185207.ips`  
-**症状**: GarageBandでプラグインロード時にクラッシュ  
+**症状**: AU ホストでプラグインロード時にクラッシュ  
 
 **スタックトレース**:
 ```
@@ -23,7 +23,7 @@ YMulatorSynthAudioProcessor::processBlock(...) + 700
 
 ### 根本原因分析
 
-**問題のコード** (MidiProcessor.cpp:142):
+**問題のコード** (MidiProcessor.cpp:237、`handlePitchBend` 内。行番号は 2026-09-07 時点):
 ```cpp
 // 危険: パラメータが存在しない場合にnull pointer dereference
 int pitchBendRange = static_cast<int>(*parameters.getRawParameterValue(ParamID::Global::PitchBendRange));
@@ -74,7 +74,7 @@ auval -v aumu YMul Hrki > /dev/null 2>&1 && echo "auval PASSED"
 # ✅ auval PASSED
 ```
 
-**GarageBandテスト**: ✅ クラッシュなし
+**AU ホストでの確認**: ✅ クラッシュなし
 
 ## 📚 予防ガイドライン
 
@@ -122,7 +122,7 @@ void validateParameterLayout(juce::AudioProcessorValueTreeState& parameters) {
         ParamID::Global::Algorithm,
         ParamID::Global::Feedback,
         ParamID::Global::PitchBendRange,  // 今回追加
-        ParamID::Global::GlobalPan
+        ParamID::Motion::PanMode
     };
     
     for (const char* paramId : criticalParams) {
@@ -164,14 +164,11 @@ void MidiProcessor::handlePitchBend(int pitchBendValue) {
 - [ ] テスト環境でauval検証が通るか
 
 #### テスト戦略
-```cpp
-// 基本的なパラメータ存在テスト (既存テストに追加可能)
-TEST(ParameterTest, CriticalParametersExist) {
-    auto layout = ParameterManager::createParameterLayout();
-    // PitchBendRangeなど重要パラメータの存在確認
-    EXPECT_TRUE(/* parameter exists check */);
-}
-```
+パラメータの存在と到達は既存のテストが検査する:
+- `tests/unit/ParameterReachTest.cpp` - 全パラメータが YM2151 のレジスタを変えること（レイアウトに無い ID、チップに届かない ID を検出）
+- `tests/unit/ParameterManagerTest.cpp` - `createParameterLayout` の内容と `ParameterManager` の適用経路
+
+新しいパラメータ ID を追加したら、これらのテストが通ることを確認する。
 
 ## 🎯 今後の対策
 
@@ -198,7 +195,7 @@ TEST(ParameterTest, CriticalParametersExist) {
 
 | 項目 | 修正前 | 修正後 |
 |------|--------|--------|
-| GarageBandクラッシュ | ❌ 発生 | ✅ 解消 |
+| AU ホストでのクラッシュ | ❌ 発生 | ✅ 解消 |
 | auval検証 | ❌ 失敗 | ✅ 成功 |
 | パラメータ完全性 | ❌ 欠損あり | ✅ 完全 |
 | コード品質 | ⚠️ 防御的 | ✅ 安全で簡潔 |
