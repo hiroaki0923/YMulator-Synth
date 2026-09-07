@@ -2,7 +2,8 @@
 
 All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.md).
 
-## Unreleased
+## Version 0.1.2 (2026-09-07)
+**One pan setting, carrier envelopes, a Wide + Echo fix, JUCE 9**
 
 **✨ New:**
 - **Type a knob value**: double-click any knob to get a box over the dial; type the raw value (TL 0-127, a rate in Hz, a time in ms), Return applies it snapped to the knob's range and step, Escape cancels. The knobs look the same otherwise

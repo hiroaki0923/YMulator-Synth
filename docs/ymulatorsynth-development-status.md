@@ -42,7 +42,9 @@
 - processBlock 毎の全パラメータ再送信の差分化、デバッグ残骸の除去、未使用 NoteConverter の整理
 - feature/unison-engine-implementation（ローカル 17 コミット未 push）の扱い
 
-## 🔧 0.1.1 後 (2026-09-07)
+## 🔧 Version 0.1.2 (2026-09-07)
+
+0.1.1 の後の変更をまとめて 0.1.2 としてリリース。内容は [CHANGELOG_ja.md](../CHANGELOG_ja.md) と下の各項目。
 
 - ✅ **Wide + Echo の原音消失を修正（2026-09-07）** - GarageBand で「Lead が遅い」との報告。JUCE 9 との A/B（`song_render` で bit 一致）で JUCE は無関係と確認し、`SONG_RENDER_DEBUG=1` のレジスタダンプで原因を特定: リセット直後のレジスタ 0x20 は L/R ビットが 0（無音）で、Wide L/R 中は `MotionEngine` がパンを書かず、Echo ON だと `panForChip` が主チップに素のレジスタを渡すため主チップが無音、シャドウのエコーだけが鳴っていた。修正は 2 点: Wide 中も中央をレジスタに書く、`initializeOPM` で全チャンネルを中央に。`EchoTest.WideAndEchoFromTheFirstTickStillPlayTheNoteItself` で再現・検証。修正後のデモは以前の確認用ミックスと bit 一致
 - ✅ **JUCE 9.0.1 へ更新** - `cmake/JUCEConfig.cmake` の GIT_TAG を 8.0.4 → 8.0.15 → 9.0.1 の 2 段階で確認。8.0.15 で `AudioProcessor::setParameterNotifyingHost` が消えたのでテストはパラメーターリスト経由に、`Font::getStringWidthFloat` は `GlyphArrangement::getStringWidth` に。9.0 で `Drawable::createFromSVG(XmlElement)` が消え `createFromSVGString` に（アルゴリズム図のラベルは新パーサー lunasvg でも描ける）。Linux は `libxi-dev` が追加で必要（CI と README に追記）。`YMULATOR_COPY_PLUGIN` オプションで ~/Library へのコピーを止められる（別ビルドディレクトリでの検証用）
