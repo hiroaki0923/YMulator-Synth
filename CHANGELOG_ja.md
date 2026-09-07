@@ -5,6 +5,7 @@ YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 ## 未リリース
 
 **✨ 新機能:**
+- **パンの設定を 1 つに**: ヘッダーの Global Pan ボックスを廃止。MOTION のパンモードが配置と動きの両方を受け持つ: Off（中央）/ Alternate / Step / Left / Right / Random（新しい音は直前と違う側に置く）。旧ヘッダーの Left / Right / Random で保存したプロジェクトは中央で開くので、MOTION のパンで同じモードを選び直す
 - **Feedback をアルゴリズムの横に**: Feedback のノブは相対マクロではなくレジスタそのものなので TONE 行から外し、両画面ともアルゴリズム選択の隣に置いた。Quick の右列を広げ、MOTION カードに余裕を持たせた
 - **アルペジエーター**: Random と押した順の順序、最大 4 オクターブ、ゲート付きリトリガー（OFF はチップ式で音程のみ）、単音を和音にするコード表（Major / Minor / 7th / m7 / Maj7 / Sus4 / Sus2 / Dim / Aug / 5th / Octave）、Latch、拍または 2〜4 ステップごとのアクセント。新しい和音でパターンをルートから始め、ステップに量子化するので小節頭に置いた和音は小節頭から始まる。CC 108 / 109 / 119 でコード表・オクターブ・ゲート。細かい設定は Detail のアルペジオ横の「…」ボタンから
 

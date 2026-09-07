@@ -5,15 +5,11 @@
 #include "../utils/ParameterIDs.h"
 #include "../utils/Debug.h"
 #include "../utils/PresetManager.h"
-#include "../utils/GlobalPanPosition.h"
-#include "PanProcessor.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
 #include <memory>
 
 namespace ymulatorsynth {
-
-// GlobalPanPosition enum moved to utils/GlobalPanPosition.h
 
 /**
  * ParameterManager - Manages all audio parameter operations for YMulator-Synth
@@ -30,10 +26,8 @@ public:
      * Constructor with dependency injection
      * @param ymfm YmfmWrapper interface for applying parameters to sound engine
      * @param processor AudioProcessor reference for parameter system integration
-     * @param panProcessor PanProcessor for handling pan-related functionality
      */
-    ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor, 
-                    std::shared_ptr<PanProcessor> panProcessor);
+    ParameterManager(YmfmWrapperInterface& ymfm, juce::AudioProcessor& processor);
     
     /**
      * Destructor - ensures proper listener cleanup
@@ -104,9 +98,8 @@ public:
      * Loads preset parameter values into JUCE parameter system
      * Temporarily disables listeners to prevent feedback during batch loading
      * @param preset Preset to load parameters from
-     * @param preservedGlobalPan Reference to store current global pan value
      */
-    void loadPresetParameters(const Preset* preset, float& preservedGlobalPan);
+    void loadPresetParameters(const Preset* preset);
     
     /**
      * Optimized preset application directly to ymfm engine
@@ -121,32 +114,6 @@ public:
      * @param preset Preset structure to populate with current values
      */
     void extractCurrentParameterValues(Preset& preset) const;
-    
-    // =========================================================================
-    // Global Pan Management (Specialized Parameter Handling)
-    // =========================================================================
-    
-    /**
-     * Applies global pan setting to a specific channel (delegated to PanProcessor)
-     * Handles LEFT/CENTER/RIGHT/RANDOM pan modes with proper register values
-     * @param channel Channel number (0-7)
-     */
-    void applyGlobalPan(int channel);
-    
-    /**
-     * Applies global pan setting to all 8 channels (delegated to PanProcessor)
-     * Used during parameter updates and global pan changes
-     */
-    void applyGlobalPanToAllChannels();
-    
-    /**
-     * Sets random pan value for a specific channel (delegated to PanProcessor)
-     * Used in RANDOM global pan mode to vary stereo positioning
-     * @param channel Channel number (0-7)
-     */
-    void setChannelRandomPan(int channel);
-    
-    // getChannelRandomPanBits moved to PanProcessor
     
     // =========================================================================
     // Custom Preset State Management
@@ -208,7 +175,6 @@ private:
     YmfmWrapperInterface& ymfmWrapper;
     juce::AudioProcessor& audioProcessor;
     juce::AudioProcessorValueTreeState* parametersPtr = nullptr;
-    std::shared_ptr<PanProcessor> panProcessor;
     
     // =========================================================================
     // Parameter Management State
@@ -219,8 +185,6 @@ private:
     bool isCustomPreset = false;
     juce::String customPresetName = "Custom";
     bool userGestureInProgress = false;
-    
-    // channelRandomPanBits moved to PanProcessor
     
     // =========================================================================
     // Internal Helper Methods

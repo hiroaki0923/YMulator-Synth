@@ -19,7 +19,7 @@ Quick パネル設計（[ymulatorsynth-quick-panel-design.md](ymulatorsynth-quic
 | 音色の揺れ（ワウ） | モジュレータの TL をソフト LFO で揺らす | **Timbre LFO**: モジュレータ TL へ三角波オフセット | ハードウェア LFO の AMS は全オペレータ共通で使いづらい |
 | 遅延ビブラート | 発音後 N tick から徐々に深くなるビブラート | **Vibrato**: 遅延、立ち上がり、深さ、レート。KF へ書く | ハードウェア LFO の PMD は 8 チャンネル共通なので、ボイスごとの遅延ができない |
 | トレモロ | TL 全体を揺らす | **Tremolo**: キャリア TL へ正弦オフセット | |
-| 左右の動き | 発音ごとに L / R を切替、または拍ごとに L→C→R | **Pan Motion**: Alternate（発音ごと）、Step（拍同期で L→C→R→L…）、Wide（Wide と併用時は固定） | パンは 3 値のみ。連続移動は作らない |
+| 左右の動き | 発音ごとに L / R を切替、または拍ごとに L→C→R | **Pan**: Left / Right / Random（発音ごとに直前と違う側）の配置と、Alternate（発音ごと）、Step（拍同期で L→C→R→C…）の動き。Wide の L/R 配置時は固定 | パンは 3 値のみ。連続移動は作らない |
 | ピッチのアタック | 発音時に数十セント下（上）から滑り込む | **Pitch Env**: 2 段（開始 → 第 2 点 → 本来の音程）、各 ±24 半音。KC/KF へ書く | ドラムの沈み込み、SE のうねり |
 | フィルタ開閉のようなパッド | モジュレータの TL を発音後ゆっくり下げて明るくしていく | **Sweep**: 発音時のモジュレータ TL オフセット（±40）と収束時間。二乗カーブ | 音色 LFO と加算 |
 | ソフトエンベロープ | TL を時間で動かす（PMD の E、FMP の SE） | **Level EG**: キャリア TL のアタック／ディケイ／サステイン減衰。モジュレータ側は Sweep | ハードウェア EG と加算 |
@@ -46,7 +46,7 @@ Quick パネル設計（[ymulatorsynth-quick-panel-design.md](ymulatorsynth-quic
 | `motion_timbre_rate` | 音色 LFO の速さ | 0.1〜12 Hz、または音価 |
 | `motion_trem_depth` | トレモロ深さ（キャリア TL の振れ幅） | 0〜24 |
 | `motion_trem_rate` | トレモロ速さ | 0.5〜12 Hz、または音価 |
-| `motion_pan_mode` | パンの動き | Off / Alternate / Step |
+| `motion_pan_mode` | パンの配置と動き | Off（中央）/ Alternate / Step / Left / Right / Random |
 | `motion_pan_rate` | Step の間隔 | 音価（1/4, 1/8, 1/16, 三連） |
 | `motion_pitch_env` | 発音時のピッチオフセット | −100〜+100 セント |
 | `motion_pitch_time` | 収束時間 | 0〜500 ms |
@@ -83,13 +83,16 @@ private:
 - キーオン／キーオフ、TL、EG などは同じ値を同じタイミングで書く。差分送信（ステップ 0）はチップごとのキャッシュで行う。
 - シャドウチップは主チップと同じレートで動き、リサンプラも独立に持つ。Wide を OFF にしたらシャドウを停止し（キーオフ→レンダリング停止）、ミックスから外す。
 - ペアリングは `YmfmWrapper` の内側に閉じるので、VoiceManager・ParameterManager・MacroMapper は Wide を知らない。
-- 既存のグローバルパン（LEFT / CENTER / RIGHT / RANDOM）は Wide が OFF のときだけ効く。
+- `motion_pan_mode` は Wide が OFF か配置が C / C のときだけ効く（ヘッダーのグローバルパンは 0.1.2 で廃止し、Left / Right / Random をこのモードに統合）。
 - CPU: ymfm のレンダリングが 2 倍になるが、現状の負荷（Balanced で数 %）からみて許容範囲。Wide OFF 時はシャドウを走らせないので増えない。
 - 保留中のユニゾンブランチは、複数の `YmfmWrapper` をエンジン層で束ねる方式だった。本設計は 1 つの `YmfmWrapper` の内側で 2 チップを扱う点が違い、上位層に手を入れない。ブランチは参照用に残し、マージしない。
 
-### 3.3 Pan Motion
+### 3.3 Pan
 
-- Alternate: 発音ごとに L → R → L…。RANDOM パンと同じ経路（`PanProcessor`）でパンビットを書く。
+- 配置と動きを 1 つの選択肢にまとめる。`MotionEngine` が毎 tick、チャンネルごとの目標パン（L / C / R）を決め、前回書いた値と違うときだけレジスタ 0x20 の上位 2 ビットを書く。発音のたびにキャッシュを捨てるので、新しいボイスには必ず書き直す。
+- Off: 全チャンネル中央。Left / Right: 全チャンネル（休止中も）を片側へ。モードを変えると鳴っている音も動く。
+- Random: 発音ごとに直前のランダム値と違う 2 つから選ぶ（xorshift、決定的）。同じ側が続かない。
+- Alternate: 発音ごとに L → R → L…。
 - Step: BPM 同期で拍ごとに L → C → R → C → L…。発音中のチャンネルすべてに書く。
 - Wide が ON で配置が L / R のときは Pan Motion を無効にする（2 チップの配置が優先）。配置が C / C のときは両チップに同じパンを書き、Pan Motion を使える。
 

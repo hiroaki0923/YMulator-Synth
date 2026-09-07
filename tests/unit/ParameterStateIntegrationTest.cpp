@@ -149,31 +149,26 @@ TEST_F(ParameterStateIntegrationTest, FactoryPresetStateRoundTrip) {
 }
 
 // ============================================================================
-// Global Pan Integration Tests
+// Pan Mode Integration Tests
 // ============================================================================
 
-TEST_F(ParameterStateIntegrationTest, GlobalPanStatePersistence) {
+TEST_F(ParameterStateIntegrationTest, PanModeStatePersistence) {
     auto& parameters = processor->getParameters();
     
-    // Set global pan to RANDOM mode
-    auto* globalPanParam = dynamic_cast<juce::AudioParameterChoice*>(
-        parameters.getParameter(ParamID::Global::GlobalPan));
-    ASSERT_NE(globalPanParam, nullptr);
+    auto* panMode = dynamic_cast<juce::AudioParameterChoice*>(
+        parameters.getParameter(ParamID::Motion::PanMode));
+    ASSERT_NE(panMode, nullptr);
     
-    globalPanParam->setValueNotifyingHost(1.0f); // RANDOM mode
+    panMode->setValueNotifyingHost(1.0f); // Random
     
-    // Save state
     juce::MemoryBlock savedState;
     processor->getStateInformation(savedState);
     
-    // Change to different pan mode
-    globalPanParam->setValueNotifyingHost(0.33f); // CENTER
+    panMode->setValueNotifyingHost(0.0f); // Off
     
-    // Restore state
     processor->setStateInformation(savedState.getData(), static_cast<int>(savedState.getSize()));
     
-    // Global pan should be restored to RANDOM (index 3)
-    EXPECT_EQ(globalPanParam->getIndex(), 3);
+    EXPECT_EQ(panMode->getIndex(), 5);
 }
 
 // ============================================================================
@@ -248,10 +243,10 @@ TEST_F(ParameterStateIntegrationTest, StateConsistencyAfterMultipleOperations) {
     // 1. Load preset
     processor->setCurrentProgram(0);
     
-    // 2. Modify global pan parameter
+    // 2. Modify the pan mode
     auto& parameters = processor->getParameters();
-    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
-    globalPanParam->setValueNotifyingHost(0.5f);
+    auto* panMode = parameters.getParameter(ParamID::Motion::PanMode);
+    panMode->setValueNotifyingHost(0.5f);
     
     // 3. Enter custom mode
     processor->setCustomMode(true, "Consistency Test");
@@ -355,10 +350,10 @@ TEST_F(ParameterStateIntegrationTest, NoMemoryLeaksInIntegration) {
         // Restore state
         processor->setStateInformation(state.getData(), static_cast<int>(state.getSize()));
         
-        // Change global pan parameter
+        // Change the pan mode
         auto& parameters = processor->getParameters();
-        auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
-        globalPanParam->setValueNotifyingHost((i % 4) / 3.0f);
+        auto* panMode = parameters.getParameter(ParamID::Motion::PanMode);
+        panMode->setValueNotifyingHost((i % 6) / 5.0f);
     }
     
     // Final cleanup operations

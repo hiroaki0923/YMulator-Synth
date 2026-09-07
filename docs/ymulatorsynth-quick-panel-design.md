@@ -163,7 +163,7 @@ MUL' = clamp(round(MUL_target × r), 0, 15)。MUL_target が 0（×0.5）のと�
 
 | コンポーネント | 内容 |
 |---|---|
-| `MainComponent` | ヘッダ（モード切替、バンク/プリセット、EDITED、Save、Pan）、Quick / Detail の切替、ステータス行。1000×640 |
+| `MainComponent` | ヘッダ（モード切替、バンク/プリセット、EDITED、Save）、Quick / Detail の切替、ステータス行。1000×640 |
 | `QuickView` | `TonePanel`（マクロ 7 ノブ）、`AlgorithmCard`（図＋説明＋前後）、`GeneratorPanel`（RECIPE カード: カテゴリ、6 スライダー。右下に Undo / A / B / Generate）、`OutputScope` |
 | `DetailView` | `ToneStrip`（マクロの小ノブ＋アルゴリズム）、`OperatorRow` × 4（役割タグ、Level/Ratio/Detune の主ノブ、EnvelopeDisplay、EG 5 ノブ、KS/DT2/AMS）、`LfoNoiseStrip` |
 | 共有 | `RotaryKnob`（サイズ 3 種、ハイライト輪、人間向け表示＋生値の副表示）、`RoleTag`、`AlgorithmDisplay`（AlgorithmInfo から描画、役割色）、`EnvelopeDisplay`（既存） |

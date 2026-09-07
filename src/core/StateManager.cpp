@@ -173,13 +173,10 @@ void StateManager::loadPresetInternal(int index, bool updateCurrentPreset)
     // Backup current state before loading (for potential undo)
     lastSavedState = parameters.copyState();
     
-    // Preserve global pan setting during preset loading
-    float preservedGlobalPan = 0.0f;
-    
     // Load preset parameters through ParameterManager. The macro layer must
     // not remap while the raw values are being replaced wholesale.
     if (macroMapper) macroMapper->setSuspended(true);
-    parameterManager.loadPresetParameters(preset, preservedGlobalPan);
+    parameterManager.loadPresetParameters(preset);
     
     // Apply preset to sound generation engine
     parameterManager.applyPresetToYmfm(preset);

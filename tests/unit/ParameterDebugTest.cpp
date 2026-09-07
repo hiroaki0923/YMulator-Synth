@@ -44,7 +44,7 @@ TEST_F(ParameterDebugTest, ParameterAccessDebugTest) {
         {"Op0 TL", ParamID::Op::tl(0)},
         {"Op1 TL", ParamID::Op::tl(1)},
         {"Op0 AR", ParamID::Op::ar(0)},
-        {"Global Pan", ParamID::Global::GlobalPan}
+        {"Pitch Bend Range", ParamID::Global::PitchBendRange}
     };
     
     for (const auto& test : testParams) {

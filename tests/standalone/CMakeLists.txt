@@ -15,7 +15,6 @@ add_executable(TestUnisonDetuneStandalone
     ${CMAKE_SOURCE_DIR}/src/dsp/ParameterConverter.cpp
     ${CMAKE_SOURCE_DIR}/src/core/AudioProcessor.cpp
     ${CMAKE_SOURCE_DIR}/src/core/MidiProcessor.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/PanProcessor.cpp
     ${CMAKE_SOURCE_DIR}/src/core/ParameterManager.cpp
     ${CMAKE_SOURCE_DIR}/src/core/StateManager.cpp
     ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp

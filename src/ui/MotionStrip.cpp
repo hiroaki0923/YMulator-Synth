@@ -109,7 +109,7 @@ void MotionStrip::buildLayout()
     };
     auto pan = [&](int theme, int row) {
         auto& g = addGroup(theme, row);
-        addBox(g, panModeBox, panModeAttachment, PanMode, { "Off", "Alt", "Step" }, "Alternate notes left/right, or step L-C-R on the beat");
+        addBox(g, panModeBox, panModeAttachment, PanMode, { "Off", "Alt", "Step", "Left", "Right", "Rand" }, "Where the voices sit: centre, alternating left/right per note, stepping L-C-R on the beat, left, right, or a random side per note");
         addBox(g, panRateBox, panRateAttachment, PanRate, { "1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T" }, "Step length");
     };
     auto glide = [&](int theme, int row) {

@@ -117,10 +117,6 @@ protected:
         layout.add(std::make_unique<juce::AudioParameterInt>(
             ParamID::Global::Feedback, "Feedback", 0, 7, 0));
             
-        layout.add(std::make_unique<juce::AudioParameterChoice>(
-            ParamID::Global::GlobalPan, "Global Pan",
-            juce::StringArray{"Left", "Center", "Right", "Random"}, 1));
-            
         layout.add(std::make_unique<juce::AudioParameterInt>(
             ParamID::Global::PitchBendRange, "Pitch Bend Range", 1, 12, 2));
             
@@ -313,22 +309,6 @@ TEST_F(MidiProcessorTest, ProcessMidiMessagesBuffer) {
     // Verify algorithm parameter was updated by CC message
     auto* algorithmParam = parameters->getParameter(ParamID::Global::Algorithm);
     EXPECT_NEAR(algorithmParam->getValue(), 64.0f / 127.0f, 0.01f);
-}
-
-// Test random pan functionality
-TEST_F(MidiProcessorTest, ApplyRandomPan) {
-    const int testChannel = 2;
-    
-    // Set global pan to RANDOM mode
-    auto* globalPanParam = static_cast<juce::AudioParameterChoice*>(parameters->getParameter(ParamID::Global::GlobalPan));
-    globalPanParam->setValueNotifyingHost(static_cast<float>(GlobalPanPosition::RANDOM) / 3.0f);
-    
-    // Expect pan to be applied (actual value depends on random generation)
-    EXPECT_CALL(*mockYmfmWrapper, setChannelPan(testChannel, _));
-    
-    // Apply random pan
-    midiProcessor->setChannelRandomPan(testChannel);
-    midiProcessor->applyGlobalPan(testChannel);
 }
 
 // Test noise priority voice allocation

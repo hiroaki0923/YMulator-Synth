@@ -72,7 +72,6 @@ TEST_F(ParameterManagerTest, ProcessorHasGlobalParameters) {
     
     EXPECT_NE(parameters.getParameter(ParamID::Global::Algorithm), nullptr);
     EXPECT_NE(parameters.getParameter(ParamID::Global::Feedback), nullptr);
-    EXPECT_NE(parameters.getParameter(ParamID::Global::GlobalPan), nullptr);
     EXPECT_NE(parameters.getParameter(ParamID::Global::LfoRate), nullptr);
     EXPECT_NE(parameters.getParameter(ParamID::Global::LfoPmd), nullptr);
     EXPECT_NE(parameters.getParameter(ParamID::Global::LfoAmd), nullptr);
@@ -160,22 +159,17 @@ TEST_F(ParameterManagerTest, SetCustomModeWithEmptyName) {
 // Global Pan Parameter Tests
 // ============================================================================
 
-TEST_F(ParameterManagerTest, GlobalPanParameterExists) {
+TEST_F(ParameterManagerTest, PanModeOffersPlacementAndMotion) {
     auto& parameters = processor->getParameters();
-    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
-    
-    EXPECT_NE(globalPanParam, nullptr);
-    
-    // Test setting different pan modes
-    globalPanParam->setValueNotifyingHost(0.0f); // LEFT
-    globalPanParam->setValueNotifyingHost(0.33f); // CENTER
-    globalPanParam->setValueNotifyingHost(0.66f); // RIGHT  
-    globalPanParam->setValueNotifyingHost(1.0f); // RANDOM
+    auto* panMode = dynamic_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Motion::PanMode));
+    ASSERT_NE(panMode, nullptr);
+    EXPECT_EQ(panMode->choices, juce::StringArray({ "Off", "Alternate", "Step", "Left", "Right", "Random" }));
+    EXPECT_EQ(panMode->getIndex(), 0);
 }
 
-TEST_F(ParameterManagerTest, PanIsAGlobalParameterOnly) {
+TEST_F(ParameterManagerTest, PanIsAMotionParameterOnly) {
     auto& parameters = processor->getParameters();
-    EXPECT_NE(parameters.getParameter(ParamID::Global::GlobalPan), nullptr);
+    EXPECT_EQ(parameters.getParameter("global_pan"), nullptr) << "the header pan was folded into the MOTION pan mode";
     // Voices are allocated dynamically, so per-hardware-channel pan parameters make no sense and were removed
     for (int ch = 0; ch < 8; ++ch)
         EXPECT_EQ(parameters.getParameter(ParamID::Channel::pan(ch)), nullptr) << "channel " << ch;

@@ -52,18 +52,6 @@ public:
     void handlePitchBend(int pitchBendValue) override;
     void setupCCMapping() override;
     
-    /**
-     * Set channel random pan for global pan randomization feature.
-     * @param channel Channel number (0-7)
-     */
-    void setChannelRandomPan(int channel);
-    
-    /**
-     * Apply global pan setting to specified channel.
-     * @param channel Channel number (0-7)  
-     */
-    void applyGlobalPan(int channel);
-    
     /** Notes held while mono or arpeggio mode is on; read by the motion engine. */
     const ymulatorsynth::HeldNotes& getHeldNotes() const { return held; }
     

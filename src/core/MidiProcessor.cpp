@@ -84,14 +84,6 @@ void MidiProcessor::processMidiNoteOn(const juce::MidiMessage& message)
     // Allocate a voice for this note with noise priority consideration
     int channel = voiceManager.allocateVoiceWithNoisePriority(message.getNoteNumber(), message.getVelocity(), needsNoise);
     
-    // Apply global pan setting to the allocated channel (optimized for real-time)
-    auto* panParam = static_cast<juce::AudioParameterChoice*>(parameters.getParameter(ParamID::Global::GlobalPan));
-    if (panParam && panParam->getIndex() == static_cast<int>(GlobalPanPosition::RANDOM)) {
-        // ALWAYS generate new random pan for each note (not just once per channel)
-        setChannelRandomPan(channel);
-    }
-    applyGlobalPan(channel);
-    
     // Tell ymfm to play this note on the allocated channel
     ymfmWrapper.noteOn(channel, message.getNoteNumber(), message.getVelocity());
     if (mono || arp) held.channel = channel;
@@ -339,18 +331,6 @@ void MidiProcessor::resetMacros()
     for (const char* id : { ParamID::Macro::Brightness, ParamID::Macro::Harmonics, ParamID::Macro::Attack,
                             ParamID::Macro::Decay, ParamID::Macro::Release, ParamID::Macro::Spread })
         if (auto* p = parameters.getParameter(id)) p->setValueNotifyingHost(p->getDefaultValue());
-}
-
-void MidiProcessor::setChannelRandomPan(int channel)
-{
-    // Delegate to ParameterManager for consistent random pan handling
-    parameterManager.setChannelRandomPan(channel);
-}
-
-void MidiProcessor::applyGlobalPan(int channel)
-{
-    // Delegate to ParameterManager for consistent pan handling
-    parameterManager.applyGlobalPan(channel);
 }
 
 bool MidiProcessor::currentPresetNeedsNoise() const

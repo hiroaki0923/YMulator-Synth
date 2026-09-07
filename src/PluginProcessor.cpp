@@ -14,8 +14,7 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
        ymfmWrapper(std::make_unique<YmfmWrapper>()),
        voiceManager(std::make_unique<VoiceManager>()),
        midiProcessor(nullptr), // Will be initialized after other components
-       panProcessor(std::make_shared<ymulatorsynth::PanProcessor>(*ymfmWrapper)),
-       parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this, panProcessor)),
+       parameterManager(std::make_unique<ymulatorsynth::ParameterManager>(*ymfmWrapper, *this)),
        presetManager(std::make_unique<ymulatorsynth::PresetManager>())
 {
     
@@ -30,7 +29,6 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor()
     stateManager->setMacroMapper(macroMapper.get());
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
-    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
     motionEngine->onLatchOff = [this]() { if (midiProcessor) midiProcessor->releaseLatchedNotes(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
@@ -76,7 +74,6 @@ YMulatorSynthAudioProcessor::YMulatorSynthAudioProcessor(std::unique_ptr<YmfmWra
     macroMapper = std::make_unique<ymulatorsynth::MacroMapper>(parameters);
     motionEngine = std::make_unique<ymulatorsynth::MotionEngine>(*ymfmWrapper, *voiceManager);
     motionEngine->bindParameters(parameters);
-    motionEngine->onPanMotionOff = [this]() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); };
     motionEngine->onLatchOff = [this]() { if (midiProcessor) midiProcessor->releaseLatchedNotes(); };
     patchWorkspace = std::make_unique<ymulatorsynth::PatchWorkspace>(parameters, *macroMapper,
         ymulatorsynth::PatchWorkspace::Callbacks{ [this]() { return isInCustomMode(); },
@@ -354,22 +351,6 @@ void YMulatorSynthAudioProcessor::parameterValueChanged(int parameterIndex, [[ma
     // CS_FILE_DBG("parameterValueChanged called - index: " + juce::String(parameterIndex) + 
     //             ", value: " + juce::String(newValue));
     
-    // Check if this is the GlobalPan parameter by ID
-    auto* globalPanParam = parameters.getParameter(ParamID::Global::GlobalPan);
-    auto& allParams = AudioProcessor::getParameters();
-    bool isGlobalPanChange = (parameterIndex < allParams.size() && allParams[parameterIndex] == globalPanParam);
-    
-    if (isGlobalPanChange) {
-        // Apply to ALL channels, not just active ones
-        // This is necessary because YM2151 mixes all channels, not just active ones
-        // BUT: Skip if switching TO RANDOM mode - MidiProcessor will handle per-note random pan
-        if (static_cast<juce::AudioParameterChoice*>(globalPanParam)->getIndex() != static_cast<int>(ymulatorsynth::GlobalPanPosition::RANDOM)) {
-            applyGlobalPanToAllChannels();
-        }
-        
-        // Global pan changes don't affect preset identity, so return early
-        return;
-    }
     
     // Only switch to custom if not already in custom mode and gesture is in progress
     // Global pan changes are excluded from this logic
@@ -428,7 +409,6 @@ void YMulatorSynthAudioProcessor::setCurrentPresetInBank(int bankIndex, int pres
     }
 }
 
-// applyGlobalPan, applyGlobalPanToAllChannels, setChannelRandomPan methods moved to ParameterManager
 
 void YMulatorSynthAudioProcessor::processMidiMessages([[maybe_unused]] juce::MidiBuffer& midiMessages)
 {

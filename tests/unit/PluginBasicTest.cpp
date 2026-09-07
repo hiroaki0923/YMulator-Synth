@@ -166,11 +166,11 @@ TEST_F(PluginBasicTest, StereoOutputTest) {
     EXPECT_GT(rightRMS, 0.001f); // Right channel has output
     
     // Test that we can set pan parameters (even if they don't affect output immediately)
-    host->setParameterValue(*processor, ParamID::Global::GlobalPan, 0.0f);
+    host->setParameterValue(*processor, ParamID::Motion::PanMode, 0.0f);
     host->processBlock(*processor, 128);
     
-    // Verify parameter was set exactly (global pan is a digital parameter, should be exact)
-    float panValue = host->getParameterValue(*processor, ParamID::Global::GlobalPan);
+    // Verify parameter was set exactly (the pan mode is a digital parameter, should be exact)
+    float panValue = host->getParameterValue(*processor, ParamID::Motion::PanMode);
     EXPECT_FLOAT_EQ(panValue, 0.0f);  // Should be exact for digital parameter storage
     
     // Note off to clean up

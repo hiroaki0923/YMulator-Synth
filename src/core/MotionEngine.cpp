@@ -63,8 +63,8 @@ void MotionEngine::prepare(double newSampleRate)
     for (auto& c : channels) c = Channel {};
     beat = 0.0;
     samplesIntoBlock = 0.0;
-    lastPanMode = 0;
     nextAlternateRight = false;
+    lastRandomPan = 1;
     lastWideEnabled = false;
     lastWideCents = -1.0f;
     lastWidePan = -1;
@@ -88,6 +88,17 @@ void MotionEngine::setTransport(double hostBpm, double ppq, bool playing, bool k
     if (known && hostBpm > 0.0) bpm = hostBpm;
     ppqAtBlockStart = ppq;
     samplesIntoBlock = 0.0;
+}
+
+int MotionEngine::nextRandomPan()
+{
+    panRandomState ^= panRandomState << 13;
+    panRandomState ^= panRandomState >> 17;
+    panRandomState ^= panRandomState << 5;
+    int pan = static_cast<int>(panRandomState % 2u);          // one of the two positions that differ from the last
+    if (pan >= lastRandomPan) ++pan;
+    lastRandomPan = pan;
+    return pan;
 }
 
 void MotionEngine::writePan(int channel, int pan)
@@ -168,14 +179,10 @@ void MotionEngine::tick(int numSamples)
         ymfm.setEcho(echoOn, echoSeconds, echoSteps);
     }
     
+    // Pan: Off and Left / Right / Random place every voice, Alternate and Step move it.
+    // With Wide split left / right the chips own the pan bits and nothing is written.
     const int mode = juce::roundToInt(read(panMode, 0.0f));
     const bool wideBlocksPan = lastWideEnabled && lastWidePan == 0;
-    const bool panActive = mode != 0 && !wideBlocksPan;
-    if (!panActive && lastPanMode != 0) {
-        for (auto& c : channels) c.pan = -1;
-        if (onPanMotionOff) onPanMotionOff();
-    }
-    lastPanMode = panActive ? mode : 0;
     const int stepPan = [&]() {
         static constexpr int kPattern[4] = { 0, 1, 2, 1 };   // L, C, R, C
         const double beats = beatsForDivision(juce::roundToInt(read(panRate, 2.0f)));
@@ -224,7 +231,7 @@ void MotionEngine::tick(int numSamples)
             c.phase = 0.0;
             c.timbrePhase = 0.0;
             c.tremoloPhase = 0.0;
-            c.pan = -1;   // the note-on wrote the global pan; pan motion must write again
+            c.pan = -1;   // a fresh voice gets its pan written again
             c.noteOnCount = noteOns;
             // Portamento from the last note played anywhere
             c.glideFrom = (portaSeconds > 0.0 && lastNote >= 0) ? static_cast<float>(lastNote - note) : 0.0f;
@@ -243,15 +250,26 @@ void MotionEngine::tick(int numSamples)
         c.active = active;
         c.note = note;
         
-        if (panActive) {
-            if (mode == 1) {
-                if (noteStarted) {
-                    writePan(ch, nextAlternateRight ? 2 : 0);
-                    nextAlternateRight = !nextAlternateRight;
-                }
-            } else {
-                writePan(ch, stepPan);
+        if (wideBlocksPan) {
+            c.pan = -1;
+        } else {
+            int pan = 1;
+            switch (mode) {
+                case 1:   // Alternate: each new note takes the other side
+                    if (noteStarted) {
+                        pan = nextAlternateRight ? 2 : 0;
+                        nextAlternateRight = !nextAlternateRight;
+                    } else pan = c.pan < 0 ? 1 : c.pan;
+                    break;
+                case 2: pan = stepPan; break;
+                case 3: pan = 0; break;
+                case 4: pan = 2; break;
+                case 5:   // Random: each new note lands somewhere else
+                    pan = noteStarted ? nextRandomPan() : (c.pan < 0 ? 1 : c.pan);
+                    break;
+                default: break;
             }
+            writePan(ch, pan);
         }
         
         float offset = 0.0f;

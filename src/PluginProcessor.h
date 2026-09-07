@@ -12,7 +12,6 @@
 #include "core/MacroMapper.h"
 #include "core/PatchWorkspace.h"
 #include "core/MotionEngine.h"
-#include "core/PanProcessor.h"
 #include "utils/PresetManager.h"
 #include "core/PresetManagerInterface.h"
 #include <unordered_map>
@@ -81,7 +80,6 @@ private:
     std::unique_ptr<YmfmWrapperInterface> ymfmWrapper;
     std::unique_ptr<VoiceManagerInterface> voiceManager;
     std::unique_ptr<ymulatorsynth::MidiProcessorInterface> midiProcessor;
-    std::shared_ptr<ymulatorsynth::PanProcessor> panProcessor;
     std::unique_ptr<ymulatorsynth::ParameterManager> parameterManager;
     std::unique_ptr<PresetManagerInterface> presetManager;
     std::unique_ptr<ymulatorsynth::StateManager> stateManager;
@@ -109,16 +107,13 @@ private:
     
     // Temporary parameter management (until full migration)
     void updateYmfmParameters() { if (parameterManager) parameterManager->updateYmfmParameters(); }
-    void applyGlobalPanToAllChannels() { if (parameterManager) parameterManager->applyGlobalPanToAllChannels(); }
     void setupParameterListeners(bool enable) { if (parameterManager) parameterManager->setupParameterListeners(enable); }
-    void loadPresetParameters(const ymulatorsynth::Preset* preset, float& preservedGlobalPan) { 
-        if (parameterManager) parameterManager->loadPresetParameters(preset, preservedGlobalPan); 
+    void loadPresetParameters(const ymulatorsynth::Preset* preset) { 
+        if (parameterManager) parameterManager->loadPresetParameters(preset); 
     }
     void applyPresetToYmfm(const ymulatorsynth::Preset* preset) { 
         if (parameterManager) parameterManager->applyPresetToYmfm(preset); 
     }
-    void applyGlobalPan(int channel) { if (parameterManager) parameterManager->applyGlobalPan(channel); }
-    void setChannelRandomPan(int channel) { if (parameterManager) parameterManager->setChannelRandomPan(channel); }
     
     // Deprecated MIDI methods (for backward compatibility)
     void setupCCMapping() {} // No-op - handled by MidiProcessor

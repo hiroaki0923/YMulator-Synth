@@ -26,8 +26,6 @@ namespace Global {
     
     // Global settings
     constexpr const char* PitchBendRange = "pitch_bend_range";
-    constexpr const char* MasterPan = "master_pan";
-    constexpr const char* GlobalPan = "global_pan";
     
     // LFO parameters
     constexpr const char* LfoRate = "lfo_rate";
@@ -405,8 +403,7 @@ namespace Validation {
             paramID == Global::IsCustomMode ||
             paramID == Global::CurrentBankIndex ||
             paramID == Global::CurrentPresetInBank ||
-            paramID == Global::PitchBendRange ||
-            paramID == Global::MasterPan) {
+            paramID == Global::PitchBendRange) {
             return true;
         }
         
@@ -455,8 +452,3 @@ namespace Validation {
 } // namespace Validation
 
 } // namespace ParamID
-
-// =============================================================================
-// Global Pan Position Enumeration (moved to ParameterManager.h)
-// =============================================================================
-// NOTE: GlobalPanPosition is now defined in core/ParameterManager.h
