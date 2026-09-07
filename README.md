@@ -16,7 +16,7 @@ An FM synthesizer plugin that emulates the YM2151 (OPM). The sound comes from Aa
 
 - **Sound**: YM2151 emulation by ymfm. 8 voices, 8 algorithms, DT1 / DT2 / KS / feedback, the LFO with its four waveforms, the noise generator. The chip's 55.9 kHz output is resampled to the host rate.
 - **Two views**: the Quick view has macros and per-feature switches, the Detail view has one knob per register. Both show the same parameters, so switching does not change the sound.
-- **TONE macros**: Brightness, Harmonics, Attack, Decay, Release, Spread and Feedback move the related operator parameters together, relative to the loaded preset. Editing a register in the Detail view makes that value the macro's new base.
+- **TONE macros**: Brightness, Harmonics, Attack, Decay, Release and Spread move the related operator parameters together, relative to the loaded preset. Editing a register in the Detail view makes that value the macro's new base.
 - **RECIPE**: pick a category (Bass, Lead, Brass, E.Piano, Bell, Pad, SE, Any) and six directions, press Generate. Undo and A/B compare the result with what you had.
 - **MOTION**: the parameters that change over time. Wide (a second chip, slightly detuned, on the other side; all 8 voices remain), Echo (a delayed, quieter copy on alternating sides), vibrato with delay and rise, timbre LFO, tremolo, pan movement, a two-stage pitch envelope, a brightness sweep, a level envelope, portamento / legato, velocity-to-brightness. Rates can follow the host tempo as note values.
 - **Arpeggiator**: Up, Down, Up-Down, Random or As played over the held notes, across up to four octaves. Either one channel changing only its pitch (down to 1/64) or retriggered steps with a gate. A chord table turns a single note into a chord, Latch keeps the pattern going after the keys are released, and an accent leans on the beat.
@@ -60,14 +60,14 @@ If macOS does not list the Audio Unit right away, run `killall -9 AudioComponent
 ### The Quick view
 
 - **RECIPE**: a category and six sliders (dark / bright, simple / complex, soft / hard attack, short / long, still / moving, harmonic / metallic) set the direction; Generate makes the sound. It replaces the current sound and centres the TONE knobs; the preset box shows "Generated".
-- **TONE**: seven macros over whatever is loaded, preset or generated. Brightness sets the modulator levels, Harmonics picks a frequency-ratio template (Preset, Saw, Square, Pulse, Bright, Bell, Metal, Sub, Octave), Feedback is operator 1's feedback, Attack / Decay / Release move the envelopes of all operators, Spread sets DT1 apart. Loading a preset or generating recentres them.
-- **ALGORITHM**: the eight connections as diagrams, with the feedback loop highlighted when feedback is on.
+- **TONE**: six macros over whatever is loaded, preset or generated. Brightness sets the modulator levels, Harmonics picks a frequency-ratio template (Preset, Saw, Square, Pulse, Bright, Bell, Metal, Sub, Octave), Attack / Decay / Release move the envelopes of all operators, Spread sets DT1 apart. Loading a preset or generating recentres them.
+- **ALGORITHM**: the eight connections as diagrams, with the feedback loop highlighted when feedback is on. The Feedback knob sits here, since it is part of the connection rather than a macro.
 - **MOTION**: one chip per feature (Wide, Vib, Growl, Echo, Sweep, Swell, Glide, Arp, Kick, Trem, Pan). Pressing one switches it on with typical values; the knobs set the amounts. **Sync** makes the rates follow the host tempo, and the Vib rate knob becomes a note-value box. The other note values are in the Detail view.
 - **OUTPUT**: one note played with the current settings. The playhead moves over the level envelope and the waveform at that point is shown, so attack, decay and release are visible.
 
 ### The Detail view
 
-- The TONE row stays at the top. Touching a TONE knob puts an amber ring on the operator knobs it moves.
+- The TONE row stays at the top, with the algorithm picker and the Feedback knob at its right. Touching a TONE knob puts an amber ring on the operator knobs it moves.
 - Each operator row shows its role (MOD or CARRIER, NOISE when the noise generator is on), the three main knobs (Level, Ratio, Detune, in readable units with the register value underneath), the envelope, the five envelope knobs, KS, DT2 and AMS. The switch turns the operator on or off (the .opm SLOT mask).
 - The MOTION row holds every MOTION parameter in four cards: LFO (vibrato, timbre LFO, tremolo), ENVELOPE (pitch envelope, sweep, level envelope), SPACE (Wide, Echo, pan) and PLAY (legato and portamento, velocity brightness, arpeggio, with a "..." button for the chord table, octaves, retrigger and gate, latch and accent). Each card labels what its upper and lower rows hold. With Sync on, every rate knob turns into a note-value box.
 - The bottom row has the hardware LFO (rate, AMD, PMD, waveform), the noise generator (on / off and frequency) and the Expressive MIDI switch.

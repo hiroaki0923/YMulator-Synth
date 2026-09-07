@@ -68,6 +68,8 @@ private:
     std::unique_ptr<juce::TextButton> newSoundButton, undoButton, slotAButton, slotBButton;
     std::unique_ptr<juce::Label> generateNote;
     std::unique_ptr<AlgorithmDisplay> algorithmDisplay;
+    std::unique_ptr<RotaryKnob> feedbackKnob;
+    KnobBinding feedbackBinding;
     std::unique_ptr<juce::Label> algorithmDescription, algorithmCaption;
     std::unique_ptr<juce::TextButton> previousAlgorithmButton, nextAlgorithmButton;
     std::unique_ptr<juce::TextButton> detailLink;
