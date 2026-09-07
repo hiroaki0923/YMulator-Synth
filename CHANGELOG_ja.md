@@ -5,6 +5,7 @@ YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 ## 未リリース
 
 **✨ 新機能:**
+- **オペレーターの役割タグ**: Detail の MODULATOR / CARRIER / NOISE のタグを OP ラベルから ON/OFF トグルの右端までの幅にし、文字を中央に。MOD の略記をやめて全部つづる
 - **MOTION カードのキャプションは対象の真上に**: Detail の各グループ（vibrato / timbre / tremolo / pitch / sweep / level / wide / echo / pan / glide / velocity / arpeggio）にそれぞれキャプションを付け、そのグループの真上（下段は上段との間）に描く。カードの上と下に 1 つずつまとめて置く方式は、どれがどれか分かりにくかった
 - **エンベロープのマクロはキャリアだけに**: Attack / Decay / Release は音量エンベロープだけを動かす。モジュレーターのエンベロープは音色エンベロープなのでパッチのままにし、E.Piano やベルの尾を伸ばしても設計どおり暗く消える（以前はモジュレーターも一緒に伸びて明るいまま残った）。時間で明るさを変えるのは MOTION の Sweep の役目
 - **パンの設定を 1 つに**: ヘッダーの Global Pan ボックスを廃止。MOTION のパンモードが配置と動きの両方を受け持つ: Off（中央）/ Alternate / Step / Left / Right / Random（新しい音は直前と違う側に置く）。旧ヘッダーの Left / Right / Random で保存したプロジェクトは中央で開くので、MOTION のパンで同じモードを選び直す

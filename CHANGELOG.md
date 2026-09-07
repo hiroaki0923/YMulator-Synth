@@ -5,6 +5,7 @@ All notable changes to YMulator-Synth. Japanese: [CHANGELOG_ja.md](CHANGELOG_ja.
 ## Unreleased
 
 **✨ New:**
+- **Operator role tag**: the Detail view's MODULATOR / CARRIER / NOISE tag spans from the OP label to the on/off toggle, with the word centred and spelled out
 - **MOTION card captions above their controls**: in the Detail view each group has its own caption (vibrato, timbre, tremolo, pitch, sweep, level, wide, echo, pan, glide, velocity, arpeggio) drawn directly above it, the lower row's between the rows, instead of one combined caption above the card and one below
 - **Envelope macros act on the carriers**: Attack, Decay and Release move the loudness envelope only. Modulator envelopes are the timbre envelope and stay as the patch has them, so a lengthened tail on an e-piano or bell goes dark the way the sound was designed instead of staying bright. Brightness over time is Sweep's job under MOTION
 - **One pan setting**: the header's Global Pan box is gone. The MOTION pan mode now covers both placement and motion: Off (centre), Alternate, Step, Left, Right and Random (each new note lands on a side other than the last). Projects saved with the old Left / Right / Random header setting open centred; pick the same mode under MOTION pan

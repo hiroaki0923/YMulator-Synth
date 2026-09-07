@@ -44,6 +44,7 @@
 
 ## 🔧 0.1.1 後 (2026-09-07)
 
+- ✅ **オペレーターの役割タグ** - `OperatorPanel` のタグ幅を OP ラベル左端からトグル右端まで（76 px）にして文字を中央揃え。MOD → MODULATOR
 - ✅ **MOTION カードのキャプション位置** - テーマ単位の上下キャプションをやめ、`Group::caption` としてグループごとにその真上へ（上段はタイトル行、下段は行間 `lowerCaptionTop`）。グループより長いキャプション（velocity）はカード内に収まるよう左へずらす。高さは変えない
 - ✅ **エンベロープマクロをキャリア限定に** - Attack / Decay / Release は音量エンベロープとしてキャリアの AR / D1R / D2R / RR だけを動かし、モジュレーター（音色エンベロープ）はアンカーのまま。`targetsOf` も同様で Detail のハイライトはキャリア行だけ
 - ✅ **グローバルパンの廃止** - ヘッダーの Global Pan（LEFT / CENTER / RIGHT / RANDOM、`global_pan`）と `PanProcessor`、`GlobalPanPosition` を削除し、`motion_pan_mode` を Off / Alternate / Step / Left / Right / Random の 6 択に。配置も動きも `MotionEngine` の tick でチャンネルごとの目標パンを決めて書く（Random は直前と違う側、決定的な xorshift）。ノートオンでのパン書き込み、プリセット読込時のパン保持、`parameterValueChanged` の特別扱いも不要になり削除。テストは `PanMotionTest` に配置モードを追加し、`YMulatorSynthAU_PanTests` は PanMotion / Wide / Echo のバイナリに
