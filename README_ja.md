@@ -60,7 +60,7 @@ macOS で Audio Unit がすぐに出てこないときは `killall -9 AudioCompo
 ### Quick 画面
 
 - **RECIPE**: カテゴリと 6 本のスライダー（暗い / 明るい、単純 / 複雑、柔らかい / 硬いアタック、短い / 長い、静か / 動く、倍音的 / 金属的）で方向を決め、Generate で作ります。現在の音を置き換え、TONE のノブは中央に戻ります。プリセット欄は「Generated」になります。
-- **TONE**: いま読み込まれている音（プリセットでも生成した音でも）に効く 6 つのマクロ。Brightness はモジュレーターのレベル、Harmonics は周波数比のテンプレート（Preset / Saw / Square / Pulse / Bright / Bell / Metal / Sub / Octave）、Attack / Decay / Release は全オペレーターのエンベロープ、Spread は DT1 のばらつきです。プリセットの読み込みや生成で中央に戻ります。
+- **TONE**: いま読み込まれている音（プリセットでも生成した音でも）に効く 6 つのマクロ。Brightness はモジュレーターのレベル、Harmonics は周波数比のテンプレート（Preset / Saw / Square / Pulse / Bright / Bell / Metal / Sub / Octave）、Attack / Decay / Release はキャリアのエンベロープ（音量。モジュレーターの音色エンベロープはパッチのまま）、Spread は DT1 のばらつきです。プリセットの読み込みや生成で中央に戻ります。
 - **ALGORITHM**: 8 つの接続を図で表示します。フィードバックが有効なときはループを強調します。Feedback のノブはここにあります。マクロではなく接続の一部だからです。
 - **MOTION**: 機能ごとのチップ（Wide / Vib / Growl / Echo / Sweep / Swell / Glide / Arp / Kick / Trem / Pan）。押すと標準的な値で入り、ノブで量を決めます。**Sync** を入れるとレートがホストのテンポに追従し、Vib rate のノブが音価の選択に変わります。ほかの音価は Detail 画面にあります。
 - **OUTPUT**: 現在の音色を 1 音鳴らした結果です。包絡線の上を再生位置が進み、その位置の波形を表示するので、アタック・ディケイ・リリースの違いが見えます。

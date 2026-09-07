@@ -92,7 +92,9 @@ TEST(MacroMapperPureTest, TargetsFollowAlgorithmRoles)
         EXPECT_EQ(targets, expected) << "algorithm " << alg;
     }
     EXPECT_EQ(MacroMapper::targetsOf(Macro::Spread, 0).size(), 3u);
-    EXPECT_EQ(MacroMapper::targetsOf(Macro::Decay, 0).size(), 8u);
+    EXPECT_EQ(MacroMapper::targetsOf(Macro::Decay, 0).size(), 2u) << "algorithm 0 has one carrier";
+    EXPECT_EQ(MacroMapper::targetsOf(Macro::Attack, 7).size(), 4u) << "algorithm 7 is all carriers";
+    EXPECT_EQ(MacroMapper::targetsOf(Macro::Release, 4), (std::vector<std::string>{ ParamID::Op::rr(2), ParamID::Op::rr(4) }));
 }
 
 TEST(MacroMapperPureTest, HarmonicsTemplatesOnTwoPairs)
@@ -137,11 +139,11 @@ TEST(MacroMapperPureTest, EnvelopeMacros)
     MacroValues m;
     m.attack = 1.0f; m.decay = 1.0f; m.release = 1.0f;
     const auto out = MacroMapper::apply(anchor, m, 4);
-    EXPECT_EQ(out.ar, (std::array<int, 4>{ 19, 13, 8, 16 }));
-    // carriers (op2, op4) move by 10 / 6, modulators by half
-    EXPECT_EQ(out.d1r, (std::array<int, 4>{ 7, 0, 9, 0 }));
-    EXPECT_EQ(out.d2r, (std::array<int, 4>{ 1, 0, 3, 0 }));
-    EXPECT_EQ(out.rr,  (std::array<int, 4>{ 2, 0, 3, 1 }));
+    // the loudness envelope: carriers (op2, op4) move by 12 / 10 / 6 / 6, modulators keep their timbre envelope
+    EXPECT_EQ(out.ar, (std::array<int, 4>{ 31, 13, 20, 16 }));
+    EXPECT_EQ(out.d1r, (std::array<int, 4>{ 12, 0, 14, 0 }));
+    EXPECT_EQ(out.d2r, (std::array<int, 4>{ 4, 0, 6, 0 }));
+    EXPECT_EQ(out.rr,  (std::array<int, 4>{ 8, 0, 9, 1 }));
     EXPECT_EQ(out.tl, anchor.tl);
 }
 
