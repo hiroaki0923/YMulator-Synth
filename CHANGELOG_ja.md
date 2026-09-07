@@ -2,6 +2,14 @@
 
 YMulator-Synth の変更履歴。English: [CHANGELOG.md](CHANGELOG.md)。
 
+## 未リリース
+
+**🐛 修正:**
+- **音色 LFO と Sweep、トレモロと Level EG が加算されるように**: 両方 ON のとき LFO がエンベロープのオフセットを置き換えていて、音色 LFO 中は Sweep が、トレモロ中は Level EG が効かなかった
+
+**🔧 開発:**
+- 文書一式を現行コードに合わせて組み直し（`docs/`）、CLAUDE.md に文書ルール。未使用ソース（`core/AudioProcessor`、`dsp/RegisterManager`、`NoteConverter`、`ParameterConverter`、`EnvelopeGenerator`、`tests/standalone`、無効化されていた `MidiProcessorTest`）と `PluginProcessor` の旧 MIDI メンバーを削除
+
 ## バージョン 0.1.2 (2026-09-07)
 **パン設定の統合、キャリア限定のエンベロープ、Wide + Echo の修正、JUCE 9**
 

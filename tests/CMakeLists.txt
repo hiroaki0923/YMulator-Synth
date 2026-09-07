@@ -43,7 +43,6 @@ if(GTest_FOUND)
         ${CMAKE_SOURCE_DIR}/src/core/PatchWorkspace.cpp
         ${CMAKE_SOURCE_DIR}/src/core/MotionEngine.cpp
         ${CMAKE_SOURCE_DIR}/src/core/PatchPreview.cpp
-        ${CMAKE_SOURCE_DIR}/src/dsp/EnvelopeGenerator.cpp
         ${CMAKE_SOURCE_DIR}/src/core/VoiceManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/PresetManager.cpp
         ${CMAKE_SOURCE_DIR}/src/utils/VOPMParser.cpp
@@ -206,7 +205,6 @@ if(GTest_FOUND)
         unit/PatchWorkspaceTest.cpp
         integration/ComprehensiveIntegrationTest.cpp
         performance/PerformanceRegressionTest.cpp
-        # unit/MidiProcessorTest.cpp  # Temporarily disabled during refactoring
         ${COMMON_SOURCES}
     )
     

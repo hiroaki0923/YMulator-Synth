@@ -90,17 +90,12 @@ private:
     std::unique_ptr<ymulatorsynth::MacroMapper> macroMapper;
     std::unique_ptr<ymulatorsynth::PatchWorkspace> patchWorkspace;
     std::unique_ptr<ymulatorsynth::MotionEngine> motionEngine;
-    bool needsPresetReapply = false;
     
     // Per-instance initialisation state (must not be shared between instances)
     bool ymfmInitialized = false;
     uint32_t lastSampleRate = 0;
     bool hasLoggedFirstCall = false;
     int processBlockCallCounter = 0;
-    
-    // Legacy MIDI state (deprecated - TODO: remove after full migration)
-    std::unordered_map<int, juce::RangedAudioParameter*> ccToParameterMap;
-    int currentPitchBend = 8192;
     
     // State management delegation methods
     void loadPreset(int index) { if (stateManager) stateManager->loadPreset(index); }
@@ -115,20 +110,10 @@ private:
         if (parameterManager) parameterManager->applyPresetToYmfm(preset); 
     }
     
-    // Deprecated MIDI methods (for backward compatibility)
-    void setupCCMapping() {} // No-op - handled by MidiProcessor
-    void handleMidiCC(int ccNumber, int value) { if (midiProcessor) midiProcessor->handleMidiCC(ccNumber, value); }
-    void handlePitchBend(int pitchBendValue) { if (midiProcessor) midiProcessor->handlePitchBend(pitchBendValue); }
-    
     // Deprecated parameter layout method (for tests that might still call it)
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     
-    // Custom preset state access (removed - duplicated in public section)
-    
     // Audio processing helper methods
-    void processMidiMessages(juce::MidiBuffer& midiMessages);
-    void processMidiNoteOn(const juce::MidiMessage& message);
-    void processMidiNoteOff(const juce::MidiMessage& message);
     void generateAudioSamples(juce::AudioBuffer<float>& buffer);
     
     

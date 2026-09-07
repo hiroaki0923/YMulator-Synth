@@ -101,7 +101,7 @@ Quick パネル・Motion・CC の一式を 0.1.0 としてリリース。内容�
 
 **当時の残件とその後:**
 - processBlock 毎の全パラメータ再送信の差分化 → 0.1.0 のステップ 0 で実施
-- デバッグ残骸の除去、未使用 `NoteConverter` の整理 → 未実施
+- デバッグ残骸の除去、未使用 `NoteConverter` の整理 → 0.1.2 の後に未使用ソース（`NoteConverter`、`RegisterManager`、`ParameterConverter`、`EnvelopeGenerator`、`core/AudioProcessor`）ごと削除
 - feature/unison-engine-implementation（ローカルのみ）→ 未統合。ユニゾンは未実装
 
 ## 履歴（2025-06 の記録）

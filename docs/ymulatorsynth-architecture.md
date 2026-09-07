@@ -63,7 +63,7 @@ PluginEditor ── MainComponent ─┬─ ヘッダ: Quick/Detail ボタン、
 | `YMulatorSynthAudioProcessor` | 各コンポーネントの所有と配線、`processBlock`、プログラム/状態 API の委譲、.opm 読み書きとユーザーバンク保存 | `processBlock`, `prepareToPlay`, `setCurrentProgram`, `loadOpmFile`, `saveCurrentPresetAsOpm`, `saveCurrentPresetToUserBank`, `setCurrentPresetInBank`, `extractCurrentPreset` | PluginBasicTest, PluginProcessorComprehensiveTest, MultiInstanceTest, ComprehensiveIntegrationTest, AudioQualityTest |
 | `YMulatorSynthAudioProcessorEditor` | `MainComponent` を包むだけ | `resized` | (MainComponentTest 経由) |
 
-`PluginProcessor.h` には移行前の名残 (`ccToParameterMap`, `currentPitchBend`, `processMidiMessages` などの deprecated メソッド、`needsPresetReapply`) が残っているが、いずれも実際の経路では使われない。
+`PluginProcessor.h` に残っていた移行前の名残（旧 MIDI メンバーと deprecated メソッド）は 0.1.2 の後に削除した。
 
 ### src/core
 
@@ -80,7 +80,6 @@ PluginEditor ── MainComponent ─┬─ ヘッダ: Quick/Detail ボタン、
 | `PatchWorkspace` | 生成結果やスナップショットをツリーへ適用、Undo 点の記録 (生成前と TONE ノブのジェスチャ開始時)、A/B 切替、適用後の再アンカー。メッセージスレッド専用 | `generate`, `applyPatch`, `undo`, `selectSlot`, `capture`, `restore` | PatchWorkspaceTest |
 | `PatchPreview` | 私有の `YmfmWrapper` で C4 を 1 音レンダリング (OUTPUT スコープ用)。メッセージスレッド専用 | `render(preset, hold, total)`, `periodInSamples` | PatchPreviewTest |
 | `MotionEngine` | 64 サンプルごとにビブラート、Wide、ティンバー LFO、トレモロ、パン、ピッチ EG、スイープ、レベル EG、ポルタメント、エコー、アルペジオをレジスタ書き込みとして実行。ビートクロックはホスト再生中は ppq に追従、停止中は自走 | `bindParameters`, `prepare`, `setTransport`, `tick`, `beatsForDivision`, `currentOffset` | MotionEngineTest, PanMotionTest, WideTest, EchoTest, MonoArpTest |
-| `AudioProcessingInterface` / `AudioProcessor` | **使われていない。** `src/CMakeLists.txt` でコンパイルされるが、他のどのファイルからも include されない | – | なし |
 
 ### src/dsp
 
@@ -89,8 +88,6 @@ PluginEditor ── MainComponent ─┬─ ヘッダ: Quick/Detail ボタン、
 | `YmfmWrapper` (`YmfmWrapperInterface`, `ymfm::ymfm_interface`) | main chip と shadow chip の所有、レジスタキャッシュ、KC/KF 計算 (ベンド + モーションオフセット)、ベロシティとモーションを含む TL の合成書き込み、スロットマスク、Wide のデチューンとパン、Echo の遅延書き込みキュー、リサンプラ | `initialize`, `generateSamples`, `noteOn`, `noteOff`, `retuneChannel`, `setOperatorParameter`, `setAlgorithm`, `setFeedback`, `setPitchBend`, `setChannelPitchOffset`, `setChannelLevelMotion`, `setWide`, `setEcho`, `setChannelSlotMask`, `writeRegister`, `readCurrentRegister`, `readShadowRegister` | YmfmWrapperTest, RegisterGoldenTest, OperatorSlotOrderTest, SlotEnableTest, PitchAccuracyTest, VelocityTest, WideTest, EchoTest |
 | `YM2151Registers.h` | レジスタアドレス、マスク、`OPERATOR_SLOT_OFFSET`、`keyOnBitsForSlotMask`、`KEY_CODE_NOTE_TABLE` などの定数 | – | RegisterGoldenTest, OperatorSlotOrderTest |
 | `AlgorithmInfo.h` | 8 アルゴリズムのキャリア/モジュレータと結線 (`kAlgorithms`)。UI の役割表示、マクロ、ジェネレータが参照 | `algorithmInfo`, `isCarrier`, `targetOf` | AlgorithmInfoTest |
-| `EnvelopeGenerator` | **空のプレースホルダ。** 本体はなく、どこからも include されない | – | なし |
-| `RegisterManager`, `NoteConverter`, `ParameterConverter` | **使われていない。** プラグインにコンパイルされるが include 元がなく、同等の処理は `YmfmWrapper` 内にある | – | なし |
 
 ### src/ui
 
@@ -119,7 +116,7 @@ PluginEditor ── MainComponent ─┬─ ヘッダ: Quick/Detail ボタン、
 |---|---|---|---|
 | `PresetManager` (`PresetManagerInterface`) | ファクトリ音色 (`FACTORY_VOICES`)、同梱 Collection バンク、.opm 取り込み (ユーザーデータ下 `banks/` へコピー、`imported-banks.xml` に記録)、ユーザーバンク (`user-presets.xml`)。ユーザーデータは `userApplicationDataDirectory/YMulator-Synth`。テスト向けに `setUserDataDirectoryOverride` | `initialize`, `loadOPMFile`, `savePresetAsOPM`, `addUserPreset`, `getBanks`, `getGlobalPresetIndex`, `getUserDataDirectory` | PresetManagerTest |
 | `VOPMParser` | .opm のパースと出力、値の範囲検証 | `parseFile`, `parseContent`, `validate`, `voiceToString` | VOPMParserTest |
-| `ParameterIDs.h` | `ParamID::Global / Motion / Macro / Op / MIDI_CC / Validation`。`ParamID::Channel` (チャンネル別 pan/ams/pms) は定義だけで使用箇所がない | `Op::tl(n)` など | MidiCcMappingTest |
+| `ParameterIDs.h` | `ParamID::Global / Motion / Macro / Op / MIDI_CC / Validation`（チャンネル別パラメーターの名前空間は削除済み） | `Op::tl(n)` など | MidiCcMappingTest |
 | `Debug.h` | `CS_DBG`, `CS_FILE_DBG`, `CS_ASSERT_*`。`JUCE_DEBUG` でのみ有効 | – | – |
 
 ## 4. 音声処理の流れ
@@ -219,7 +216,7 @@ Detail ビュー:
 | `YMulatorSynthAU_*Tests` | gtest バイナリ (下表)。`BUILD_TESTS` かつ GTest が見つかったときのみ |
 | `YMulatorSynthAU_UISnapshot`, `YMulatorSynthAU_SongRender` | 開発ツール (`tools/`)。テストと同じ条件で構成される |
 
-オプション: `BUILD_TESTS` (ON)、`YMULATOR_COPY_PLUGIN` (ON、ビルド後にユーザーのプラグインフォルダへコピー)、`BUILD_STANDALONE` (OFF だが参照されておらず、Standalone は常にビルドされる)。JUCE は `cmake/JUCEConfig.cmake` の FetchContent (9.0.1) で取得し、Debug 構成では `JUCE_DEBUG=1` が付く。
+オプション: `BUILD_TESTS` (ON)、`YMULATOR_COPY_PLUGIN` (ON、ビルド後にユーザーのプラグインフォルダへコピー)。Standalone は `FORMATS` に含まれ常にビルドされる。JUCE は `cmake/JUCEConfig.cmake` の FetchContent (9.0.1) で取得し、Debug 構成では `JUCE_DEBUG=1` が付く。
 
 ### テストバイナリ (`tests/CMakeLists.txt`)
 
@@ -237,7 +234,7 @@ Detail ビュー:
 
 `tests/test_main.cpp` は `--gtest_list_tests` のときは JUCE を初期化せず、通常実行では `ScopedJuceInitialiser_GUI` を立て、`PresetManager::setUserDataDirectoryOverride` で一時ディレクトリにユーザーデータを隔離する。`tests/mocks/MockAudioProcessorHost` がホストの代わりになる。
 
-ビルドされないファイル: `tests/unit/MidiProcessorTest.cpp` (CMake でコメントアウト)、`tests/mocks/MockBinaryData.*`、`tests/standalone/` (存在しない `src/dsp/UnisonEngine.cpp` を参照しており、どこからも `add_subdirectory` されない)。
+ビルドされないファイル: `tests/mocks/MockBinaryData.h`（`PresetManager.cpp` から include されるヘッダー。対になる .cpp は無い）。
 
 ### CI (`.github/workflows/`)
 
